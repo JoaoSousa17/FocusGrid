@@ -99,7 +99,7 @@ export default function FocusAnalytics() {
   const handlePointerMove = useCallback((x, y) => {dragOffset.current = { x: x - touchStart.current.x, y: y - touchStart.current.y };setDragStyle({ transform: `translate(${dragOffset.current.x}px, ${dragOffset.current.y}px)`, transition: "none" });}, []);
   const handlePointerEnd = useCallback((x, y) => {
     setDragStyle({ transform: "translate(0, 0)", transition: "transform 0.3s ease-out" });
-    if (y - touchStart.current.y < -60) navigate("/focus");
+    if (y - touchStart.current.y > 60) navigate("/focus");
   }, [navigate]);
 
   return (
