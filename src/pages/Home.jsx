@@ -151,7 +151,7 @@ export default function Home() {
       <DirectionalArrow data-source-location="pages/Home:151:6" data-dynamic-content="true"
         direction="up" label="Explorar" icon={LayoutGrid}
         onClick={() => navigate("/coming-soon")}
-        color="bg-white border border-border text-muted-foreground hover:text-foreground hover:border-foreground/20" />
+        color="bg-[#F87171] text-white hover:bg-[#F25C5C] shadow-[#F87171]/30" />
         
       <DirectionalArrow data-source-location="pages/Home:156:6" data-dynamic-content="true"
         direction="down" label="FocusPomo" icon={Timer}
@@ -179,15 +179,9 @@ export default function Home() {
         <motion.div data-source-location="pages/Home:179:8" data-dynamic-content="true"
           animate={{ y: [0, -8, 0] }}
           transition={{ repeat: Infinity, duration: 3, ease: "easeInOut" }}
-          className="w-32 h-32 rounded-[40px] bg-gradient-to-br from-[#E87A5A] via-[#F0A080] to-[#F5C0A0] shadow-2xl shadow-[#E87A5A]/30 flex items-center justify-center mb-5 relative overflow-hidden">
-            
-          <motion.div data-source-location="pages/Home:184:10" data-dynamic-content="true"
-            className="absolute inset-0 bg-white/20"
-            animate={{ rotate: [0, 360], scale: [1, 1.5, 1] }}
-            transition={{ repeat: Infinity, duration: 8, ease: "linear" }}
-            style={{ borderRadius: "40%", width: "50%", height: "50%", top: "-20%", left: "-20%" }} />
-            
-          <span data-source-location="pages/Home:190:10" data-dynamic-content="false" className="text-6xl relative z-10 drop-shadow-sm">🍊</span>
+          className="w-32 h-32 rounded-[40px] shadow-2xl shadow-[#E87A5A]/30 flex items-center justify-center mb-5 relative overflow-hidden">
+
+          <img data-source-location="pages/Home:190:10" src="/logo.png" alt="FocusFlow" className="w-full h-full object-cover" />
         </motion.div>
 
         <motion.h1 data-source-location="pages/Home:193:8" data-dynamic-content="true"

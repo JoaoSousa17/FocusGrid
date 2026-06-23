@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, ArrowDown, Plus, X, Save, Palette, Sparkles, Send, Trash2, Bot, Loader2 } from "lucide-react";
+import { ArrowDown, ArrowUp, Plus, X, Save, Palette, Sparkles, Send, Trash2, Bot, Loader2 } from "lucide-react";
 import { Habit } from "@/api/entities";
 import { InvokeLLM } from "@/api/integrations";
 
@@ -149,11 +149,11 @@ Máximo 5 hábitos. Sê criativo e útil. Usa português de Portugal.`,
         {/* Header */}
         <div data-source-location="pages/HabitsManage:149:8" data-dynamic-content="true" className="bg-white border-b border-border px-4 py-4 flex items-center gap-3">
           <button data-source-location="pages/HabitsManage:150:10" data-dynamic-content="true" onClick={() => navigate("/habits")} className="w-10 h-10 rounded-2xl bg-white border border-border flex items-center justify-center text-muted-foreground hover:text-foreground transition-all">
-            <ArrowLeft data-source-location="pages/HabitsManage:151:12" data-dynamic-content="false" className="w-5 h-5" />
+            <ArrowDown data-source-location="pages/HabitsManage:151:12" data-dynamic-content="false" className="w-5 h-5" />
           </button>
           <div data-source-location="pages/HabitsManage:153:10" data-dynamic-content="false" className="flex-1">
             <h1 data-source-location="pages/HabitsManage:154:12" data-dynamic-content="false" className="text-xl font-bold text-foreground">Gerir Hábitos</h1>
-            <p data-source-location="pages/HabitsManage:155:12" data-dynamic-content="false" className="text-[10px] text-muted-foreground flex items-center gap-1">Swipe para cima <ArrowDown data-source-location="pages/HabitsManage:155:99" data-dynamic-content="false" className="w-3 h-3" /> voltar</p>
+            <p data-source-location="pages/HabitsManage:155:12" data-dynamic-content="false" className="text-[10px] text-muted-foreground flex items-center gap-1">Swipe para cima <ArrowUp data-source-location="pages/HabitsManage:155:99" data-dynamic-content="false" className="w-3 h-3" /> voltar</p>
           </div>
           <button data-source-location="pages/HabitsManage:157:10" data-dynamic-content="true" onClick={() => setShowAI(true)} className="px-4 py-2.5 rounded-2xl bg-gradient-to-r from-purple-500 to-indigo-500 text-white text-xs font-semibold flex items-center gap-1.5 shadow-md hover:shadow-lg transition-all">
             <Bot data-source-location="pages/HabitsManage:158:12" data-dynamic-content="false" className="w-4 h-4" /> IA
