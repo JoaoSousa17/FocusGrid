@@ -71,7 +71,7 @@ export default function TagPicker({ open, onClose, selectedTag, onSelect, multiS
       {open &&
       <motion.div data-source-location="components/TagPicker:72:8" data-dynamic-content="true"
       initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-      className="fixed inset-0 bg-black/20 backdrop-blur-sm z-50 flex items-end"
+      className="fixed inset-0 bg-black/20 backdrop-blur-sm z-[60] flex items-end"
       onClick={onClose}>
         
           <motion.div data-source-location="components/TagPicker:77:10" data-dynamic-content="true"
