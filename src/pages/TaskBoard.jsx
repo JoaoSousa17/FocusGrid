@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, Plus, Check, X, Search, Filter, Trash2, Tags, ChevronLeft, ChevronRight, GripVertical } from "lucide-react";
+import { ArrowRight, Plus, Check, X, Search, Filter, Trash2, Tags, ChevronLeft, ChevronRight, GripVertical } from "lucide-react";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import { Tag, Task } from "@/api/entities";
 import { startOfWeek, endOfWeek, addWeeks, subWeeks, format, eachDayOfInterval } from "date-fns";
@@ -409,7 +409,7 @@ export default function TaskBoard() {
           <div data-source-location="pages/TaskBoard:409:10" data-dynamic-content="true" className="flex items-center justify-between mb-3">
             <div data-source-location="pages/TaskBoard:410:12" data-dynamic-content="true" className="flex items-center gap-3">
               <button data-source-location="pages/TaskBoard:411:14" data-dynamic-content="true" onClick={() => navigate("/")} className="w-10 h-10 rounded-2xl bg-white border border-border flex items-center justify-center text-muted-foreground hover:text-foreground transition-all">
-                <ArrowLeft data-source-location="pages/TaskBoard:412:16" data-dynamic-content="false" className="w-5 h-5" />
+                <ArrowRight data-source-location="pages/TaskBoard:412:16" data-dynamic-content="false" className="w-5 h-5" />
               </button>
               <div data-source-location="pages/TaskBoard:414:14" data-dynamic-content="true">
                 <h1 data-source-location="pages/TaskBoard:415:16" data-dynamic-content="false" className="text-lg font-bold text-foreground">Tarefas</h1>

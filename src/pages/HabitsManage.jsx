@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, ArrowRight, Plus, X, Save, Palette, Sparkles, Send, Trash2, Bot, Loader2 } from "lucide-react";
+import { ArrowLeft, ArrowDown, Plus, X, Save, Palette, Sparkles, Send, Trash2, Bot, Loader2 } from "lucide-react";
 import { Habit } from "@/api/entities";
 import { InvokeLLM } from "@/api/integrations";
 
@@ -132,7 +132,7 @@ Máximo 5 hábitos. Sê criativo e útil. Usa português de Portugal.`,
   }, []);
   const handlePointerEnd = useCallback((x, y) => {
     setDragStyle({ transform: "translate(0, 0)", transition: "transform 0.3s ease-out" });
-    if (x - touchStart.current.x > 60) navigate("/habits");
+    if (y - touchStart.current.y < -60) navigate("/habits");
   }, [navigate]);
 
   return (
@@ -153,7 +153,7 @@ Máximo 5 hábitos. Sê criativo e útil. Usa português de Portugal.`,
           </button>
           <div data-source-location="pages/HabitsManage:153:10" data-dynamic-content="false" className="flex-1">
             <h1 data-source-location="pages/HabitsManage:154:12" data-dynamic-content="false" className="text-xl font-bold text-foreground">Gerir Hábitos</h1>
-            <p data-source-location="pages/HabitsManage:155:12" data-dynamic-content="false" className="text-[10px] text-muted-foreground flex items-center gap-1">Swipe direita <ArrowRight data-source-location="pages/HabitsManage:155:99" data-dynamic-content="false" className="w-3 h-3" /> voltar</p>
+            <p data-source-location="pages/HabitsManage:155:12" data-dynamic-content="false" className="text-[10px] text-muted-foreground flex items-center gap-1">Swipe para cima <ArrowDown data-source-location="pages/HabitsManage:155:99" data-dynamic-content="false" className="w-3 h-3" /> voltar</p>
           </div>
           <button data-source-location="pages/HabitsManage:157:10" data-dynamic-content="true" onClick={() => setShowAI(true)} className="px-4 py-2.5 rounded-2xl bg-gradient-to-r from-purple-500 to-indigo-500 text-white text-xs font-semibold flex items-center gap-1.5 shadow-md hover:shadow-lg transition-all">
             <Bot data-source-location="pages/HabitsManage:158:12" data-dynamic-content="false" className="w-4 h-4" /> IA

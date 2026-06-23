@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowLeft, TrendingUp, Clock, CheckCircle, Target, Zap } from "lucide-react";
+import { ArrowUp, TrendingUp, Clock, CheckCircle, Target, Zap } from "lucide-react";
 import { FocusSession } from "@/api/entities";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, Area, AreaChart } from "recharts";
 import { format, startOfWeek, endOfWeek, eachDayOfInterval, isWithinInterval, subWeeks } from "date-fns";
@@ -114,7 +114,7 @@ export default function FocusAnalytics() {
       <div data-source-location="pages/FocusAnalytics:114:6" data-dynamic-content="true" style={dragStyle} className="flex-1 flex flex-col">
         <div data-source-location="pages/FocusAnalytics:115:8" data-dynamic-content="true" className="bg-white border-b border-border px-4 py-3 flex items-center gap-3">
           <button data-source-location="pages/FocusAnalytics:116:10" data-dynamic-content="true" onClick={() => navigate("/focus")} className="w-10 h-10 rounded-2xl bg-white border border-border flex items-center justify-center text-muted-foreground hover:text-foreground transition-all">
-            <ArrowLeft data-source-location="pages/FocusAnalytics:117:12" data-dynamic-content="false" className="w-5 h-5" />
+            <ArrowUp data-source-location="pages/FocusAnalytics:117:12" data-dynamic-content="false" className="w-5 h-5" />
           </button>
           <div data-source-location="pages/FocusAnalytics:119:10" data-dynamic-content="true">
             <h1 data-source-location="pages/FocusAnalytics:120:12" data-dynamic-content="false" className="text-lg font-bold text-foreground">Analytics</h1>

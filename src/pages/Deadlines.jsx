@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, Plus, X, CalendarClock, MapPin, Globe, Clock, Check, Trash2, CalendarRange, Timer, ChevronDown, ChevronUp } from "lucide-react";
+import { ArrowRight, Plus, X, CalendarClock, MapPin, Globe, Clock, Check, Trash2, CalendarRange, Timer, ChevronDown, ChevronUp } from "lucide-react";
 import { Deadline, Event } from "@/api/entities";
 import { format, differenceInDays, differenceInMinutes, differenceInHours, isPast, isToday, parseISO } from "date-fns";
 import { pt } from "date-fns/locale";
@@ -371,7 +371,7 @@ export default function Deadlines() {
           <div data-source-location="pages/Deadlines:371:10" data-dynamic-content="true" className="flex items-center gap-3">
             <button data-source-location="pages/Deadlines:372:12" data-dynamic-content="true" onClick={() => navigate("/coming-soon")}
             className="w-10 h-10 rounded-2xl bg-white border border-border flex items-center justify-center text-muted-foreground hover:text-foreground hover:border-[#E87A5A]/30 shadow-sm transition-all">
-              <ArrowLeft data-source-location="pages/Deadlines:374:14" data-dynamic-content="false" className="w-5 h-5" />
+              <ArrowRight data-source-location="pages/Deadlines:374:14" data-dynamic-content="false" className="w-5 h-5" />
             </button>
             <div data-source-location="pages/Deadlines:376:12" data-dynamic-content="true">
               <h1 data-source-location="pages/Deadlines:377:14" data-dynamic-content="false" className="text-xl font-bold text-foreground">Controlo de Datas</h1>

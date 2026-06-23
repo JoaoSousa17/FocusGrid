@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowLeft, ArrowDown, Trophy, Flame, Star, Zap, Crown } from "lucide-react";
+import { ArrowUp, ArrowDown, Trophy, Flame, Star, Zap, Crown } from "lucide-react";
 import { HabitEntry } from "@/api/entities";
 import { format, eachDayOfInterval, startOfWeek, endOfWeek, subDays } from "date-fns";
 import { pt } from "date-fns/locale";
@@ -97,7 +97,7 @@ export default function HabitsRewards() {
       <div data-source-location="pages/HabitsRewards:97:6" data-dynamic-content="true" style={dragStyle} className="flex-1 flex flex-col">
         <div data-source-location="pages/HabitsRewards:98:8" data-dynamic-content="true" className="bg-white border-b border-border px-4 py-4 flex items-center gap-3">
           <button data-source-location="pages/HabitsRewards:99:10" data-dynamic-content="true" onClick={() => navigate("/habits")} className="w-10 h-10 rounded-2xl bg-white border border-border flex items-center justify-center text-muted-foreground hover:text-foreground transition-all">
-            <ArrowLeft data-source-location="pages/HabitsRewards:100:12" data-dynamic-content="false" className="w-5 h-5" />
+            <ArrowUp data-source-location="pages/HabitsRewards:100:12" data-dynamic-content="false" className="w-5 h-5" />
           </button>
           <div data-source-location="pages/HabitsRewards:102:10" data-dynamic-content="false">
             <h1 data-source-location="pages/HabitsRewards:103:12" data-dynamic-content="false" className="text-xl font-bold text-foreground">Conquistas</h1>

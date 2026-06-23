@@ -161,12 +161,12 @@ export default function Home() {
       <DirectionalArrow data-source-location="pages/Home:161:6" data-dynamic-content="true"
         direction="left" label="Tarefas" icon={ListTodo}
         onClick={() => navigate("/tasks")}
-        color="bg-white border border-border text-muted-foreground hover:text-foreground hover:border-foreground/20" />
-        
+        color="bg-[#3B82F6] text-white hover:bg-[#2F6FD8] shadow-[#3B82F6]/30" />
+
       <DirectionalArrow data-source-location="pages/Home:166:6" data-dynamic-content="true"
         direction="right" label="Hábitos" icon={Heart}
         onClick={() => navigate("/habits")}
-        color="bg-white border border-border text-muted-foreground hover:text-foreground hover:border-foreground/20" />
+        color="bg-[#8B5CF6] text-white hover:bg-[#7A4CE0] shadow-[#8B5CF6]/30" />
         
 
       {/* Center logo */}

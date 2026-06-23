@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowLeft, Bell, Clock, RefreshCw, Volume2, Check, Zap, CalendarDays } from "lucide-react";
+import { ArrowRight, Bell, Clock, RefreshCw, Volume2, Check, Zap, CalendarDays } from "lucide-react";
 import { auth } from "@/api/auth";
 import { supabase } from "@/api/supabaseClient";
 
@@ -101,7 +101,7 @@ export default function FocusSettings() {
       <div data-source-location="pages/FocusSettings:97:6" data-dynamic-content="true" style={dragStyle} className="flex-1 flex flex-col">
         <div data-source-location="pages/FocusSettings:98:8" data-dynamic-content="true" className="flex items-center gap-4 px-5 py-4">
           <button data-source-location="pages/FocusSettings:99:10" data-dynamic-content="true" onClick={() => navigate("/focus")} className="w-11 h-11 rounded-2xl bg-white border border-border flex items-center justify-center text-muted-foreground hover:text-foreground hover:border-[#E87A5A]/30 transition-all shadow-sm">
-            <ArrowLeft data-source-location="pages/FocusSettings:100:12" data-dynamic-content="false" className="w-5 h-5" />
+            <ArrowRight data-source-location="pages/FocusSettings:100:12" data-dynamic-content="false" className="w-5 h-5" />
           </button>
           <div data-source-location="pages/FocusSettings:102:10" data-dynamic-content="false">
             <h1 data-source-location="pages/FocusSettings:103:12" data-dynamic-content="false" className="text-xl font-bold text-foreground">Definições</h1>

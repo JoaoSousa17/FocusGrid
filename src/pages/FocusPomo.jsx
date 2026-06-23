@@ -139,30 +139,30 @@ export default function FocusPomo() {
 
         {/* Navigation arrows */}
         <div data-source-location="pages/FocusPomo:139:8" data-dynamic-content="true" className="absolute top-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-3">
-          <button data-source-location="pages/FocusPomo:140:10" data-dynamic-content="true" onClick={() => navigate("/")} className="w-8 h-8 rounded-full bg-white border border-border flex items-center justify-center text-[#E87A5A] shadow-sm hover:bg-[#E87A5A]/5 transition-all">
-            <ArrowUp data-source-location="pages/FocusPomo:141:12" data-dynamic-content="false" className="w-3.5 h-3.5" />
+          <button data-source-location="pages/FocusPomo:140:10" data-dynamic-content="true" onClick={() => navigate("/")} className="w-9 h-9 rounded-2xl bg-white border border-border flex items-center justify-center text-[#E87A5A] shadow-sm hover:bg-[#E87A5A]/5 transition-all">
+            <ArrowUp data-source-location="pages/FocusPomo:141:12" data-dynamic-content="false" className="w-4 h-4" />
           </button>
           <span data-source-location="pages/FocusPomo:143:10" data-dynamic-content="false" className="text-[10px] text-muted-foreground/50 hidden sm:block">Home</span>
         </div>
 
         <div data-source-location="pages/FocusPomo:146:8" data-dynamic-content="true" className="absolute top-1/2 -translate-y-1/2 right-4 z-20 flex items-center gap-2">
           <span data-source-location="pages/FocusPomo:147:10" data-dynamic-content="false" className="text-[10px] text-muted-foreground/50 whitespace-nowrap hidden sm:block">Calendário</span>
-          <button data-source-location="pages/FocusPomo:148:10" data-dynamic-content="true" onClick={() => navigate("/focus/calendar")} className="w-9 h-9 rounded-full bg-white border border-border flex items-center justify-center text-muted-foreground shadow-sm hover:text-foreground transition-all">
-            <ArrowRight data-source-location="pages/FocusPomo:149:12" data-dynamic-content="false" className="w-3.5 h-3.5" />
+          <button data-source-location="pages/FocusPomo:148:10" data-dynamic-content="true" onClick={() => navigate("/focus/calendar")} className="w-9 h-9 rounded-2xl bg-white border border-border flex items-center justify-center text-muted-foreground shadow-sm hover:text-foreground transition-all">
+            <ArrowRight data-source-location="pages/FocusPomo:149:12" data-dynamic-content="false" className="w-4 h-4" />
           </button>
         </div>
 
         <div data-source-location="pages/FocusPomo:153:8" data-dynamic-content="true" className="absolute top-1/2 -translate-y-1/2 left-4 z-20 flex items-center gap-2">
-          <button data-source-location="pages/FocusPomo:154:10" data-dynamic-content="true" onClick={() => navigate("/focus/settings")} className="w-9 h-9 rounded-full bg-white border border-border flex items-center justify-center text-muted-foreground shadow-sm hover:text-foreground transition-all">
-            <ArrowLeft data-source-location="pages/FocusPomo:155:12" data-dynamic-content="false" className="w-3.5 h-3.5" />
+          <button data-source-location="pages/FocusPomo:154:10" data-dynamic-content="true" onClick={() => navigate("/focus/settings")} className="w-9 h-9 rounded-2xl bg-white border border-border flex items-center justify-center text-muted-foreground shadow-sm hover:text-foreground transition-all">
+            <ArrowLeft data-source-location="pages/FocusPomo:155:12" data-dynamic-content="false" className="w-4 h-4" />
           </button>
           <span data-source-location="pages/FocusPomo:157:10" data-dynamic-content="false" className="text-[10px] text-muted-foreground/50 whitespace-nowrap hidden sm:block">Settings</span>
         </div>
 
         <div data-source-location="pages/FocusPomo:160:8" data-dynamic-content="true" className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center gap-1">
           <span data-source-location="pages/FocusPomo:161:10" data-dynamic-content="false" className="text-[10px] text-muted-foreground/50 hidden sm:block">Analytics</span>
-          <button data-source-location="pages/FocusPomo:162:10" data-dynamic-content="true" onClick={() => navigate("/focus/analytics")} className="w-8 h-8 rounded-full bg-white border border-border flex items-center justify-center text-muted-foreground shadow-sm hover:text-foreground transition-all">
-            <ArrowDown data-source-location="pages/FocusPomo:163:12" data-dynamic-content="false" className="w-3.5 h-3.5" />
+          <button data-source-location="pages/FocusPomo:162:10" data-dynamic-content="true" onClick={() => navigate("/focus/analytics")} className="w-9 h-9 rounded-2xl bg-white border border-border flex items-center justify-center text-muted-foreground shadow-sm hover:text-foreground transition-all">
+            <ArrowDown data-source-location="pages/FocusPomo:163:12" data-dynamic-content="false" className="w-4 h-4" />
           </button>
         </div>
 

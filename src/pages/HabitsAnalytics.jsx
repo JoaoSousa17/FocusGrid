@@ -88,7 +88,7 @@ export default function HabitsAnalytics() {
   }, []);
   const handlePointerEnd = useCallback((x, y) => {
     setDragStyle({ transform: "translate(0, 0)", transition: "transform 0.3s ease-out" });
-    if (x - touchStart.current.x < -60) navigate("/habits");
+    if (x - touchStart.current.x > 60) navigate("/habits");
   }, [navigate]);
 
   return (

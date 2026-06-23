@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowRight, Mic, MicOff, Loader2, Clock, Brain, X, SquareCheckBig, Sparkles, Upload, FileText, Download, CalendarRange, Link2, Check, ChevronDown } from "lucide-react";
+import { ArrowLeft, Mic, MicOff, Loader2, Clock, Brain, X, SquareCheckBig, Sparkles, Upload, FileText, Download, CalendarRange, Link2, Check, ChevronDown } from "lucide-react";
 import { Deadline, Event, MeetingRecording } from "@/api/entities";
 import { Core, InvokeLLM } from "@/api/integrations";
 import { format } from "date-fns";
@@ -382,7 +382,7 @@ ${result.transcript}
           <div data-source-location="pages/MeetingAI:381:10" data-dynamic-content="true" className="flex items-center gap-3">
             <button data-source-location="pages/MeetingAI:382:12" data-dynamic-content="true" onClick={() => navigate("/coming-soon")}
             className="w-10 h-10 rounded-2xl bg-white border border-border flex items-center justify-center text-muted-foreground hover:text-foreground hover:border-[#E87A5A]/30 shadow-sm transition-all">
-              <ArrowRight data-source-location="pages/MeetingAI:384:14" data-dynamic-content="false" className="w-5 h-5" />
+              <ArrowLeft data-source-location="pages/MeetingAI:384:14" data-dynamic-content="false" className="w-5 h-5" />
             </button>
             <div data-source-location="pages/MeetingAI:386:12" data-dynamic-content="false">
               <h1 data-source-location="pages/MeetingAI:387:14" data-dynamic-content="false" className="text-xl font-bold text-foreground">Reuniões IA</h1>
