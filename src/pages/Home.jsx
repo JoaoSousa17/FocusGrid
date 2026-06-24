@@ -181,7 +181,7 @@ export default function Home() {
           transition={{ repeat: Infinity, duration: 3, ease: "easeInOut" }}
           className="w-32 h-32 rounded-[40px] shadow-2xl shadow-[#E87A5A]/30 flex items-center justify-center mb-5 relative overflow-hidden">
 
-          <img data-source-location="pages/Home:190:10" src="/logo.png" alt="FocusFlow" className="w-full h-full object-cover" />
+          <img data-source-location="pages/Home:190:10" src="/logo.png" alt="FocusGrid" className="w-full h-full object-cover" />
         </motion.div>
 
         <motion.h1 data-source-location="pages/Home:193:8" data-dynamic-content="true"
@@ -193,7 +193,7 @@ export default function Home() {
           <span data-source-location="pages/Home:199:10" data-dynamic-content="false" className="bg-gradient-to-r from-[#E87A5A] to-[#D4694A] bg-clip-text text-transparent">
             Focus
           </span>
-          <span data-source-location="pages/Home:202:10" data-dynamic-content="false" className="text-foreground">Flow</span>
+          <span data-source-location="pages/Home:202:10" data-dynamic-content="false" className="text-foreground">Grid</span>
         </motion.h1>
 
         <motion.p data-source-location="pages/Home:205:8" data-dynamic-content="true"

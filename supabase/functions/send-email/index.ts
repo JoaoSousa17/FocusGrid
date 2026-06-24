@@ -3,7 +3,7 @@
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY")!;
-const FROM_DOMAIN = Deno.env.get("EMAIL_FROM") ?? "FocusFlow <noreply@focusflow.app>";
+const FROM_DOMAIN = Deno.env.get("EMAIL_FROM") ?? "FocusGrid <noreply@focusgrid.app>";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return corsResponse();
@@ -29,7 +29,7 @@ Deno.serve(async (req) => {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      from: from_name ? `${from_name} <noreply@focusflow.app>` : FROM_DOMAIN,
+      from: from_name ? `${from_name} <noreply@focusgrid.app>` : FROM_DOMAIN,
       to: Array.isArray(to) ? to : [to],
       subject,
       html: body,
