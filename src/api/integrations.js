@@ -64,3 +64,31 @@ export async function InvokeLLM({ prompt, response_json_schema, model }) {
   if (error) throw error;
   return response_json_schema ? data : data.result;
 }
+
+// Web Push: guarda/remove a subscrição do dispositivo atual.
+export async function savePushSubscription(subscription) {
+  const { error } = await supabase.functions.invoke("save-push-subscription", {
+    body: { action: "subscribe", subscription },
+  });
+  if (error) throw error;
+}
+
+export async function removePushSubscription(endpoint) {
+  await supabase.functions.invoke("save-push-subscription", {
+    body: { action: "unsubscribe", endpoint },
+  }).catch(() => {});
+}
+
+// Agenda (ou cancela) o aviso de fim de fase do Pomodoro no servidor, para
+// chegar como notificação mesmo que a app esteja fechada/em segundo plano.
+export async function schedulePomodoroNotification({ firesAt, phase, title, body }) {
+  await supabase.functions.invoke("schedule-pomodoro-notification", {
+    body: { action: "set", fires_at: firesAt, phase, title, body },
+  }).catch(() => {});
+}
+
+export async function clearPomodoroNotification() {
+  await supabase.functions.invoke("schedule-pomodoro-notification", {
+    body: { action: "clear" },
+  }).catch(() => {});
+}

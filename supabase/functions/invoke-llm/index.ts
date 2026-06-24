@@ -1,8 +1,8 @@
-// Edge Function: proxy seguro para o LLM (OpenAI gpt-4o-mini por default).
+// Edge Function: proxy seguro para o LLM (Groq, free tier — llama-3.3-70b-versatile por default).
 // Recebe { prompt, response_json_schema? } e devolve texto ou JSON estruturado.
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
-const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY")!;
+const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY")!;
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return corsResponse();
@@ -18,7 +18,7 @@ Deno.serve(async (req) => {
   const { data: { user }, error: authError } = await supabase.auth.getUser();
   if (authError || !user) return jsonResponse({ error: "invalid_token" }, 401);
 
-  const { prompt, response_json_schema, model = "gpt-4o-mini" } = await req.json();
+  const { prompt, response_json_schema, model = "llama-3.3-70b-versatile" } = await req.json();
   if (!prompt) return jsonResponse({ error: "missing_prompt" }, 400);
 
   let finalPrompt = prompt;
@@ -26,10 +26,10 @@ Deno.serve(async (req) => {
     finalPrompt += `\n\nResponde APENAS com JSON válido seguindo este schema: ${JSON.stringify(response_json_schema)}`;
   }
 
-  const completionRes = await fetch("https://api.openai.com/v1/chat/completions", {
+  const completionRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${OPENAI_API_KEY}`,
+      Authorization: `Bearer ${GROQ_API_KEY}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
