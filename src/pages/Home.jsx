@@ -1,8 +1,9 @@
-import { useRef, useCallback, useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { ArrowLeft, ArrowRight, ArrowUp, ArrowDown, ListTodo, Heart, Timer, LayoutGrid } from "lucide-react";
 import { auth } from "@/api/auth";
+import { useEdgeSwipeNav } from "@/hooks/useEdgeSwipeNav";
 
 function FloatingOrbs() {
   return (
