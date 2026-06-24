@@ -13,12 +13,20 @@ const SWIPE_THRESHOLD = 60;
 // "right" = swipe moving rightward (finger goes left -> right), must start near the LEFT edge.
 // "up" = swipe moving upward, must start near the BOTTOM edge.
 // "down" = swipe moving downward, must start near the TOP edge.
-export function useEdgeSwipeNav(directions = {}, { ignoreTarget } = {}) {
+//
+// edgeGated: most pages fill the whole screen and have no competing internal
+// horizontal/vertical gesture, so swipes are recognized starting anywhere.
+// Pass `true` (or an object like { left: true }) to require the gesture to
+// start near the matching edge — only needed when the page has its own
+// scroll/drag-and-drop content that would otherwise conflict (e.g. TaskBoard).
+export function useEdgeSwipeNav(directions = {}, { ignoreTarget, edgeGated } = {}) {
   const navigate = useNavigate();
   const touchStart = useRef({ x: 0, y: 0 });
   const armed = useRef({ left: false, right: false, up: false, down: false });
   const ignoring = useRef(false);
   const [dragStyle, setDragStyle] = useState({});
+
+  const isEdgeGated = (direction) => edgeGated === true || !!edgeGated?.[direction];
 
   const handlePointerStart = useCallback((x, y, target) => {
     if (ignoreTarget && target && ignoreTarget(target)) {
@@ -31,12 +39,12 @@ export function useEdgeSwipeNav(directions = {}, { ignoreTarget } = {}) {
     const w = window.innerWidth;
     const h = window.innerHeight;
     armed.current = {
-      left: !!directions.left && x > w - EDGE_ZONE,
-      right: !!directions.right && x < EDGE_ZONE,
-      up: !!directions.up && y > h - EDGE_ZONE,
-      down: !!directions.down && y < EDGE_ZONE
+      left: !!directions.left && (!isEdgeGated("left") || x > w - EDGE_ZONE),
+      right: !!directions.right && (!isEdgeGated("right") || x < EDGE_ZONE),
+      up: !!directions.up && (!isEdgeGated("up") || y > h - EDGE_ZONE),
+      down: !!directions.down && (!isEdgeGated("down") || y < EDGE_ZONE)
     };
-  }, [directions.left, directions.right, directions.up, directions.down, ignoreTarget]);
+  }, [directions.left, directions.right, directions.up, directions.down, ignoreTarget, edgeGated]);
 
   const handlePointerMove = useCallback((x, y) => {
     if (ignoring.current) return;

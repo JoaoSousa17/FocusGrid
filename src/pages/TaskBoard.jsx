@@ -92,7 +92,7 @@ export default function TaskBoard() {
   const [searchQuery, setSearchQuery] = useState("");
   const [filterPeriod, setFilterPeriod] = useState(null);
   const [filterCompleted, setFilterCompleted] = useState(null);
-  const { swipeHandlers, dragStyle } = useEdgeSwipeNav({ left: "/" });
+  const { swipeHandlers, dragStyle } = useEdgeSwipeNav({ left: "/" }, { edgeGated: true });
 
   const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 });
   const weekEnd = endOfWeek(currentDate, { weekStartsOn: 1 });
