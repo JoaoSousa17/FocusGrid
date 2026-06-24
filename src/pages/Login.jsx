@@ -170,6 +170,12 @@ export default function Login() {
             Criar conta
           </Link>
         </p>
+
+        <p className="text-center text-[10px] text-muted-foreground/50 mt-4">
+          <Link to="/terms" className="hover:text-muted-foreground hover:underline">Termos de Serviço</Link>
+          {" · "}
+          <Link to="/privacy" className="hover:text-muted-foreground hover:underline">Política de Privacidade</Link>
+        </p>
       </motion.div>
     </div>);
 
