@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ArrowDown, ArrowUp, Plus, X, Save, Palette, Sparkles, Send, Trash2, Bot, Loader2 } from "lucide-react";
 import { Habit } from "@/api/entities";
 import { InvokeLLM } from "@/api/integrations";
+import { useEdgeSwipeNav } from "@/hooks/useEdgeSwipeNav";
 
 const PRESET_COLORS = [
 { key: "blue", hex: "#3B82F6", label: "Azul" }, { key: "purple", hex: "#8B5CF6", label: "Roxo" },
@@ -32,9 +33,7 @@ export default function HabitsManage() {
   const [aiError, setAiError] = useState(null);
 
   // Swipe
-  const touchStart = useRef({ x: 0, y: 0 });
-  const dragOffset = useRef({ x: 0, y: 0 });
-  const [dragStyle, setDragStyle] = useState({});
+  const { swipeHandlers, dragStyle } = useEdgeSwipeNav({ up: "/habits" });
 
   const refresh = useCallback(() => {
     Habit.list("order", 100).then(setHabits).catch(() => setHabits([]));
@@ -125,25 +124,10 @@ Máximo 5 hábitos. Sê criativo e útil. Usa português de Portugal.`,
     refresh();
   };
 
-  const handlePointerStart = useCallback((x, y) => {touchStart.current = { x, y };dragOffset.current = { x: 0, y: 0 };setDragStyle({});}, []);
-  const handlePointerMove = useCallback((x, y) => {
-    dragOffset.current = { x: x - touchStart.current.x, y: y - touchStart.current.y };
-    setDragStyle({ transform: `translate(${dragOffset.current.x}px, ${dragOffset.current.y}px)`, transition: "none" });
-  }, []);
-  const handlePointerEnd = useCallback((x, y) => {
-    setDragStyle({ transform: "translate(0, 0)", transition: "transform 0.3s ease-out" });
-    if (y - touchStart.current.y < -60) navigate("/habits");
-  }, [navigate]);
-
   return (
     <div data-source-location="pages/HabitsManage:138:4" data-dynamic-content="true"
     className="min-h-screen bg-cream flex flex-col select-none"
-    onTouchStart={(e) => handlePointerStart(e.touches[0].clientX, e.touches[0].clientY)}
-    onTouchMove={(e) => handlePointerMove(e.touches[0].clientX, e.touches[0].clientY)}
-    onTouchEnd={(e) => handlePointerEnd(e.changedTouches[0]?.clientX || touchStart.current.x, e.changedTouches[0]?.clientY || touchStart.current.y)}
-    onMouseDown={(e) => handlePointerStart(e.clientX, e.clientY)}
-    onMouseMove={(e) => {if (e.buttons === 1) handlePointerMove(e.clientX, e.clientY);}}
-    onMouseUp={(e) => handlePointerEnd(e.clientX, e.clientY)}>
+    {...swipeHandlers}>
       
       <div data-source-location="pages/HabitsManage:147:6" data-dynamic-content="true" style={dragStyle} className="flex-1 flex flex-col">
         {/* Header */}

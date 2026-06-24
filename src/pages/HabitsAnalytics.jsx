@@ -6,6 +6,7 @@ import { Habit, HabitEntry } from "@/api/entities";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from "recharts";
 import { format, startOfWeek, endOfWeek, subWeeks, eachDayOfInterval, isWithinInterval } from "date-fns";
 import { pt } from "date-fns/locale";
+import { useEdgeSwipeNav } from "@/hooks/useEdgeSwipeNav";
 
 const PRESET_COLORS = ["#3B82F6", "#8B5CF6", "#10B981", "#F59E0B", "#F43F5E", "#14B8A6", "#6366F1", "#EC4899"];
 
@@ -14,9 +15,7 @@ export default function HabitsAnalytics() {
   const [entries, setEntries] = useState([]);
   const [habits, setHabits] = useState([]);
 
-  const touchStart = useRef({ x: 0, y: 0 });
-  const dragOffset = useRef({ x: 0, y: 0 });
-  const [dragStyle, setDragStyle] = useState({});
+  const { swipeHandlers, dragStyle } = useEdgeSwipeNav({ right: "/habits" });
 
   useEffect(() => {
     HabitEntry.list("-created_date", 500).then(setEntries).catch(() => setEntries([]));
@@ -81,25 +80,10 @@ export default function HabitsAnalytics() {
   const totalScore = entries.reduce((s, e) => s + (e.score || 0), 0);
   const totalCompletions = entries.length;
 
-  const handlePointerStart = useCallback((x, y) => {touchStart.current = { x, y };dragOffset.current = { x: 0, y: 0 };setDragStyle({});}, []);
-  const handlePointerMove = useCallback((x, y) => {
-    dragOffset.current = { x: x - touchStart.current.x, y: y - touchStart.current.y };
-    setDragStyle({ transform: `translate(${dragOffset.current.x}px, ${dragOffset.current.y}px)`, transition: "none" });
-  }, []);
-  const handlePointerEnd = useCallback((x, y) => {
-    setDragStyle({ transform: "translate(0, 0)", transition: "transform 0.3s ease-out" });
-    if (x - touchStart.current.x > 60) navigate("/habits");
-  }, [navigate]);
-
   return (
     <div data-source-location="pages/HabitsAnalytics:95:4" data-dynamic-content="true"
     className="min-h-screen bg-cream flex flex-col select-none"
-    onTouchStart={(e) => handlePointerStart(e.touches[0].clientX, e.touches[0].clientY)}
-    onTouchMove={(e) => handlePointerMove(e.touches[0].clientX, e.touches[0].clientY)}
-    onTouchEnd={(e) => handlePointerEnd(e.changedTouches[0]?.clientX || touchStart.current.x, e.changedTouches[0]?.clientY || touchStart.current.y)}
-    onMouseDown={(e) => handlePointerStart(e.clientX, e.clientY)}
-    onMouseMove={(e) => {if (e.buttons === 1) handlePointerMove(e.clientX, e.clientY);}}
-    onMouseUp={(e) => handlePointerEnd(e.clientX, e.clientY)}>
+    {...swipeHandlers}>
       
       <div data-source-location="pages/HabitsAnalytics:104:6" data-dynamic-content="true" style={dragStyle} className="flex-1 flex flex-col">
         <div data-source-location="pages/HabitsAnalytics:105:8" data-dynamic-content="true" className="bg-white border-b border-border px-4 py-4 flex items-center gap-3">

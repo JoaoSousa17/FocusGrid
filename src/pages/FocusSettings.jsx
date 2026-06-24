@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { ArrowRight, Bell, Clock, RefreshCw, Volume2, Check, Zap, CalendarDays } from "lucide-react";
 import { auth } from "@/api/auth";
 import { supabase } from "@/api/supabaseClient";
+import { useEdgeSwipeNav } from "@/hooks/useEdgeSwipeNav";
 
 const SOUNDS = [
 { key: "default", label: "Padrão", icon: "🔔" },
@@ -31,10 +32,10 @@ export default function FocusSettings() {
   const [orangeReset, setOrangeReset] = useState("weekly");
   const [weekStartsOn, setWeekStartsOn] = useState(1);
   const [saved, setSaved] = useState(false);
-  const touchStart = useRef({ x: 0, y: 0 });
-  const dragOffset = useRef({ x: 0, y: 0 });
-  const [dragStyle, setDragStyle] = useState({});
-  const ignoreSwipe = useRef(false);
+  const { swipeHandlers, dragStyle } = useEdgeSwipeNav(
+    { left: "/focus" },
+    { ignoreTarget: (target) => target.tagName === "INPUT" && target.type === "range" }
+  );
 
   useEffect(() => {
     auth.me().then((u) => {
@@ -61,27 +62,6 @@ export default function FocusSettings() {
     setTimeout(() => setSaved(false), 2000);
   };
 
-  const handlePointerStart = useCallback((x, y, target) => {
-    if (target && target.tagName === "INPUT" && target.type === "range") {
-      ignoreSwipe.current = true;
-      return;
-    }
-    ignoreSwipe.current = false;
-    touchStart.current = { x, y };
-    dragOffset.current = { x: 0, y: 0 };
-    setDragStyle({});
-  }, []);
-  const handlePointerMove = useCallback((x, y) => {
-    if (ignoreSwipe.current) return;
-    dragOffset.current = { x: x - touchStart.current.x, y: y - touchStart.current.y };
-    setDragStyle({ transform: `translate(${dragOffset.current.x}px, ${dragOffset.current.y}px)`, transition: "none" });
-  }, []);
-  const handlePointerEnd = useCallback((x, y) => {
-    if (ignoreSwipe.current) {ignoreSwipe.current = false;return;}
-    setDragStyle({ transform: "translate(0, 0)", transition: "transform 0.3s ease-out" });
-    if (x - touchStart.current.x < -60) navigate("/focus");
-  }, [navigate]);
-
   const tabs = [
   { key: "notifications", icon: Bell, label: "Notificações" },
   { key: "timer", icon: Clock, label: "Tempos" },
@@ -91,12 +71,7 @@ export default function FocusSettings() {
 
   return (
     <div data-source-location="pages/FocusSettings:89:4" data-dynamic-content="true" className="min-h-screen bg-cream flex flex-col select-none"
-    onTouchStart={(e) => handlePointerStart(e.touches[0].clientX, e.touches[0].clientY, e.target)}
-    onTouchMove={(e) => handlePointerMove(e.touches[0].clientX, e.touches[0].clientY)}
-    onTouchEnd={(e) => handlePointerEnd(e.changedTouches[0]?.clientX || touchStart.current.x, e.changedTouches[0]?.clientY || touchStart.current.y)}
-    onMouseDown={(e) => handlePointerStart(e.clientX, e.clientY, e.target)}
-    onMouseMove={(e) => {if (e.buttons === 1) handlePointerMove(e.clientX, e.clientY);}}
-    onMouseUp={(e) => handlePointerEnd(e.clientX, e.clientY)}>
+    {...swipeHandlers}>
       
       <div data-source-location="pages/FocusSettings:97:6" data-dynamic-content="true" style={dragStyle} className="flex-1 flex flex-col">
         <div data-source-location="pages/FocusSettings:98:8" data-dynamic-content="true" className="flex items-center gap-4 px-5 py-4">

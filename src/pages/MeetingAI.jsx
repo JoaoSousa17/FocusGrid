@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowLeft, Mic, MicOff, Loader2, Clock, Brain, X, SquareCheckBig, Sparkles, Upload, FileText, Download, CalendarRange, Link2, Check, ChevronDown } from "lucide-react";
@@ -6,6 +6,7 @@ import { Deadline, Event, MeetingRecording } from "@/api/entities";
 import { Core, InvokeLLM } from "@/api/integrations";
 import { format } from "date-fns";
 import { pt } from "date-fns/locale";
+import { useEdgeSwipeNav } from "@/hooks/useEdgeSwipeNav";
 
 function MindMapNode({ node, depth = 0, "data-collection-item-id": __dataCollectionItemId }) {
   const colors = ["#E87A5A", "#8B5CF6", "#3B82F6", "#10B981", "#F59E0B"];
@@ -178,9 +179,7 @@ export default function MeetingAI() {
   const mediaRecorder = useRef(null);
   const chunks = useRef([]);
   const timerRef = useRef(null);
-  const touchStart = useRef({ x: 0, y: 0 });
-  const dragOffset = useRef({ x: 0, y: 0 });
-  const [dragStyle, setDragStyle] = useState({});
+  const { swipeHandlers, dragStyle } = useEdgeSwipeNav({ right: "/coming-soon" });
 
   const refreshRecordings = () => {
     MeetingRecording.list("-created_date", 50).then(setRecordings).catch(() => {});
@@ -356,25 +355,9 @@ ${result.transcript}
 
   const formatTime = (s) => `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
 
-  const handlePointerStart = useCallback((x, y) => {touchStart.current = { x, y };dragOffset.current = { x: 0, y: 0 };setDragStyle({});}, []);
-  const handlePointerMove = useCallback((x, y) => {
-    dragOffset.current = { x: x - touchStart.current.x, y: y - touchStart.current.y };
-    setDragStyle({ transform: `translate(${dragOffset.current.x}px, ${dragOffset.current.y}px)`, transition: "none" });
-  }, []);
-  const handlePointerEnd = useCallback((x, y) => {
-    setDragStyle({ transform: "translate(0, 0)", transition: "transform 0.3s ease-out" });
-    const dx = x - touchStart.current.x;
-    if (Math.abs(dx) > 60 && dx > 0) navigate("/coming-soon");
-  }, [navigate]);
-
   return (
     <div data-source-location="pages/MeetingAI:370:4" data-dynamic-content="true" className="min-h-screen bg-cream flex flex-col select-none"
-    onTouchStart={(e) => handlePointerStart(e.touches[0].clientX, e.touches[0].clientY)}
-    onTouchMove={(e) => handlePointerMove(e.touches[0].clientX, e.touches[0].clientY)}
-    onTouchEnd={(e) => handlePointerEnd(e.changedTouches[0]?.clientX || touchStart.current.x, e.changedTouches[0]?.clientY || touchStart.current.y)}
-    onMouseDown={(e) => handlePointerStart(e.clientX, e.clientY)}
-    onMouseMove={(e) => {if (e.buttons === 1) handlePointerMove(e.clientX, e.clientY);}}
-    onMouseUp={(e) => handlePointerEnd(e.clientX, e.clientY)}>
+    {...swipeHandlers}>
       
       <div data-source-location="pages/MeetingAI:378:6" data-dynamic-content="true" style={dragStyle} className="flex-1 flex flex-col">
         {/* Header */}

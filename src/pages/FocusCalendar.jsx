@@ -6,6 +6,7 @@ import { Deadline, Event, FocusSession } from "@/api/entities";
 import { auth } from "@/api/auth";
 import { startOfWeek, endOfWeek, addWeeks, subWeeks, format, isWithinInterval, parseISO, isBefore, isAfter } from "date-fns";
 import { pt } from "date-fns/locale";
+import { useEdgeSwipeNav } from "@/hooks/useEdgeSwipeNav";
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
 const DAY_LABELS_MON = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"];
@@ -27,9 +28,7 @@ export default function FocusCalendar() {
   const [events, setEvents] = useState([]);
   const [selectedDay, setSelectedDay] = useState(null);
   const [weekStartsOn, setWeekStartsOn] = useState(1);
-  const touchStart = useRef({ x: 0, y: 0 });
-  const dragOffset = useRef({ x: 0, y: 0 });
-  const [dragStyle, setDragStyle] = useState({});
+  const { swipeHandlers, dragStyle } = useEdgeSwipeNav({ right: "/focus" });
 
   const weekStart = startOfWeek(currentDate, { weekStartsOn });
   const weekEnd = endOfWeek(currentDate, { weekStartsOn });
@@ -93,24 +92,9 @@ export default function FocusCalendar() {
   const goToday = () => setCurrentDate(new Date());
   const todayStr = format(new Date(), "yyyy-MM-dd");
 
-  const handlePointerStart = useCallback((x, y) => {touchStart.current = { x, y };dragOffset.current = { x: 0, y: 0 };setDragStyle({});}, []);
-  const handlePointerMove = useCallback((x, y) => {
-    dragOffset.current = { x: x - touchStart.current.x, y: y - touchStart.current.y };
-    setDragStyle({ transform: `translate(${dragOffset.current.x}px, ${dragOffset.current.y}px)`, transition: "none" });
-  }, []);
-  const handlePointerEnd = useCallback((x, y) => {
-    setDragStyle({ transform: "translate(0, 0)", transition: "transform 0.3s ease-out" });
-    if (x - touchStart.current.x > 60) navigate("/focus");
-  }, [navigate]);
-
   return (
     <div data-source-location="pages/FocusCalendar:105:4" data-dynamic-content="true" className="min-h-screen bg-cream flex flex-col select-none"
-    onTouchStart={(e) => handlePointerStart(e.touches[0].clientX, e.touches[0].clientY)}
-    onTouchMove={(e) => handlePointerMove(e.touches[0].clientX, e.touches[0].clientY)}
-    onTouchEnd={(e) => handlePointerEnd(e.changedTouches[0]?.clientX || touchStart.current.x, e.changedTouches[0]?.clientY || touchStart.current.y)}
-    onMouseDown={(e) => handlePointerStart(e.clientX, e.clientY)}
-    onMouseMove={(e) => {if (e.buttons === 1) handlePointerMove(e.clientX, e.clientY);}}
-    onMouseUp={(e) => handlePointerEnd(e.clientX, e.clientY)}>
+    {...swipeHandlers}>
       
       <div data-source-location="pages/FocusCalendar:113:6" data-dynamic-content="true" style={dragStyle} className="flex-1 flex flex-col">
         {/* Header */}

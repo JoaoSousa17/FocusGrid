@@ -6,6 +6,7 @@ import TetrisGrid from "@/components/habits/TetrisGrid";
 import { Habit, HabitEntry } from "@/api/entities";
 import { format, startOfWeek, isToday as isTodayFn } from "date-fns";
 import { pt } from "date-fns/locale";
+import { useEdgeSwipeNav } from "@/hooks/useEdgeSwipeNav";
 
 const PRESET_COLORS = [
 { key: "blue", hex: "#3B82F6" }, { key: "purple", hex: "#8B5CF6" },
@@ -20,9 +21,7 @@ export default function Habits() {
   const navigate = useNavigate();
   const [habits, setHabits] = useState([]);
   const [entries, setEntries] = useState([]);
-  const touchStart = useRef({ x: 0, y: 0 });
-  const dragOffset = useRef({ x: 0, y: 0 });
-  const [dragStyle, setDragStyle] = useState({});
+  const { swipeHandlers, dragStyle } = useEdgeSwipeNav({ left: "/habits/analytics", right: "/", down: "/habits/manage", up: "/habits/rewards" });
   const [animating, setAnimating] = useState(null);
 
   const todayStr = format(new Date(), "yyyy-MM-dd");
@@ -63,37 +62,10 @@ export default function Habits() {
     }
   };
 
-  // Swipe navigation
-  const handlePointerStart = useCallback((x, y) => {touchStart.current = { x, y };dragOffset.current = { x: 0, y: 0 };setDragStyle({});}, []);
-  const handlePointerMove = useCallback((x, y) => {
-    dragOffset.current = { x: x - touchStart.current.x, y: y - touchStart.current.y };
-    setDragStyle({ transform: `translate(${dragOffset.current.x}px, ${dragOffset.current.y}px)`, transition: "none" });
-  }, []);
-  const handlePointerEnd = useCallback((x, y) => {
-    setDragStyle({ transform: "translate(0, 0)", transition: "transform 0.3s ease-out" });
-    const dx = x - touchStart.current.x;
-    const dy = y - touchStart.current.y;
-    const absDx = Math.abs(dx);
-    const absDy = Math.abs(dy);
-    if (absDx < 40 && absDy < 40) return;
-    if (absDx > absDy) {
-      if (dx < -60) navigate("/habits/analytics");else
-      if (dx > 60) navigate("/");
-    } else {
-      if (dy > 60) navigate("/habits/manage");else
-      if (dy < -60) navigate("/habits/rewards");
-    }
-  }, [navigate]);
-
   return (
     <div data-source-location="pages/Habits:89:4" data-dynamic-content="true"
     className="min-h-screen bg-cream flex flex-col select-none"
-    onTouchStart={(e) => handlePointerStart(e.touches[0].clientX, e.touches[0].clientY)}
-    onTouchMove={(e) => handlePointerMove(e.touches[0].clientX, e.touches[0].clientY)}
-    onTouchEnd={(e) => handlePointerEnd(e.changedTouches[0]?.clientX || touchStart.current.x, e.changedTouches[0]?.clientY || touchStart.current.y)}
-    onMouseDown={(e) => handlePointerStart(e.clientX, e.clientY)}
-    onMouseMove={(e) => {if (e.buttons === 1) handlePointerMove(e.clientX, e.clientY);}}
-    onMouseUp={(e) => handlePointerEnd(e.clientX, e.clientY)}>
+    {...swipeHandlers}>
       
       <div data-source-location="pages/Habits:98:6" data-dynamic-content="true" style={dragStyle} className="flex-1 flex flex-col">
         {/* Header with score */}

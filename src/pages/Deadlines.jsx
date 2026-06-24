@@ -5,6 +5,7 @@ import { ArrowRight, Plus, X, CalendarClock, MapPin, Globe, Clock, Check, Trash2
 import { Deadline, Event } from "@/api/entities";
 import { format, differenceInDays, differenceInMinutes, differenceInHours, isPast, isToday, parseISO } from "date-fns";
 import { pt } from "date-fns/locale";
+import { useEdgeSwipeNav } from "@/hooks/useEdgeSwipeNav";
 
 const PRESET_COLORS = [
 { key: "blue", hex: "#3B82F6" }, { key: "purple", hex: "#8B5CF6" },
@@ -298,9 +299,7 @@ export default function Deadlines() {
   const [events, setEvents] = useState([]);
   const [activeTab, setActiveTab] = useState("prazos");
   const [showForm, setShowForm] = useState(false);
-  const touchStart = useRef({ x: 0, y: 0 });
-  const dragOffset = useRef({ x: 0, y: 0 });
-  const [dragStyle, setDragStyle] = useState({});
+  const { swipeHandlers, dragStyle } = useEdgeSwipeNav({ left: "/coming-soon" });
 
   const refresh = () => {
     Deadline.list("-deadline", 100).then(setDeadlines).catch(() => setDeadlines([]));
@@ -341,29 +340,13 @@ export default function Deadlines() {
   const pastEvents = events.filter((i) => isPast(new Date(i.end_datetime))).
   sort((a, b) => new Date(b.start_datetime) - new Date(a.start_datetime));
 
-  const handlePointerStart = useCallback((x, y) => {touchStart.current = { x, y };dragOffset.current = { x: 0, y: 0 };setDragStyle({});}, []);
-  const handlePointerMove = useCallback((x, y) => {
-    dragOffset.current = { x: x - touchStart.current.x, y: y - touchStart.current.y };
-    setDragStyle({ transform: `translate(${dragOffset.current.x}px, ${dragOffset.current.y}px)`, transition: "none" });
-  }, []);
-  const handlePointerEnd = useCallback((x, y) => {
-    setDragStyle({ transform: "translate(0, 0)", transition: "transform 0.3s ease-out" });
-    const dx = x - touchStart.current.x;
-    if (Math.abs(dx) > 60 && dx < 0) navigate("/coming-soon");
-  }, [navigate]);
-
   const isEmpty = activeTab === "prazos" ?
   upcomingDeadlines.length === 0 && expiredDeadlines.length === 0 :
   upcomingEvents.length === 0 && pastEvents.length === 0;
 
   return (
     <div data-source-location="pages/Deadlines:360:4" data-dynamic-content="true" className="min-h-screen bg-cream flex flex-col select-none"
-    onTouchStart={(e) => handlePointerStart(e.touches[0].clientX, e.touches[0].clientY)}
-    onTouchMove={(e) => handlePointerMove(e.touches[0].clientX, e.touches[0].clientY)}
-    onTouchEnd={(e) => handlePointerEnd(e.changedTouches[0]?.clientX || touchStart.current.x, e.changedTouches[0]?.clientY || touchStart.current.y)}
-    onMouseDown={(e) => handlePointerStart(e.clientX, e.clientY)}
-    onMouseMove={(e) => {if (e.buttons === 1) handlePointerMove(e.clientX, e.clientY);}}
-    onMouseUp={(e) => handlePointerEnd(e.clientX, e.clientY)}>
+    {...swipeHandlers}>
       
       <div data-source-location="pages/Deadlines:368:6" data-dynamic-content="true" style={dragStyle} className="flex-1 flex flex-col">
         {/* Header */}

@@ -68,81 +68,18 @@ function DirectionalArrow({ direction, label, onClick, icon: Icon, color, "data-
 
 export default function Home() {
   const navigate = useNavigate();
-  const touchStart = useRef({ x: 0, y: 0 });
   const [swipeHint, setSwipeHint] = useState(null);
   const [user, setUser] = useState(null);
-  const dragOffset = useRef({ x: 0, y: 0 });
-  const [dragStyle, setDragStyle] = useState({});
+  const { swipeHandlers, dragStyle } = useEdgeSwipeNav({ left: "/habits", right: "/tasks", up: "/focus", down: "/coming-soon" });
 
   useEffect(() => {
     auth.me().then(setUser).catch(() => {});
   }, []);
 
-  const handlePointerStart = useCallback((x, y) => {
-    touchStart.current = { x, y };
-    dragOffset.current = { x: 0, y: 0 };
-    setDragStyle({});
-  }, []);
-
-  const handlePointerMove = useCallback((x, y) => {
-    dragOffset.current = { x: x - touchStart.current.x, y: y - touchStart.current.y };
-    setDragStyle({
-      transform: `translate(${dragOffset.current.x}px, ${dragOffset.current.y}px)`,
-      transition: "none"
-    });
-  }, []);
-
-  const handlePointerEnd = useCallback((x, y) => {
-    setDragStyle({ transform: "translate(0, 0)", transition: "transform 0.3s ease-out" });
-    const dx = x - touchStart.current.x;
-    const dy = y - touchStart.current.y;
-    const absDx = Math.abs(dx);
-    const absDy = Math.abs(dy);
-
-    if (absDx < 40 && absDy < 40) return;
-
-    if (absDx > absDy) {
-      if (dx < -60) navigate("/habits");else
-      if (dx > 60) navigate("/tasks");
-    } else {
-      if (dy < -60) navigate("/focus");else
-      if (dy > 60) navigate("/coming-soon");
-    }
-  }, [navigate]);
-
-  const handleTouchStart = useCallback((e) => {
-    handlePointerStart(e.touches[0].clientX, e.touches[0].clientY);
-  }, [handlePointerStart]);
-
-  const handleTouchMove = useCallback((e) => {
-    handlePointerMove(e.touches[0].clientX, e.touches[0].clientY);
-  }, [handlePointerMove]);
-
-  const handleTouchEnd = useCallback((e) => {
-    handlePointerEnd(e.changedTouches[0]?.clientX || touchStart.current.x, e.changedTouches[0]?.clientY || touchStart.current.y);
-  }, [handlePointerEnd]);
-
-  const handleMouseDown = useCallback((e) => {
-    handlePointerStart(e.clientX, e.clientY);
-  }, [handlePointerStart]);
-
-  const handleMouseMove = useCallback((e) => {
-    if (e.buttons === 1) handlePointerMove(e.clientX, e.clientY);
-  }, [handlePointerMove]);
-
-  const handleMouseUp = useCallback((e) => {
-    handlePointerEnd(e.clientX, e.clientY);
-  }, [handlePointerEnd]);
-
   return (
     <div data-source-location="pages/Home:138:4" data-dynamic-content="true"
     className="h-screen w-screen flex items-center justify-center bg-cream overflow-hidden relative select-none"
-    onTouchStart={handleTouchStart}
-    onTouchMove={handleTouchMove}
-    onTouchEnd={handleTouchEnd}
-    onMouseDown={handleMouseDown}
-    onMouseMove={handleMouseMove}
-    onMouseUp={handleMouseUp}>
+    {...swipeHandlers}>
       
       <div data-source-location="pages/Home:147:6" data-dynamic-content="true" style={dragStyle} className="flex-1 flex items-center justify-center w-full h-full">
       <FloatingOrbs data-source-location="pages/Home:148:6" data-dynamic-content="false" />
