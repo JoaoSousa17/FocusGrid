@@ -5,6 +5,40 @@ import { ArrowRight, Bell, Clock, RefreshCw, Volume2, Check, Zap, CalendarDays }
 import { auth } from "@/api/auth";
 import { supabase } from "@/api/supabaseClient";
 import { useEdgeSwipeNav } from "@/hooks/useEdgeSwipeNav";
+import { savePushSubscription, removePushSubscription } from "@/api/integrations";
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const rawData = atob(base64);
+  return Uint8Array.from([...rawData].map((c) => c.charCodeAt(0)));
+}
+
+async function enablePushNotifications() {
+  if (!("serviceWorker" in navigator) || !("PushManager" in window)) return;
+  const permission = await Notification.requestPermission();
+  if (permission !== "granted") return;
+
+  const registration = await navigator.serviceWorker.ready;
+  let subscription = await registration.pushManager.getSubscription();
+  if (!subscription) {
+    subscription = await registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(import.meta.env.VITE_VAPID_PUBLIC_KEY),
+    });
+  }
+  await savePushSubscription(subscription.toJSON());
+}
+
+async function disablePushNotifications() {
+  if (!("serviceWorker" in navigator)) return;
+  const registration = await navigator.serviceWorker.ready;
+  const subscription = await registration.pushManager.getSubscription();
+  if (subscription) {
+    await removePushSubscription(subscription.endpoint);
+    await subscription.unsubscribe();
+  }
+}
 
 const SOUNDS = [
 { key: "default", label: "Padrão", icon: "🔔" },
@@ -49,6 +83,15 @@ export default function FocusSettings() {
       if (meta.week_starts_on !== undefined) setWeekStartsOn(meta.week_starts_on);
     }).catch(() => {});
   }, []);
+
+  const toggleNotifications = (next) => {
+    setNotifications(next);
+    if (next) {
+      enablePushNotifications().catch(() => {});
+    } else {
+      disablePushNotifications().catch(() => {});
+    }
+  };
 
   const save = async () => {
     await supabase.auth.updateUser({
@@ -108,7 +151,7 @@ export default function FocusSettings() {
                     <h3 data-source-location="pages/FocusSettings:129:20" data-dynamic-content="false" className="font-semibold text-sm text-foreground flex items-center gap-2">🔔 Alertas do Timer</h3>
                     <p data-source-location="pages/FocusSettings:130:20" data-dynamic-content="false" className="text-xs text-muted-foreground mt-1">Notificações quando o foco ou pausa terminar</p>
                   </div>
-                  <button data-source-location="pages/FocusSettings:132:18" data-dynamic-content="true" onClick={() => setNotifications(!notifications)}
+                  <button data-source-location="pages/FocusSettings:132:18" data-dynamic-content="true" onClick={() => toggleNotifications(!notifications)}
                 className={`relative w-14 h-8 rounded-full transition-all duration-300 ${notifications ? "bg-[#E87A5A] shadow-md shadow-[#E87A5A]/30" : "bg-slate-300"}`}>
                     <motion.div data-source-location="pages/FocusSettings:134:20" data-dynamic-content="true" animate={{ x: notifications ? 26 : 2 }} transition={{ type: "spring", stiffness: 500, damping: 30 }}
                   className="absolute top-1 w-6 h-6 rounded-full bg-white shadow-md" />

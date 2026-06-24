@@ -1,9 +1,9 @@
-// Edge Function: transcreve áudio com OpenAI Whisper.
+// Edge Function: transcreve áudio com Groq Whisper (whisper-large-v3-turbo, free tier).
 // Recebe { audio_url } e devolve { transcript }.
-// A OPENAI_API_KEY vive só aqui no servidor — nunca no frontend.
+// A GROQ_API_KEY vive só aqui no servidor — nunca no frontend.
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
-const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY")!;
+const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY")!;
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return corsResponse();
@@ -28,11 +28,11 @@ Deno.serve(async (req) => {
 
   const form = new FormData();
   form.append("file", audioBlob, "audio.webm");
-  form.append("model", "whisper-1");
+  form.append("model", "whisper-large-v3-turbo");
 
-  const whisperRes = await fetch("https://api.openai.com/v1/audio/transcriptions", {
+  const whisperRes = await fetch("https://api.groq.com/openai/v1/audio/transcriptions", {
     method: "POST",
-    headers: { Authorization: `Bearer ${OPENAI_API_KEY}` },
+    headers: { Authorization: `Bearer ${GROQ_API_KEY}` },
     body: form,
   });
 
