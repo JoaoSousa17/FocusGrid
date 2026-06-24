@@ -7,6 +7,7 @@ import { Tag, Task } from "@/api/entities";
 import { startOfWeek, endOfWeek, addWeeks, subWeeks, format, eachDayOfInterval } from "date-fns";
 import { pt } from "date-fns/locale";
 import TagPicker from "@/components/TagPicker";
+import { useEdgeSwipeNav } from "@/hooks/useEdgeSwipeNav";
 
 const DAY_LABELS = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"];
 const DAY_KEYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
@@ -91,9 +92,7 @@ export default function TaskBoard() {
   const [searchQuery, setSearchQuery] = useState("");
   const [filterPeriod, setFilterPeriod] = useState(null);
   const [filterCompleted, setFilterCompleted] = useState(null);
-  const touchStart = useRef({ x: 0, y: 0 });
-  const dragOffset = useRef({ x: 0, y: 0 });
-  const [dragStyle, setDragStyle] = useState({});
+  const { swipeHandlers, dragStyle } = useEdgeSwipeNav({ left: "/" });
 
   const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 });
   const weekEnd = endOfWeek(currentDate, { weekStartsOn: 1 });
@@ -200,17 +199,6 @@ export default function TaskBoard() {
 
   const prevWeek = () => setCurrentDate(subWeeks(currentDate, 1));
   const nextWeek = () => setCurrentDate(addWeeks(currentDate, 1));
-
-  const handlePointerStart = useCallback((x, y) => {touchStart.current = { x, y };dragOffset.current = { x: 0, y: 0 };setDragStyle({});}, []);
-  const handlePointerMove = useCallback((x, y) => {
-    dragOffset.current = { x: x - touchStart.current.x, y: y - touchStart.current.y };
-    setDragStyle({ transform: `translate(${dragOffset.current.x}px, ${dragOffset.current.y}px)`, transition: "none" });
-  }, []);
-  const handlePointerEnd = useCallback((x, y) => {
-    setDragStyle({ transform: "translate(0, 0)", transition: "transform 0.3s ease-out" });
-    const dx = x - touchStart.current.x;
-    if (Math.abs(dx) > 40 && dx < -60) navigate("/");
-  }, [navigate]);
 
   const onDragEnd = async (result) => {
     const { source, destination, draggableId } = result;
@@ -396,12 +384,7 @@ export default function TaskBoard() {
   return (
     <div data-source-location="pages/TaskBoard:397:4" data-dynamic-content="true"
     className="min-h-screen bg-cream flex flex-col select-none"
-    onTouchStart={(e) => handlePointerStart(e.touches[0].clientX, e.touches[0].clientY)}
-    onTouchMove={(e) => handlePointerMove(e.touches[0].clientX, e.touches[0].clientY)}
-    onTouchEnd={(e) => handlePointerEnd(e.changedTouches[0]?.clientX || touchStart.current.x, e.changedTouches[0]?.clientY || touchStart.current.y)}
-    onMouseDown={(e) => handlePointerStart(e.clientX, e.clientY)}
-    onMouseMove={(e) => {if (e.buttons === 1) handlePointerMove(e.clientX, e.clientY);}}
-    onMouseUp={(e) => handlePointerEnd(e.clientX, e.clientY)}>
+    {...swipeHandlers}>
       
       <div data-source-location="pages/TaskBoard:406:6" data-dynamic-content="true" style={dragStyle} className="flex-1 flex flex-col">
         {/* Header */}

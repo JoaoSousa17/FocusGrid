@@ -6,6 +6,7 @@ import { FocusSession } from "@/api/entities";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, Area, AreaChart } from "recharts";
 import { format, startOfWeek, endOfWeek, eachDayOfInterval, isWithinInterval, subWeeks } from "date-fns";
 import { pt } from "date-fns/locale";
+import { useEdgeSwipeNav } from "@/hooks/useEdgeSwipeNav";
 
 const DAY_LABELS_SHORT = ["S", "T", "Q", "Q", "S", "S", "D"];
 
@@ -18,9 +19,7 @@ const TAG_COLORS_CHART = {
 export default function FocusAnalytics() {
   const navigate = useNavigate();
   const [sessions, setSessions] = useState([]);
-  const touchStart = useRef({ x: 0, y: 0 });
-  const dragOffset = useRef({ x: 0, y: 0 });
-  const [dragStyle, setDragStyle] = useState({});
+  const { swipeHandlers, dragStyle } = useEdgeSwipeNav({ down: "/focus" });
 
   useEffect(() => {
     FocusSession.list("-created_date", 500).then(setSessions).catch(() => setSessions([]));
@@ -95,21 +94,9 @@ export default function FocusAnalytics() {
     return s;
   }, [completedFocus, today]);
 
-  const handlePointerStart = useCallback((x, y) => {touchStart.current = { x, y };dragOffset.current = { x: 0, y: 0 };setDragStyle({});}, []);
-  const handlePointerMove = useCallback((x, y) => {dragOffset.current = { x: x - touchStart.current.x, y: y - touchStart.current.y };setDragStyle({ transform: `translate(${dragOffset.current.x}px, ${dragOffset.current.y}px)`, transition: "none" });}, []);
-  const handlePointerEnd = useCallback((x, y) => {
-    setDragStyle({ transform: "translate(0, 0)", transition: "transform 0.3s ease-out" });
-    if (y - touchStart.current.y > 60) navigate("/focus");
-  }, [navigate]);
-
   return (
     <div data-source-location="pages/FocusAnalytics:106:4" data-dynamic-content="true" className="min-h-screen bg-cream flex flex-col select-none"
-    onTouchStart={(e) => handlePointerStart(e.touches[0].clientX, e.touches[0].clientY)}
-    onTouchMove={(e) => handlePointerMove(e.touches[0].clientX, e.touches[0].clientY)}
-    onTouchEnd={(e) => handlePointerEnd(e.changedTouches[0]?.clientX || touchStart.current.x, e.changedTouches[0]?.clientY || touchStart.current.y)}
-    onMouseDown={(e) => handlePointerStart(e.clientX, e.clientY)}
-    onMouseMove={(e) => {if (e.buttons === 1) handlePointerMove(e.clientX, e.clientY);}}
-    onMouseUp={(e) => handlePointerEnd(e.clientX, e.clientY)}>
+    {...swipeHandlers}>
       
       <div data-source-location="pages/FocusAnalytics:114:6" data-dynamic-content="true" style={dragStyle} className="flex-1 flex flex-col">
         <div data-source-location="pages/FocusAnalytics:115:8" data-dynamic-content="true" className="bg-white border-b border-border px-4 py-3 flex items-center gap-3">

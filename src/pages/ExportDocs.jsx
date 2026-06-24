@@ -390,11 +390,13 @@ A app implementa navegação por swipe (touch + mouse), seguindo uma grelha dire
 No FocusPomo:
 ← Configurações | → Calendário | ↑ Home | ↓ Analytics
 
-O sistema usa refs para tracking de coordenadas:
-touchStart.current = {x, y}
-dragOffset.current = {x, y}
+Hook partilhado: useEdgeSwipeNav (src/hooks/useEdgeSwipeNav.js)
+O gesto só é reconhecido como navegação se começar encostado à margem
+correspondente à direção (ex: swipe para a esquerda só navega se o toque
+começar junto à margem direita do ecrã). Caso contrário é tratado como
+arrasto normal de conteúdo (scroll, drag-and-drop, etc).
 
-Threshold de swipe: 60px mínimo
+Zona de margem: 60px | Threshold de swipe: 60px mínimo
 Feedback visual: dragStyle transforma o container durante o arrasto.
 `
 },

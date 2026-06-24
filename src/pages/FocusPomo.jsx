@@ -8,6 +8,7 @@ import { useFocusTimer } from "@/context/FocusTimerContext";
 import FocusTimer from "@/components/FocusTimer";
 import TagPicker from "@/components/TagPicker";
 import OrangeCanvas from "@/components/OrangeCanvas";
+import { useEdgeSwipeNav } from "@/hooks/useEdgeSwipeNav";
 
 const TAG_COLORS = {
   blue: "bg-blue-100 text-blue-700", purple: "bg-purple-100 text-purple-700",
@@ -19,9 +20,7 @@ const TAG_COLORS = {
 export default function FocusPomo() {
   const navigate = useNavigate();
   const buttonRef = useRef(null);
-  const touchStart = useRef({ x: 0, y: 0 });
-  const dragOffset = useRef({ x: 0, y: 0 });
-  const [dragStyle, setDragStyle] = useState({});
+  const { swipeHandlers, dragStyle } = useEdgeSwipeNav({ left: "/focus/calendar", right: "/focus/settings", up: "/focus/analytics", down: "/" });
 
   const {
     phase, cycleIndex, totalSeconds, remainingSeconds, isRunning,
@@ -92,46 +91,10 @@ export default function FocusPomo() {
   const tagColorClass = selectedTag ? TAG_COLORS[selectedTag.color] || TAG_COLORS.blue : TAG_COLORS.blue;
 
   // Swipe
-  const handlePointerStart = useCallback((x, y) => {
-    touchStart.current = { x, y };
-    dragOffset.current = { x: 0, y: 0 };
-    setDragStyle({});
-  }, []);
-
-  const handlePointerMove = useCallback((x, y) => {
-    dragOffset.current = { x: x - touchStart.current.x, y: y - touchStart.current.y };
-    setDragStyle({
-      transform: `translate(${dragOffset.current.x}px, ${dragOffset.current.y}px)`,
-      transition: "none"
-    });
-  }, []);
-
-  const handlePointerEnd = useCallback((x, y) => {
-    setDragStyle({ transform: "translate(0, 0)", transition: "transform 0.3s ease-out" });
-    const dx = x - touchStart.current.x;
-    const dy = y - touchStart.current.y;
-    const absDx = Math.abs(dx);
-    const absDy = Math.abs(dy);
-    if (absDx < 40 && absDy < 40) return;
-
-    if (absDx > absDy) {
-      if (dx < -60) navigate("/focus/calendar");else
-      if (dx > 60) navigate("/focus/settings");
-    } else {
-      if (dy < -60) navigate("/focus/analytics");else
-      if (dy > 60) navigate("/");
-    }
-  }, [navigate]);
-
   return (
     <div data-source-location="pages/FocusPomo:125:4" data-dynamic-content="true"
     className="h-screen w-screen flex flex-col bg-cream overflow-hidden relative select-none"
-    onTouchStart={(e) => handlePointerStart(e.touches[0].clientX, e.touches[0].clientY)}
-    onTouchMove={(e) => handlePointerMove(e.touches[0].clientX, e.touches[0].clientY)}
-    onTouchEnd={(e) => handlePointerEnd(e.changedTouches[0]?.clientX || touchStart.current.x, e.changedTouches[0]?.clientY || touchStart.current.y)}
-    onMouseDown={(e) => handlePointerStart(e.clientX, e.clientY)}
-    onMouseMove={(e) => {if (e.buttons === 1) handlePointerMove(e.clientX, e.clientY);}}
-    onMouseUp={(e) => handlePointerEnd(e.clientX, e.clientY)}
+    {...swipeHandlers}
     style={{ background: "linear-gradient(180deg, #FFF5E6 0%, #F5F0E8 100%)" }}>
       
       <div data-source-location="pages/FocusPomo:135:6" data-dynamic-content="true" style={dragStyle} className="flex-1 flex flex-col items-center justify-center">

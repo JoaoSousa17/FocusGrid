@@ -1,47 +1,16 @@
-import { useState, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { CalendarClock, Mic } from "lucide-react";
+import { useEdgeSwipeNav } from "@/hooks/useEdgeSwipeNav";
 
 export default function ComingSoon() {
   const navigate = useNavigate();
-  const touchStart = useRef({ x: 0, y: 0 });
-  const dragOffset = useRef({ x: 0, y: 0 });
-  const [dragStyle, setDragStyle] = useState({});
-
-  const handlePointerStart = useCallback((x, y) => {
-    touchStart.current = { x, y };
-    dragOffset.current = { x: 0, y: 0 };
-    setDragStyle({});
-  }, []);
-
-  const handlePointerMove = useCallback((x, y) => {
-    dragOffset.current = { x: x - touchStart.current.x, y: y - touchStart.current.y };
-    setDragStyle({ transform: `translate(${dragOffset.current.x}px, ${dragOffset.current.y}px)`, transition: "none" });
-  }, []);
-
-  const handlePointerEnd = useCallback((x, y) => {
-    setDragStyle({ transform: "translate(0, 0)", transition: "transform 0.3s ease-out" });
-    const dx = x - touchStart.current.x;
-    const dy = y - touchStart.current.y;
-    if (Math.abs(dx) > Math.abs(dy)) {
-      if (dx > 60) navigate("/deadlines");else
-      if (dx < -60) navigate("/meeting-ai");
-    } else {
-      if (dy > 60) navigate("/");else
-      if (dy < -60) navigate("/");
-    }
-  }, [navigate]);
+  const { swipeHandlers, dragStyle } = useEdgeSwipeNav({ right: "/deadlines", left: "/meeting-ai", up: "/", down: "/" });
 
   return (
     <div data-source-location="pages/ComingSoon:37:4" data-dynamic-content="true"
     className="h-screen w-screen overflow-hidden select-none relative bg-cream"
-    onTouchStart={(e) => handlePointerStart(e.touches[0].clientX, e.touches[0].clientY)}
-    onTouchMove={(e) => handlePointerMove(e.touches[0].clientX, e.touches[0].clientY)}
-    onTouchEnd={(e) => handlePointerEnd(e.changedTouches[0]?.clientX || touchStart.current.x, e.changedTouches[0]?.clientY || touchStart.current.y)}
-    onMouseDown={(e) => handlePointerStart(e.clientX, e.clientY)}
-    onMouseMove={(e) => {if (e.buttons === 1) handlePointerMove(e.clientX, e.clientY);}}
-    onMouseUp={(e) => handlePointerEnd(e.clientX, e.clientY)}>
+    {...swipeHandlers}>
       
       <div data-source-location="pages/ComingSoon:46:6" data-dynamic-content="true" style={dragStyle} className="h-full flex relative">
 

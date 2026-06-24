@@ -5,6 +5,7 @@ import { ArrowUp, ArrowDown, Trophy, Flame, Star, Zap, Crown } from "lucide-reac
 import { HabitEntry } from "@/api/entities";
 import { format, eachDayOfInterval, startOfWeek, endOfWeek, subDays } from "date-fns";
 import { pt } from "date-fns/locale";
+import { useEdgeSwipeNav } from "@/hooks/useEdgeSwipeNav";
 
 const ACHIEVEMENTS = [
 { key: "first", icon: Star, label: "Primeiro Passo", desc: "Completar o primeiro hábito", threshold: 1, color: "text-amber-500", bg: "bg-amber-50" },
@@ -17,9 +18,7 @@ const ACHIEVEMENTS = [
 export default function HabitsRewards() {
   const navigate = useNavigate();
   const [entries, setEntries] = useState([]);
-  const touchStart = useRef({ x: 0, y: 0 });
-  const dragOffset = useRef({ x: 0, y: 0 });
-  const [dragStyle, setDragStyle] = useState({});
+  const { swipeHandlers, dragStyle } = useEdgeSwipeNav({ down: "/habits" });
 
   useEffect(() => {
     HabitEntry.list("-created_date", 500).then(setEntries).catch(() => setEntries([]));
@@ -73,26 +72,10 @@ export default function HabitsRewards() {
   const totalEntries = entries.length;
   const totalScore = entries.reduce((s, e) => s + (e.score || 0), 0);
 
-  // Swipe
-  const handlePointerStart = useCallback((x, y) => {touchStart.current = { x, y };dragOffset.current = { x: 0, y: 0 };setDragStyle({});}, []);
-  const handlePointerMove = useCallback((x, y) => {
-    dragOffset.current = { x: x - touchStart.current.x, y: y - touchStart.current.y };
-    setDragStyle({ transform: `translate(${dragOffset.current.x}px, ${dragOffset.current.y}px)`, transition: "none" });
-  }, []);
-  const handlePointerEnd = useCallback((x, y) => {
-    setDragStyle({ transform: "translate(0, 0)", transition: "transform 0.3s ease-out" });
-    if (y - touchStart.current.y > 60) navigate("/habits");
-  }, [navigate]);
-
   return (
     <div data-source-location="pages/HabitsRewards:88:4" data-dynamic-content="true"
     className="min-h-screen bg-cream flex flex-col select-none"
-    onTouchStart={(e) => handlePointerStart(e.touches[0].clientX, e.touches[0].clientY)}
-    onTouchMove={(e) => handlePointerMove(e.touches[0].clientX, e.touches[0].clientY)}
-    onTouchEnd={(e) => handlePointerEnd(e.changedTouches[0]?.clientX || touchStart.current.x, e.changedTouches[0]?.clientY || touchStart.current.y)}
-    onMouseDown={(e) => handlePointerStart(e.clientX, e.clientY)}
-    onMouseMove={(e) => {if (e.buttons === 1) handlePointerMove(e.clientX, e.clientY);}}
-    onMouseUp={(e) => handlePointerEnd(e.clientX, e.clientY)}>
+    {...swipeHandlers}>
       
       <div data-source-location="pages/HabitsRewards:97:6" data-dynamic-content="true" style={dragStyle} className="flex-1 flex flex-col">
         <div data-source-location="pages/HabitsRewards:98:8" data-dynamic-content="true" className="bg-white border-b border-border px-4 py-4 flex items-center gap-3">
