@@ -10,7 +10,7 @@ const SECTIONS = [
   color: "#E87A5A",
   title: "1. Visão Geral da Arquitetura",
   content: `
-O FocusFlow é uma Progressive Web App (PWA) construída sobre o Supabase, que fornece Backend-as-a-Service (BaaS) completo. A aplicação segue uma arquitetura de três camadas:
+O FocusGrid é uma Progressive Web App (PWA) construída sobre o Supabase, que fornece Backend-as-a-Service (BaaS) completo. A aplicação segue uma arquitetura de três camadas:
 
 CAMADA DE APRESENTAÇÃO (Frontend)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -538,14 +538,14 @@ DADOS EM REPOUSO E TRÂNSITO:
   color: "#14B8A6",
   title: "9. Progressive Web App (PWA)",
   content: `
-O FocusFlow é distribuído como PWA, permitindo instalação em dispositivos móveis
+O FocusGrid é distribuído como PWA, permitindo instalação em dispositivos móveis
 e desktop sem necessidade de app stores.
 
 MANIFEST (public/manifest.json):
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 {
-  "name": "FocusFlow",
-  "short_name": "FocusFlow",
+  "name": "FocusGrid",
+  "short_name": "FocusGrid",
   "theme_color": "#E87A5A",
   "background_color": "#FBF7F4",
   "display": "standalone",
@@ -885,17 +885,11 @@ export default function ExportDocs() {
 
       await Promise.all(srcFiles.map(([zipPath, url]) => addFetched(zipPath, url)));
 
-      // ── entities/ — fetch actual JSON files ──────────────────────
-      const entityNames = ["Task", "Tag", "FocusSession", "Habit", "HabitEntry", "Deadline", "Event", "MeetingRecording"];
-      await Promise.all(entityNames.map((name) =>
-      addFetched(`entities/${name}.json`, `/entities/${name}.json`)
-      ));
-
       // ── README ───────────────────────────────────────────────────
-      let md = "# FocusFlow — Documentação Técnica\n\n";
+      let md = "# FocusGrid — Documentação Técnica\n\n";
       md += `> Gerado em: ${new Date().toLocaleDateString("pt-PT")}\n\n`;
       md += "## Ficheiros incluídos no ZIP\n\n";
-      md += "```\nfocusflow/\n├── index.html\n├── index.css\n├── tailwind.config.js\n├── vite.config.js\n├── package.json\n├── public/\n│   └── manifest.json\n├── entities/         # JSON Schemas (8 entidades)\n└── src/\n    ├── App.jsx\n    ├── main.jsx\n    ├── api/\n    ├── lib/\n    ├── context/\n    ├── components/\n    └── pages/         # 20 páginas\n```\n\n";
+      md += "```\nfocusgrid/\n├── index.html\n├── index.css\n├── tailwind.config.js\n├── vite.config.js\n├── package.json\n├── public/\n│   └── manifest.json\n├── entities/         # JSON Schemas (8 entidades)\n└── src/\n    ├── App.jsx\n    ├── main.jsx\n    ├── api/\n    ├── lib/\n    ├── context/\n    ├── components/\n    └── pages/         # 20 páginas\n```\n\n";
       SECTIONS.forEach((s) => {
         md += `## ${s.title}\n\n\`\`\`\n${s.content.trim()}\n\`\`\`\n\n---\n\n`;
       });
@@ -905,7 +899,7 @@ export default function ExportDocs() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = "FocusFlow_Source.zip";
+      a.download = "FocusGrid_Source.zip";
       a.click();
       URL.revokeObjectURL(url);
     } catch (e) {
@@ -974,7 +968,7 @@ export default function ExportDocs() {
       doc.setFontSize(32);
       doc.setFont("helvetica", "bold");
       doc.setTextColor(255, 255, 255);
-      doc.text("FocusFlow", margin, 35);
+      doc.text("FocusGrid", margin, 35);
 
       doc.setFontSize(13);
       doc.setFont("helvetica", "normal");
@@ -1071,11 +1065,11 @@ export default function ExportDocs() {
         doc.setFontSize(7);
         doc.setFont("helvetica", "normal");
         doc.setTextColor(160, 140, 120);
-        doc.text("FocusFlow — Documentacao Tecnica Completa do Backend", margin, pageH - 3);
+        doc.text("FocusGrid — Documentacao Tecnica Completa do Backend", margin, pageH - 3);
         doc.text("Pagina " + p + " de " + totalPages, pageW - margin, pageH - 3, { align: "right" });
       }
 
-      doc.save("FocusFlow_Backend_Docs_v2.pdf");
+      doc.save("FocusGrid_Backend_Docs_v2.pdf");
     } catch (e) {
       console.error(e);
     }
@@ -1091,7 +1085,7 @@ export default function ExportDocs() {
             <FileText data-source-location="pages/ExportDocs:1092:12" data-dynamic-content="false" className="w-6 h-6 text-white" />
           </div>
           <div data-source-location="pages/ExportDocs:1094:10" data-dynamic-content="false">
-            <h1 data-source-location="pages/ExportDocs:1095:12" data-dynamic-content="false" className="text-2xl font-black text-white">FocusFlow Docs</h1>
+            <h1 data-source-location="pages/ExportDocs:1095:12" data-dynamic-content="false" className="text-2xl font-black text-white">FocusGrid Docs</h1>
             <p data-source-location="pages/ExportDocs:1096:12" data-dynamic-content="false" className="text-white/70 text-sm">Documentação técnica do backend</p>
           </div>
         </div>

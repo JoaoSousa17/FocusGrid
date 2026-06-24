@@ -1,11 +1,11 @@
-# FocusFlow — Documentação Técnica
+# FocusGrid — Documentação Técnica
 
 > Gerado em: 22/06/2026
 
 ## Ficheiros incluídos no ZIP
 
 ```
-focusflow/
+focusgrid/
 ├── index.html
 ├── index.css
 ├── tailwind.config.js
@@ -27,7 +27,7 @@ focusflow/
 ## 1. Visão Geral da Arquitetura
 
 ```
-O FocusFlow é uma Progressive Web App (PWA) construída sobre a plataforma Base44, que fornece Backend-as-a-Service (BaaS) completo. A aplicação segue uma arquitetura de três camadas:
+O FocusGrid é uma Progressive Web App (PWA) construída sobre a plataforma Base44, que fornece Backend-as-a-Service (BaaS) completo. A aplicação segue uma arquitetura de três camadas:
 
 CAMADA DE APRESENTAÇÃO (Frontend)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -548,14 +548,14 @@ DADOS EM REPOUSO E TRÂNSITO:
 ## 9. Progressive Web App (PWA)
 
 ```
-O FocusFlow é distribuído como PWA, permitindo instalação em dispositivos móveis
+O FocusGrid é distribuído como PWA, permitindo instalação em dispositivos móveis
 e desktop sem necessidade de app stores.
 
 MANIFEST (public/manifest.json):
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 {
-  "name": "FocusFlow",
-  "short_name": "FocusFlow",
+  "name": "FocusGrid",
+  "short_name": "FocusGrid",
   "theme_color": "#E87A5A",
   "background_color": "#FBF7F4",
   "display": "standalone",
@@ -729,7 +729,7 @@ conta dias consecutivos sem quebra.
 ```
 PLATAFORMA DE HOSTING:
 ━━━━━━━━━━━━━━━━━━━━━
-O FocusFlow é hospedado inteiramente na infraestrutura Base44.
+O FocusGrid é hospedado inteiramente na infraestrutura Base44.
 Não requer configuração de servidores, CI/CD, ou gestão de infraestrutura.
 
 PROCESSO DE DEPLOY:

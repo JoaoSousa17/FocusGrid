@@ -1,4 +1,4 @@
-// FocusFlow — PDF Backend Documentation — Full Content (~25 pages)
+// FocusGrid — PDF Backend Documentation — Full Content (~25 pages)
 // Para fins educativos: secções 13-16 explicam como implementar
 // o mesmo backend sem BaaS, usando APIs e tecnologias standard.
 
@@ -6,7 +6,7 @@ export const PDF_SECTIONS = [
 {
   title: "1. Visao Geral da Arquitectura do Sistema",
   color: [232, 122, 90],
-  content: `O FocusFlow e uma Progressive Web App (PWA) de produtividade pessoal construida com React 18 + Vite no frontend e suportada por um Backend-as-a-Service (BaaS) completo (Supabase). A arquitectura segue o padrao de tres camadas desacopladas:
+  content: `O FocusGrid e uma Progressive Web App (PWA) de produtividade pessoal construida com React 18 + Vite no frontend e suportada por um Backend-as-a-Service (BaaS) completo (Supabase). A arquitectura segue o padrao de tres camadas desacopladas:
 
 CAMADA 1 - APRESENTACAO (Client-Side React)
 ==========================================
@@ -133,7 +133,7 @@ ENTIDADE: MeetingRecording (tabela "meeting_recordings" - Reunioes IA)
   title: "3. API de Dados - PostgREST e supabase-js",
   color: [59, 130, 246],
   content: `A Supabase expoe automaticamente uma API REST sobre PostgreSQL via PostgREST,
-mas no FocusFlow as chamadas sao feitas atraves do cliente @supabase/supabase-js,
+mas no FocusGrid as chamadas sao feitas atraves do cliente @supabase/supabase-js,
 que envia o JWT da sessao em cada request e aplica os filtros via query builder.
 Internamente cada metodo de entidade (src/api/entities.js) usa este client.
 
@@ -513,7 +513,7 @@ A function chama internamente:
 POST https://api.resend.com/emails
   Headers: Authorization: Bearer re_xxxxx (API key Resend, guardada como secret da function)
   Body:
-    from: "FocusFlow <noreply@focusflow.app>"
+    from: "FocusGrid <noreply@focusgrid.app>"
     to: ["user@example.com"]
     subject: "Assunto"
     html: "<corpo do email>"
@@ -532,7 +532,7 @@ EMAILS ENVIADOS NA APP:
      to: "utilizador@email.com",
      subject: "Assunto",
      body: "<html>corpo</html>",
-     from_name: "FocusFlow"  // opcional
+     from_name: "FocusGrid"  // opcional
    })
 
 SEGURANCA NO ENVIO:
@@ -891,7 +891,7 @@ app.use(helmet());
 
 // CORS: apenas origens aprovadas
 app.use(cors({
-  origin: ["https://focusflow.app", "http://localhost:5173"],
+  origin: ["https://focusgrid.app", "http://localhost:5173"],
   credentials: true  // necessario para cookies httpOnly
 }));
 
@@ -1060,7 +1060,7 @@ router.post("/register", async (req, res) => {
   });
 
   await resend.emails.send({
-    from: "FocusFlow <noreply@focusflow.app>",
+    from: "FocusGrid <noreply@focusgrid.app>",
     to: [email], subject: "Verifica o teu email",
     html: "<h2>Codigo: <strong>" + otpCode + "</strong></h2><p>Expira em 15min.</p>"
   });
@@ -1127,9 +1127,9 @@ router.post("/reset-password-request", async (req, res) => {
       data: { resetToken: token, resetTokenExpiry: expiry }
     });
 
-    const resetUrl = "https://focusflow.app/reset-password?token=" + token;
+    const resetUrl = "https://focusgrid.app/reset-password?token=" + token;
     await resend.emails.send({
-      from: "FocusFlow <noreply@focusflow.app>",
+      from: "FocusGrid <noreply@focusgrid.app>",
       to: [email], subject: "Reset de password",
       html: "<p>Clica no link para redefinir: <a href='" + resetUrl + "'>Reset Password</a></p>"
     });
@@ -1147,7 +1147,7 @@ import { Server } from "socket.io";
 
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
-  cors: { origin: "https://focusflow.app", credentials: true },
+  cors: { origin: "https://focusgrid.app", credentials: true },
   pingTimeout: 60000, pingInterval: 25000
 });
 
@@ -1209,16 +1209,16 @@ export async function uploadPublicFile(buffer: Buffer, mimeType: string): Promis
   const key = "files/" + hash;
 
   await s3.send(new PutObjectCommand({
-    Bucket: "focusflow-storage", Key: key,
+    Bucket: "focusgrid-storage", Key: key,
     Body: buffer, ContentType: mimeType
   }));
 
   // URL publica com dominio personalizado (configurado no R2 dashboard):
-  return "https://cdn.focusflow.app/" + key;
+  return "https://cdn.focusgrid.app/" + key;
 }
 
 export async function createSignedUrl(key: string, expiresIn = 300): Promise<string> {
-  const command = new GetObjectCommand({ Bucket: "focusflow-storage", Key: key });
+  const command = new GetObjectCommand({ Bucket: "focusgrid-storage", Key: key });
   return getSignedUrl(s3, command, { expiresIn });
 }
 
@@ -1277,7 +1277,7 @@ services:
     build: .
     ports: ["3000:3000"]
     environment:
-      DATABASE_URL: postgresql://focusflow:secret@db:5432/focusflow
+      DATABASE_URL: postgresql://focusgrid:secret@db:5432/focusgrid
       REDIS_URL: redis://redis:6379
       OPENAI_API_KEY: sk-...
       RESEND_API_KEY: re_...
@@ -1286,7 +1286,7 @@ services:
     depends_on: [db, redis]
   db:
     image: postgres:16-alpine
-    environment: { POSTGRES_DB: focusflow, POSTGRES_USER: focusflow, POSTGRES_PASSWORD: secret }
+    environment: { POSTGRES_DB: focusgrid, POSTGRES_USER: focusgrid, POSTGRES_PASSWORD: secret }
     volumes: ["pgdata:/var/lib/postgresql/data"]
   redis:
     image: redis:7-alpine

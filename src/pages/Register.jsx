@@ -90,7 +90,7 @@ export default function Register() {
               <span data-source-location="pages/Register:89:14" data-dynamic-content="false" className="text-4xl">📬</span>
             </div>
             <h1 data-source-location="pages/Register:91:12" data-dynamic-content="false" className="text-2xl font-bold text-foreground">Verifica o email</h1>
-            <p data-source-location="pages/Register:92:12" data-dynamic-content="false" className="text-muted-foreground mt-1.5 text-sm">FocusFlow</p>
+            <p data-source-location="pages/Register:92:12" data-dynamic-content="false" className="text-muted-foreground mt-1.5 text-sm">FocusGrid</p>
             <p data-source-location="pages/Register:93:12" data-dynamic-content="true" className="text-muted-foreground mt-1.5 text-sm">
               Enviámos um código para <strong data-source-location="pages/Register:94:38" data-dynamic-content="true" data-collection-item-field="email">{email}</strong>
             </p>
@@ -155,12 +155,12 @@ export default function Register() {
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
           transition={{ delay: 0.2, type: "spring", stiffness: 150 }}
-          className="inline-flex items-center justify-center w-20 h-20 rounded-[28px] bg-[#E87A5A] shadow-lg shadow-[#E87A5A]/25 mb-5">
-            
-            <span data-source-location="pages/Register:159:12" data-dynamic-content="false" className="text-4xl">🍊</span>
+          className="inline-flex items-center justify-center w-20 h-20 rounded-[28px] shadow-lg shadow-[#E87A5A]/25 mb-5 overflow-hidden">
+
+            <img data-source-location="pages/Register:159:12" src="/logo.png" alt="FocusGrid" className="w-full h-full object-cover" />
           </motion.div>
           <h1 data-source-location="pages/Register:161:10" data-dynamic-content="false" className="text-2xl font-bold text-foreground">Criar conta</h1>
-          <p data-source-location="pages/Register:162:10" data-dynamic-content="false" className="text-muted-foreground mt-1.5 text-sm">Começa a tua jornada no FocusFlow</p>
+          <p data-source-location="pages/Register:162:10" data-dynamic-content="false" className="text-muted-foreground mt-1.5 text-sm">Começa a tua jornada no FocusGrid</p>
         </div>
 
         <Button data-source-location="pages/Register:165:8" data-dynamic-content="true"

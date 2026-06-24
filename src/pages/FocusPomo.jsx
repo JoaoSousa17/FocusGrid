@@ -62,7 +62,7 @@ export default function FocusPomo() {
 
       // Send notification
       if (notificationsEnabled && "Notification" in window && Notification.permission === "granted") {
-        new Notification("FocusFlow", {
+        new Notification("FocusGrid", {
           body: "Foco concluído! 🍊 Hora de pausar.",
           icon: "🍊"
         });

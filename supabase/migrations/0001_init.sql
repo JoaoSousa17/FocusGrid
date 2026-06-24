@@ -1,4 +1,4 @@
--- FocusFlow — schema completo para Supabase
+-- FocusGrid — schema completo para Supabase
 -- Corre este ficheiro no SQL Editor do Supabase (ou via `supabase db push`)
 
 create extension if not exists "pgcrypto";

@@ -57,12 +57,12 @@ export default function Login() {
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
           transition={{ delay: 0.2, type: "spring", stiffness: 150 }}
-          className="inline-flex items-center justify-center w-20 h-20 rounded-[28px] bg-[#E87A5A] shadow-lg shadow-[#E87A5A]/25 mb-5">
-            
-            <span data-source-location="pages/Login:61:12" data-dynamic-content="false" className="text-4xl">🍊</span>
+          className="inline-flex items-center justify-center w-20 h-20 rounded-[28px] shadow-lg shadow-[#E87A5A]/25 mb-5 overflow-hidden">
+
+            <img data-source-location="pages/Login:61:12" src="/logo.png" alt="FocusGrid" className="w-full h-full object-cover" />
           </motion.div>
           <h1 data-source-location="pages/Login:63:10" data-dynamic-content="false" className="text-2xl font-bold text-foreground">
-            <span data-source-location="pages/Login:64:12" data-dynamic-content="false" className="bg-gradient-to-r from-[#E87A5A] to-[#D4694A] bg-clip-text text-transparent">Focus</span>Flow
+            <span data-source-location="pages/Login:64:12" data-dynamic-content="false" className="bg-gradient-to-r from-[#E87A5A] to-[#D4694A] bg-clip-text text-transparent">Focus</span>Grid
           </h1>
           <p data-source-location="pages/Login:66:10" data-dynamic-content="false" className="text-muted-foreground mt-1.5 text-sm">Produtividade com ritmo</p>
         </div>
