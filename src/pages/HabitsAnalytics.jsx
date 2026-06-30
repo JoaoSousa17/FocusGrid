@@ -1,10 +1,10 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowLeft, Trophy, TrendingUp, Star, Medal, BarChart3 } from "lucide-react";
+import { ArrowLeft, Trophy, TrendingUp, Star, Medal, BarChart3, FileDown, Loader2 } from "lucide-react";
 import { Habit, HabitEntry } from "@/api/entities";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from "recharts";
-import { format, startOfWeek, endOfWeek, subWeeks, eachDayOfInterval, isWithinInterval } from "date-fns";
+import { format, startOfWeek, endOfWeek, subWeeks, subDays, eachDayOfInterval, isWithinInterval } from "date-fns";
 import { pt } from "date-fns/locale";
 import { useEdgeSwipeNav } from "@/hooks/useEdgeSwipeNav";
 
@@ -16,6 +16,8 @@ export default function HabitsAnalytics() {
   const [habits, setHabits] = useState([]);
 
   const { swipeHandlers, dragStyle } = useEdgeSwipeNav({ right: "/habits" });
+  const monthSectionRef = useRef(null);
+  const [exportingPdf, setExportingPdf] = useState(false);
 
   useEffect(() => {
     HabitEntry.list("-created_date", 500).then(setEntries).catch(() => setEntries([]));
@@ -70,6 +72,71 @@ export default function HabitsAnalytics() {
     });
   }, [entries, today]);
 
+  // Último mês (30 dias) — usado no resumo exportável em PDF
+  const monthStart = subDays(today, 29);
+  const monthDays = eachDayOfInterval({ start: monthStart, end: today });
+  const lastMonthEntries = useMemo(
+    () => entries.filter((e) => isWithinInterval(new Date(e.date), { start: monthStart, end: today })),
+    [entries, today]
+  );
+  const monthlyDaily = useMemo(() => monthDays.map((d) => {
+    const key = format(d, "yyyy-MM-dd");
+    const dayEntries = lastMonthEntries.filter((e) => e.date === key);
+    return { date: format(d, "d/M"), score: dayEntries.reduce((s, e) => s + (e.score || 0), 0) };
+  }), [lastMonthEntries, monthDays]);
+  const monthlyByHabit = useMemo(() => {
+    const map = {};
+    lastMonthEntries.forEach((e) => {
+      if (!map[e.habit_id]) map[e.habit_id] = { name: e.habit_name, value: 0 };
+      map[e.habit_id].value += e.score || 0;
+    });
+    return Object.values(map).filter((h) => h.value > 0).sort((a, b) => b.value - a.value);
+  }, [lastMonthEntries]);
+  const monthlyTotalScore = lastMonthEntries.reduce((s, e) => s + (e.score || 0), 0);
+  const monthlyTotalCompletions = lastMonthEntries.length;
+  const monthlyBestDay = monthlyDaily.reduce((best, d) => d.score > (best?.score || 0) ? d : best, null);
+
+  const exportMonthlyPdf = async () => {
+    if (!monthSectionRef.current) return;
+    setExportingPdf(true);
+    try {
+      const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
+        import("html2canvas"),
+        import("jspdf")
+      ]);
+      const canvas = await html2canvas(monthSectionRef.current, { scale: 2, backgroundColor: "#FBF7F2" });
+      const imgData = canvas.toDataURL("image/png");
+      const doc = new jsPDF({ unit: "pt", format: "a4" });
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const margin = 32;
+
+      doc.setFontSize(18);
+      doc.setTextColor(40, 32, 28);
+      doc.text("FocusGrid — Relatório de Hábitos", margin, 48);
+      doc.setFontSize(10);
+      doc.setTextColor(120, 110, 100);
+      doc.text(`Últimos 30 dias · ${format(monthStart, "d MMM", { locale: pt })} – ${format(today, "d MMM yyyy", { locale: pt })}`, margin, 66);
+
+      doc.setFontSize(11);
+      doc.setTextColor(60, 50, 45);
+      const stats = [
+        `Pontuação total: ${monthlyTotalScore} pts`,
+        `Hábitos concluídos: ${monthlyTotalCompletions}`,
+        `Melhor dia: ${monthlyBestDay ? `${monthlyBestDay.date} (${monthlyBestDay.score} pts)` : "—"}`
+      ];
+      stats.forEach((line, i) => doc.text(line, margin, 92 + i * 16));
+
+      const imgWidth = pageWidth - margin * 2;
+      const imgHeight = imgWidth * (canvas.height / canvas.width);
+      doc.addImage(imgData, "PNG", margin, 150, imgWidth, imgHeight);
+
+      doc.save(`focusgrid-habitos-${format(today, "yyyy-MM-dd")}.pdf`);
+    } catch (err) {
+      console.error("Falha ao exportar PDF", err);
+    }
+    setExportingPdf(false);
+  };
+
   // Top and bottom habits
   const sortedByCount = [...habitStats].sort((a, b) => b.count - a.count);
   const mostDone = sortedByCount.slice(0, 3);
@@ -90,10 +157,15 @@ export default function HabitsAnalytics() {
           <button data-source-location="pages/HabitsAnalytics:106:10" data-dynamic-content="true" onClick={() => navigate("/habits")} className="w-10 h-10 rounded-2xl bg-white border border-border flex items-center justify-center text-muted-foreground hover:text-foreground transition-all">
             <ArrowLeft data-source-location="pages/HabitsAnalytics:107:12" data-dynamic-content="false" className="w-5 h-5" />
           </button>
-          <div data-source-location="pages/HabitsAnalytics:109:10" data-dynamic-content="false">
+          <div data-source-location="pages/HabitsAnalytics:109:10" data-dynamic-content="false" className="flex-1">
             <h1 data-source-location="pages/HabitsAnalytics:110:12" data-dynamic-content="false" className="text-xl font-bold text-foreground">Analytics</h1>
             <p data-source-location="pages/HabitsAnalytics:111:12" data-dynamic-content="false" className="text-[10px] text-muted-foreground">Hábitos saudáveis</p>
           </div>
+          <button onClick={exportMonthlyPdf} disabled={exportingPdf}
+          className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#E87A5A] text-white text-xs font-semibold hover:bg-[#D4694A] disabled:opacity-50 transition-all">
+            {exportingPdf ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileDown className="w-3.5 h-3.5" />}
+            PDF
+          </button>
         </div>
 
         <div data-source-location="pages/HabitsAnalytics:115:8" data-dynamic-content="true" className="flex-1 overflow-auto p-4 space-y-4">
@@ -187,6 +259,57 @@ export default function HabitsAnalytics() {
                 )}
               </div>
             </div>
+          </div>
+
+          {/* Monthly summary — exportable as PDF */}
+          <div ref={monthSectionRef} className="bg-white rounded-2xl p-5 border border-border space-y-4">
+            <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
+              <FileDown className="w-4 h-4 text-[#E87A5A]" /> Resumo do Último Mês
+            </h3>
+
+            <div className="grid grid-cols-3 gap-3">
+              <div className="bg-amber-50 rounded-xl p-3 border border-amber-100">
+                <p className="text-[9px] text-amber-600 font-medium">Total</p>
+                <p className="text-lg font-bold text-amber-700">{monthlyTotalScore} pts</p>
+              </div>
+              <div className="bg-emerald-50 rounded-xl p-3 border border-emerald-100">
+                <p className="text-[9px] text-emerald-600 font-medium">Concluídos</p>
+                <p className="text-lg font-bold text-emerald-700">{monthlyTotalCompletions}</p>
+              </div>
+              <div className="bg-indigo-50 rounded-xl p-3 border border-indigo-100">
+                <p className="text-[9px] text-indigo-600 font-medium">Melhor dia</p>
+                <p className="text-lg font-bold text-indigo-700">{monthlyBestDay ? monthlyBestDay.date : "—"}</p>
+              </div>
+            </div>
+
+            <div className="h-[160px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={monthlyDaily} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#F0EBE3" />
+                  <XAxis dataKey="date" tick={{ fontSize: 9, fill: "#9CA3AF" }} axisLine={false} tickLine={false} interval={4} />
+                  <YAxis tick={{ fontSize: 10, fill: "#9CA3AF" }} axisLine={false} tickLine={false} />
+                  <Tooltip contentStyle={{ borderRadius: 12, border: "1px solid #E8E0D8", background: "#fff", fontSize: 12 }}
+                  formatter={(value) => [`${value} pts`, "Pontuação"]} />
+                  <Bar dataKey="score" radius={[6, 6, 0, 0]} fill="#E87A5A" maxBarSize={10} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+
+            {monthlyByHabit.length > 0 &&
+            <div className="h-[200px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie data={monthlyByHabit} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={70} label={{ fontSize: 10 }}>
+                    {monthlyByHabit.map((entry, i) =>
+                    <Cell key={i} fill={PRESET_COLORS[i % PRESET_COLORS.length]} />
+                    )}
+                  </Pie>
+                  <Tooltip contentStyle={{ borderRadius: 12, border: "1px solid #E8E0D8", background: "#fff", fontSize: 12 }}
+                  formatter={(value, name) => [`${value} pts`, name]} />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+            }
           </div>
 
           {/* All habits ranking */}

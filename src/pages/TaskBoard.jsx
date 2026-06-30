@@ -103,6 +103,44 @@ function weekdayKeyOf(date) {
   return DAY_KEYS[(date.getDay() + 6) % 7];
 }
 
+function weekStartKeyOf(date) {
+  return format(startOfWeek(date, { weekStartsOn: 1 }), "yyyy-MM-dd");
+}
+
+// Horizonte de pré-criação de ocorrências: diária/semanal/quinzenal -> 1 ano,
+// mensal -> 2 anos, anual -> 20 anos.
+function computeOccurrences(tpl) {
+  const origin = originDateOf(tpl);
+  const occ = [];
+  if (tpl.recurrence === "daily") {
+    for (let i = 0; i < 365; i++) {
+      const d = addDays(origin, i);
+      occ.push({ week_start: weekStartKeyOf(d), weekday: weekdayKeyOf(d) });
+    }
+  } else if (tpl.recurrence === "weekly") {
+    for (let i = 0; i < 52; i++) {
+      const d = addWeeks(origin, i);
+      occ.push({ week_start: weekStartKeyOf(d), weekday: weekdayKeyOf(d) });
+    }
+  } else if (tpl.recurrence === "biweekly") {
+    for (let i = 0; i < 26; i++) {
+      const d = addWeeks(origin, i * 2);
+      occ.push({ week_start: weekStartKeyOf(d), weekday: weekdayKeyOf(d) });
+    }
+  } else if (tpl.recurrence === "monthly") {
+    for (let i = 0; i < 24; i++) {
+      const d = addMonths(origin, i);
+      occ.push({ week_start: weekStartKeyOf(d), weekday: weekdayKeyOf(d) });
+    }
+  } else if (tpl.recurrence === "yearly") {
+    for (let i = 0; i < 20; i++) {
+      const d = addYears(origin, i);
+      occ.push({ week_start: weekStartKeyOf(d), weekday: weekdayKeyOf(d) });
+    }
+  }
+  return occ;
+}
+
 function FormSection({ icon: Icon, label, badge, open, onToggle, children }) {
   return (
     <div className="rounded-xl border border-border overflow-hidden">
@@ -236,6 +274,22 @@ export default function TaskBoard() {
     return map;
   }, [tasks, weekKey, filterPeriod, filterCompleted, filterHasSubtasks]);
 
+  // Pré-cria todas as ocorrências futuras de uma recorrência (até ao horizonte definido em computeOccurrences),
+  // excluindo a própria linha de origem que já existe.
+  const generateFutureOccurrences = async (tpl) => {
+    if (!tpl.recurrence || tpl.recurrence === "none" || !tpl.recurrence_id) return;
+    const occurrences = computeOccurrences(tpl);
+    const toCreate = occurrences.
+    filter((o) => !(o.week_start === tpl.week_start && o.weekday === tpl.weekday)).
+    map((o) => ({
+      title: tpl.title, weekday: o.weekday, completed: false, order: 0,
+      week_start: o.week_start, period: tpl.period, description: tpl.description || "",
+      tags_json: tpl.tags_json || "[]", priority: tpl.priority || "medium",
+      recurrence: tpl.recurrence, recurrence_id: tpl.recurrence_id, subtasks_json: "[]"
+    }));
+    if (toCreate.length > 0) await Task.bulkCreate(toCreate).catch(() => {});
+  };
+
   const addTask = async (key) => {
     const data = newTasks[key];
     if (!data?.title?.trim()) return;
@@ -243,8 +297,9 @@ export default function TaskBoard() {
     const maxOrder = Math.max(...existing.map((t) => t.order || 0), 0);
     const tags = data.tags || [];
     const recurrence = data.recurrence || "none";
-    await Task.create({
-      title: data.title.trim(), weekday: key === "none" ? "none" : key,
+    const weekday = key === "none" ? "none" : key;
+    const created = await Task.create({
+      title: data.title.trim(), weekday,
       completed: false, order: maxOrder + 1,
       week_start: weekKey, period: data.period || null, description: "",
       tags_json: JSON.stringify(tags),
@@ -253,6 +308,7 @@ export default function TaskBoard() {
       recurrence_id: recurrence !== "none" ? crypto.randomUUID() : null,
       subtasks_json: JSON.stringify(data.subtasks || [])
     });
+    await generateFutureOccurrences(created);
     setNewTasks((prev) => ({ ...prev, [key]: null }));
     setAddingTo(null);
     refreshData();
@@ -301,15 +357,25 @@ export default function TaskBoard() {
     const recurrenceChanged = recurrence !== (editingTask.recurrence || "none");
     const recurrence_id = recurrence === "none" ? null :
     editingTask.recurrence_id && !recurrenceChanged ? editingTask.recurrence_id : crypto.randomUUID();
+    const period = editingTask._period !== undefined ? editingTask._period : editingTask.period;
+    const priority = editingTask._priority !== undefined ? editingTask._priority : editingTask.priority || "medium";
     await Task.update(editingTask.id, {
       description: editingTask.description || "",
       tags_json: JSON.stringify(tags),
-      period: editingTask._period !== undefined ? editingTask._period : editingTask.period,
-      priority: editingTask._priority !== undefined ? editingTask._priority : editingTask.priority || "medium",
+      period,
+      priority,
       recurrence,
       recurrence_id,
       subtasks_json: JSON.stringify(editingTask._subtasks || [])
     });
+    if (recurrenceChanged && recurrence !== "none") {
+      await generateFutureOccurrences({
+        title: editingTask.title, period, priority,
+        description: editingTask.description || "", tags_json: JSON.stringify(tags),
+        week_start: editingTask.week_start, weekday: editingTask.weekday,
+        recurrence, recurrence_id
+      });
+    }
     setEditingTask(null);
     refreshData();
   };

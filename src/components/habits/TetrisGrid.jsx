@@ -62,6 +62,11 @@ function HabitTile({ habit, completed, onComplete, onUndo, animating, sizeIndex,
           {habit.description && isWide &&
           <p data-source-location="components/habits/TetrisGrid:63:12" data-dynamic-content="true" className="text-[10px] text-muted-foreground mt-1 line-clamp-2" data-collection-item-field="description" data-collection-item-id={habit?.id || habit?._id}>{habit.description}</p>
           }
+          {habit.goal_type === "numeric" && habit.goal_target &&
+          <p className="text-[9px] text-muted-foreground mt-1">
+            {habit.goal_direction === "at_most" ? "máx " : "meta "}{habit.goal_target}{habit.goal_unit ? ` ${habit.goal_unit}` : ""}
+          </p>
+          }
         </div>
 
         <div data-source-location="components/habits/TetrisGrid:67:8" data-dynamic-content="true" className="flex items-center gap-1 mt-2">
