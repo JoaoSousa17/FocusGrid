@@ -27,7 +27,7 @@ import HabitsRewards from '@/pages/HabitsRewards';
 import Deadlines from '@/pages/Deadlines';
 import MeetingAI from '@/pages/MeetingAI';
 import Chat from '@/pages/Chat';
-import ExportDocs from '@/pages/ExportDocs';
+import Profile from '@/pages/Profile';
 import Terms from '@/pages/Terms';
 import Privacy from '@/pages/Privacy';
 
@@ -78,8 +78,8 @@ const AuthenticatedApp = () => {
         <Route data-source-location="App:73:8" data-dynamic-content="true" path="/coming-soon" element={<ComingSoon data-source-location="App:73:44" data-dynamic-content="false" />} />
         <Route data-source-location="App:74:8" data-dynamic-content="true" path="/deadlines" element={<Deadlines data-source-location="App:74:42" data-dynamic-content="false" />} />
         <Route data-source-location="App:75:8" data-dynamic-content="true" path="/meeting-ai" element={<MeetingAI data-source-location="App:75:43" data-dynamic-content="false" />} />
-        <Route data-source-location="App:76:8" data-dynamic-content="true" path="/export" element={<ExportDocs data-source-location="App:76:39" data-dynamic-content="false" />} />
         <Route path="/chat" element={<Chat />} />
+        <Route path="/profile" element={<Profile />} />
       </Route>
       <Route data-source-location="App:78:6" data-dynamic-content="true" path="*" element={<PageNotFound data-source-location="App:78:31" data-dynamic-content="false" />} />
     </Routes>

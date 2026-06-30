@@ -233,6 +233,7 @@ export default function MeetingAI() {
 
   const processAudio = async (audioBlob, durationSecs) => {
     setProcessing(true);
+    try {
     setProcessingStep("A transcrever áudio...");
     const { file_url } = await Core.UploadFile({ file: audioBlob });
     const transcript = await Core.TranscribeAudio({ audio_url: file_url });
@@ -277,8 +278,13 @@ Responde em português de Portugal.`,
     });
     setResult({ ...analysis, transcript, audio_duration_seconds: durationSecs || lastDuration });
     setSavingTitle(analysis.title || "Nova Reunião");
-    setProcessing(false);
-    setProcessingStep("");
+    } catch (err) {
+      console.error("processAudio error:", err);
+      setProcessingStep("Erro: " + (err.message || "Tenta novamente"));
+      setTimeout(() => setProcessingStep(""), 4000);
+    } finally {
+      setProcessing(false);
+    }
   };
 
   const handleToggleRecord = async () => {
@@ -293,7 +299,6 @@ Responde em português de Portugal.`,
   const handleUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    setProcessing(true);
     await processAudio(file, 0);
     e.target.value = "";
   };
