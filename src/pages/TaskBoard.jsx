@@ -1,10 +1,10 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowRight, Plus, Check, X, Search, Filter, Trash2, Tags, ChevronLeft, ChevronRight, GripVertical } from "lucide-react";
+import { ArrowRight, Plus, Check, X, Search, Filter, Trash2, Tags, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, GripVertical, ListChecks, Repeat, Flag } from "lucide-react";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import { Tag, Task } from "@/api/entities";
-import { startOfWeek, endOfWeek, addWeeks, subWeeks, format, eachDayOfInterval } from "date-fns";
+import { startOfWeek, endOfWeek, addWeeks, subWeeks, addDays, addMonths, addYears, parseISO, format, eachDayOfInterval } from "date-fns";
 import { pt } from "date-fns/locale";
 import TagPicker from "@/components/TagPicker";
 import { useEdgeSwipeNav } from "@/hooks/useEdgeSwipeNav";
@@ -32,7 +32,10 @@ const PRIORITY_CONFIG = {
 const RECURRENCE_CONFIG = {
   none: { label: "Não repete" },
   daily: { label: "Diariamente" },
-  weekly: { label: "Semanalmente" }
+  weekly: { label: "Semanalmente" },
+  biweekly: { label: "A cada 15 dias" },
+  monthly: { label: "Mensalmente" },
+  yearly: { label: "Anualmente" }
 };
 
 const PRESET_COLORS = [
@@ -90,6 +93,37 @@ function parseSubtasks(task) {
   try {return JSON.parse(task.subtasks_json || "[]");} catch {return [];}
 }
 
+function originDateOf(tpl) {
+  const base = parseISO(tpl.week_start);
+  const idx = DAY_KEYS.indexOf(tpl.weekday);
+  return idx >= 0 ? addDays(base, idx) : base;
+}
+
+function weekdayKeyOf(date) {
+  return DAY_KEYS[(date.getDay() + 6) % 7];
+}
+
+function FormSection({ icon: Icon, label, badge, open, onToggle, children }) {
+  return (
+    <div className="rounded-xl border border-border overflow-hidden">
+      <button type="button" onClick={onToggle}
+      className="w-full flex items-center justify-between px-3 py-2 bg-slate-50 hover:bg-slate-100 transition-all">
+        <span className="flex items-center gap-1.5 text-[11px] font-semibold text-foreground">
+          <Icon className="w-3.5 h-3.5 text-[#E87A5A]" /> {label}
+          {badge && <span className="px-1.5 py-0.5 rounded-full text-[9px] font-medium bg-[#E87A5A]/10 text-[#E87A5A]">{badge}</span>}
+        </span>
+        {open ? <ChevronUp className="w-3.5 h-3.5 text-muted-foreground" /> : <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />}
+      </button>
+      <AnimatePresence initial={false}>
+        {open &&
+        <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
+          <div className="p-2.5 space-y-2">{children}</div>
+        </motion.div>
+        }
+      </AnimatePresence>
+    </div>);
+}
+
 export default function TaskBoard() {
   const navigate = useNavigate();
   const [tasks, setTasks] = useState([]);
@@ -108,8 +142,11 @@ export default function TaskBoard() {
   const [searchQuery, setSearchQuery] = useState("");
   const [filterPeriod, setFilterPeriod] = useState(null);
   const [filterCompleted, setFilterCompleted] = useState(null);
+  const [filterHasSubtasks, setFilterHasSubtasks] = useState(false);
   const [subtaskPopup, setSubtaskPopup] = useState(null); // { key } | { editing: true } | null
   const [subtaskInput, setSubtaskInput] = useState("");
+  const [deleteConfirm, setDeleteConfirm] = useState(null); // task pending deletion with recurrence
+  const [formOpenSections, setFormOpenSections] = useState({ details: true, recurrence: false, tags: false, subtasks: false });
   const { swipeHandlers, dragStyle } = useEdgeSwipeNav({ left: "/" }, { edgeGated: true });
 
   const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 });
@@ -140,20 +177,38 @@ export default function TaskBoard() {
       }
     });
     const toCreate = [];
+    const pushOccurrence = (tpl, wd) => {
+      const exists = allTasks.some((t) => t.recurrence_id === tpl.recurrence_id && t.week_start === weekKey && t.weekday === wd);
+      if (!exists) {
+        toCreate.push({
+          title: tpl.title, weekday: wd, completed: false, order: 0,
+          week_start: weekKey, period: tpl.period, description: tpl.description || "",
+          tags_json: tpl.tags_json || "[]", priority: tpl.priority || "medium",
+          recurrence: tpl.recurrence, recurrence_id: tpl.recurrence_id, subtasks_json: "[]"
+        });
+      }
+    };
     Object.values(templates).forEach((tpl) => {
       if (tpl.week_start > weekKey) return;
-      const targetWeekdays = tpl.recurrence === "daily" ? DAY_KEYS : [tpl.weekday];
-      targetWeekdays.forEach((wd) => {
-        const exists = allTasks.some((t) => t.recurrence_id === tpl.recurrence_id && t.week_start === weekKey && t.weekday === wd);
-        if (!exists) {
-          toCreate.push({
-            title: tpl.title, weekday: wd, completed: false, order: 0,
-            week_start: weekKey, period: tpl.period, description: tpl.description || "",
-            tags_json: tpl.tags_json || "[]", priority: tpl.priority || "medium",
-            recurrence: tpl.recurrence, recurrence_id: tpl.recurrence_id, subtasks_json: "[]"
-          });
+      if (tpl.recurrence === "daily") {
+        DAY_KEYS.forEach((wd) => pushOccurrence(tpl, wd));
+      } else if (tpl.recurrence === "weekly") {
+        pushOccurrence(tpl, tpl.weekday);
+      } else if (tpl.recurrence === "biweekly") {
+        const weeksDiff = Math.round((parseISO(weekKey) - parseISO(tpl.week_start)) / (7 * 86400000));
+        if (weeksDiff >= 0 && weeksDiff % 2 === 0) pushOccurrence(tpl, tpl.weekday);
+      } else if (tpl.recurrence === "monthly" || tpl.recurrence === "yearly") {
+        const origin = originDateOf(tpl);
+        const step = tpl.recurrence === "monthly" ? addMonths : addYears;
+        for (let i = 0; i < 60; i++) {
+          const candidate = step(origin, i);
+          if (candidate >= weekStart && candidate <= weekEnd) {
+            pushOccurrence(tpl, weekdayKeyOf(candidate));
+            break;
+          }
+          if (candidate > weekEnd) break;
         }
-      });
+      }
     });
     materializedWeeksRef.current.add(weekKey);
     if (toCreate.length > 0) {
@@ -170,13 +225,16 @@ export default function TaskBoard() {
     ["none", ...DAY_KEYS].forEach((k) => {map[k] = [];});
     tasks.forEach((t) => {
       if (t.week_start !== weekKey) return;
+      if (filterPeriod && t.period !== filterPeriod) return;
+      if (filterCompleted !== null && t.completed !== filterCompleted) return;
+      if (filterHasSubtasks && parseSubtasks(t).length === 0) return;
       const k = t.weekday || "none";
       if (map[k]) map[k].push(t);else
       map[k] = [t];
     });
     Object.keys(map).forEach((k) => {map[k] = sortDayTasks(map[k]);});
     return map;
-  }, [tasks, weekKey]);
+  }, [tasks, weekKey, filterPeriod, filterCompleted, filterHasSubtasks]);
 
   const addTask = async (key) => {
     const data = newTasks[key];
@@ -212,6 +270,27 @@ export default function TaskBoard() {
 
   const deleteTask = async (taskId) => {
     await Task.delete(taskId).catch(() => {});
+    refreshData();
+  };
+
+  const requestDelete = (task) => {
+    if (task.recurrence && task.recurrence !== "none" && task.recurrence_id) {
+      setDeleteConfirm(task);
+    } else {
+      deleteTask(task.id);
+    }
+  };
+
+  const deleteAllRecurrence = async (recurrenceId) => {
+    const matches = tasks.filter((t) => t.recurrence_id === recurrenceId);
+    for (const t of matches) await Task.delete(t.id).catch(() => {});
+    setDeleteConfirm(null);
+    refreshData();
+  };
+
+  const toggleSubtaskOnCard = async (task, subtaskId) => {
+    const subtasks = parseSubtasks(task).map((s) => s.id === subtaskId ? { ...s, completed: !s.completed } : s);
+    await Task.update(task.id, { subtasks_json: JSON.stringify(subtasks) });
     refreshData();
   };
 
@@ -370,7 +449,7 @@ export default function TaskBoard() {
             }
               {/* Trash icon on hover */}
               <button data-source-location="pages/TaskBoard:277:14" data-dynamic-content="true"
-            onClick={(e) => {e.stopPropagation();deleteTask(task.id);}}
+            onClick={(e) => {e.stopPropagation();requestDelete(task);}}
             className="absolute top-2 right-2 w-6 h-6 rounded-full bg-white border border-border shadow-sm flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all hover:bg-rose-50 hover:border-rose-200 hover:text-rose-500 z-10"
             style={task.period ? { right: "28px" } : {}}>
               
@@ -391,16 +470,24 @@ export default function TaskBoard() {
                   <p data-source-location="pages/TaskBoard:296:18" data-dynamic-content="true" className={`text-sm ${isCompleted ? "line-through text-muted-foreground/50" : "text-foreground"}`} data-collection-item-field="title" data-collection-item-id={task?.id}>
                     {task.title}
                   </p>
-                  {(tags.length > 0 || subtasks.length > 0) &&
+                  {tags.length > 0 &&
                 <div className="flex flex-wrap items-center gap-1 mt-1.5">
                       {tags.slice(0, 3).map((tag, i) =>
                   <span data-source-location="pages/TaskBoard:302:24" data-dynamic-content="true" key={i} className={`px-1.5 py-0.5 rounded-md text-[9px] font-medium ${tagClass(tag.color)}`} data-collection-item-field="name" data-collection-item-id={tag?.id}>{tag.name}</span>
                   )}
-                      {subtasks.length > 0 &&
-                  <span className="px-1.5 py-0.5 rounded-md text-[9px] font-medium bg-slate-100 text-slate-500">
-                          {subtasksDone}/{subtasks.length}
-                        </span>
-                  }
+                    </div>
+                }
+                  {subtasks.length > 0 &&
+                <div className="mt-1.5 pl-1.5 space-y-1">
+                      {subtasks.map((s) =>
+                  <button key={s.id} type="button" onClick={(e) => {e.stopPropagation();toggleSubtaskOnCard(task, s.id);}}
+                  className="w-full flex items-center gap-1.5 text-left group/sub">
+                          <span className={`w-3 h-3 rounded border flex-shrink-0 flex items-center justify-center transition-all ${s.completed ? "bg-blue-500 border-blue-500" : "border-slate-300 group-hover/sub:border-blue-400"}`}>
+                            {s.completed && <Check className="w-2 h-2 text-white" />}
+                          </span>
+                          <span className={`text-[10px] truncate ${s.completed ? "line-through text-muted-foreground/50" : "text-muted-foreground"}`}>{s.title}</span>
+                        </button>
+                  )}
                     </div>
                 }
                 </div>
@@ -414,65 +501,90 @@ export default function TaskBoard() {
   };
 
   const renderMiniForm = (key) => {
-    const current = newTasks[key] || { title: "", period: null, tags: [] };
+    const current = newTasks[key] || { title: "", period: null, tags: [], priority: "medium", recurrence: "none", subtasks: [] };
+    const toggleSection = (s) => setFormOpenSections((prev) => ({ ...prev, [s]: !prev[s] }));
+
     return (
-      <div data-source-location="pages/TaskBoard:318:6" data-dynamic-content="true" className="bg-white rounded-xl p-3 shadow-sm border border-[#E87A5A]/30 space-y-2">
-        <input data-source-location="pages/TaskBoard:319:8" data-dynamic-content="true" autoFocus value={current.title}
+      <div className="bg-white rounded-xl p-3 shadow-sm border border-[#E87A5A]/30 space-y-2.5">
+        <input autoFocus value={current.title}
         onChange={(e) => setNewTaskField(key, "title", e.target.value)}
         onKeyDown={(e) => {if (e.key === "Enter") addTask(key);if (e.key === "Escape") setAddingTo(null);}}
-        placeholder="Nova tarefa..." className="w-full text-sm bg-transparent outline-none" />
-        <div data-source-location="pages/TaskBoard:323:8" data-dynamic-content="true" className="flex gap-1">
-          {Object.entries(PERIOD_CONFIG).map(([p, cfg]) =>
-          <button data-source-location="pages/TaskBoard:325:12" data-dynamic-content="true" key={p} onClick={() => setNewTaskField(key, "period", current.period === p ? null : p)}
-          className={`flex-1 py-1.5 rounded-lg text-[10px] font-medium transition-all ${current.period === p ? "bg-[#E87A5A] text-white" : "bg-slate-100 text-slate-400 hover:bg-slate-200"}`} data-collection-item-field="emoji" data-collection-item-id={cfg?.id || cfg?._id}>
-              {cfg.emoji}
-            </button>
-          )}
-        </div>
-        <div data-source-location="pages/TaskBoard:331:8" data-dynamic-content="true" className="flex flex-wrap gap-1" data-collection-item-field="tags" data-collection-item-id={current?.id || current?._id}>
-          {current.tags.map((tag, i) =>
-          <span data-source-location="pages/TaskBoard:333:12" data-dynamic-content="true" key={i} className={`px-2 py-0.5 rounded-full text-[9px] font-medium flex items-center gap-0.5 ${tagClass(tag.color)}`} data-collection-item-field="name" data-collection-item-id={tag?.id || tag?._id}>
-              {tag.name}
-              <button data-source-location="pages/TaskBoard:335:14" data-dynamic-content="true" onClick={() => {const u = current.tags.filter((_, j) => j !== i);setNewTaskField(key, "tags", u);}}>
-                <X data-source-location="pages/TaskBoard:336:16" data-dynamic-content="false" className="w-2.5 h-2.5" />
+        placeholder="Nova tarefa..." className="w-full text-sm bg-slate-50 rounded-lg px-2.5 py-2 outline-none focus:ring-1 focus:ring-[#E87A5A]/40 transition-all" />
+
+        <FormSection icon={Flag} label="Detalhes" open={!!formOpenSections.details} onToggle={() => toggleSection("details")}
+        badge={[current.period && PERIOD_CONFIG[current.period]?.emoji, PRIORITY_CONFIG[current.priority || "medium"]?.label].filter(Boolean).join(" · ")}>
+          <div>
+            <p className="text-[10px] font-medium text-muted-foreground mb-1">Período</p>
+            <div className="flex gap-1">
+              {Object.entries(PERIOD_CONFIG).map(([p, cfg]) =>
+              <button key={p} type="button" onClick={() => setNewTaskField(key, "period", current.period === p ? null : p)}
+              className={`flex-1 py-1.5 rounded-lg text-[10px] font-medium transition-all ${current.period === p ? "bg-[#E87A5A] text-white" : "bg-slate-100 text-slate-400 hover:bg-slate-200"}`}>
+                {cfg.emoji} {cfg.label}
               </button>
-            </span>
-          )}
-          {current.tags.length < 3 &&
-          <button data-source-location="pages/TaskBoard:341:12" data-dynamic-content="true" onClick={() => setShowTagPickerFor(key)}
-          className="px-2 py-0.5 rounded-full text-[9px] text-muted-foreground border border-dashed border-border hover:border-[#E87A5A]/50 hover:text-[#E87A5A] transition-all">
-              + tag
+              )}
+            </div>
+          </div>
+          <div>
+            <p className="text-[10px] font-medium text-muted-foreground mb-1">Prioridade</p>
+            <div className="flex gap-1">
+              {Object.entries(PRIORITY_CONFIG).map(([p, cfg]) =>
+              <button key={p} type="button" onClick={() => setNewTaskField(key, "priority", p)}
+              className={`flex-1 py-1.5 rounded-lg text-[10px] font-medium transition-all ${(current.priority || "medium") === p ? "text-white" : "bg-slate-100 text-slate-400 hover:bg-slate-200"}`}
+              style={(current.priority || "medium") === p ? { backgroundColor: cfg.color } : {}}>
+                {cfg.label}
+              </button>
+              )}
+            </div>
+          </div>
+        </FormSection>
+
+        <FormSection icon={Repeat} label="Repetição" open={!!formOpenSections.recurrence} onToggle={() => toggleSection("recurrence")}
+        badge={(current.recurrence || "none") !== "none" ? RECURRENCE_CONFIG[current.recurrence]?.label : null}>
+          <select value={current.recurrence || "none"} onChange={(e) => setNewTaskField(key, "recurrence", e.target.value)}
+          className="w-full text-xs bg-slate-100 rounded-lg px-2.5 py-2 outline-none text-slate-600">
+            {Object.entries(RECURRENCE_CONFIG).map(([r, cfg]) => <option key={r} value={r}>{cfg.label}</option>)}
+          </select>
+        </FormSection>
+
+        <FormSection icon={Tags} label="Tags" open={!!formOpenSections.tags} onToggle={() => toggleSection("tags")}
+        badge={current.tags.length > 0 ? `${current.tags.length}` : null}>
+          <div className="flex flex-wrap gap-1">
+            {current.tags.map((tag, i) =>
+            <span key={i} className={`px-2 py-0.5 rounded-full text-[9px] font-medium flex items-center gap-0.5 ${tagClass(tag.color)}`}>
+                {tag.name}
+                <button type="button" onClick={() => {const u = current.tags.filter((_, j) => j !== i);setNewTaskField(key, "tags", u);}}>
+                  <X className="w-2.5 h-2.5" />
+                </button>
+              </span>
+            )}
+            {current.tags.length < 3 &&
+            <button type="button" onClick={() => setShowTagPickerFor(key)}
+            className="px-2 py-0.5 rounded-full text-[9px] text-muted-foreground border border-dashed border-border hover:border-[#E87A5A]/50 hover:text-[#E87A5A] transition-all">
+                + tag
+              </button>
+            }
+          </div>
+        </FormSection>
+
+        <FormSection icon={ListChecks} label="Subtarefas" open={!!formOpenSections.subtasks} onToggle={() => toggleSection("subtasks")}
+        badge={(current.subtasks || []).length > 0 ? `${current.subtasks.length}` : null}>
+          <div className="flex flex-wrap gap-1">
+            {(current.subtasks || []).map((s) =>
+            <span key={s.id} className="px-2 py-0.5 rounded-full text-[9px] font-medium flex items-center gap-0.5 bg-slate-100 text-slate-500">
+                {s.title}
+                <button type="button" onClick={() => removeSubtaskFromNew(key, s.id)}><X className="w-2.5 h-2.5" /></button>
+              </span>
+            )}
+            <button type="button" onClick={() => {setSubtaskInput("");setSubtaskPopup({ key });}}
+            className="px-2 py-0.5 rounded-full text-[9px] text-muted-foreground border border-dashed border-border hover:border-[#E87A5A]/50 hover:text-[#E87A5A] transition-all">
+              + subtarefa
             </button>
-          }
-        </div>
-        <div className="flex gap-1">
-          {Object.entries(PRIORITY_CONFIG).map(([p, cfg]) =>
-          <button key={p} type="button" onClick={() => setNewTaskField(key, "priority", p)}
-          className={`flex-1 py-1.5 rounded-lg text-[10px] font-medium transition-all ${(current.priority || "medium") === p ? "text-white" : "bg-slate-100 text-slate-400 hover:bg-slate-200"}`}
-          style={(current.priority || "medium") === p ? { backgroundColor: cfg.color } : {}}>
-              {cfg.label}
-            </button>
-          )}
-        </div>
-        <select value={current.recurrence || "none"} onChange={(e) => setNewTaskField(key, "recurrence", e.target.value)}
-        className="w-full text-[11px] bg-slate-100 rounded-lg px-2 py-1.5 outline-none text-slate-600">
-          {Object.entries(RECURRENCE_CONFIG).map(([r, cfg]) => <option key={r} value={r}>{cfg.label}</option>)}
-        </select>
-        <div className="flex flex-wrap gap-1">
-          {(current.subtasks || []).map((s) =>
-          <span key={s.id} className="px-2 py-0.5 rounded-full text-[9px] font-medium flex items-center gap-0.5 bg-slate-100 text-slate-500">
-              {s.title}
-              <button type="button" onClick={() => removeSubtaskFromNew(key, s.id)}><X className="w-2.5 h-2.5" /></button>
-            </span>
-          )}
-          <button type="button" onClick={() => {setSubtaskInput("");setSubtaskPopup({ key });}}
-          className="px-2 py-0.5 rounded-full text-[9px] text-muted-foreground border border-dashed border-border hover:border-[#E87A5A]/50 hover:text-[#E87A5A] transition-all">
-            + subtarefa
-          </button>
-        </div>
-        <div data-source-location="pages/TaskBoard:347:8" data-dynamic-content="true" className="flex gap-2">
-          <button data-source-location="pages/TaskBoard:348:10" data-dynamic-content="true" onClick={() => addTask(key)} className="flex-1 py-1.5 rounded-lg bg-[#E87A5A] text-white text-xs font-medium hover:bg-[#D4694A] transition-all">Adicionar</button>
-          <button data-source-location="pages/TaskBoard:349:10" data-dynamic-content="true" onClick={() => setAddingTo(null)} className="px-3 py-1.5 rounded-lg bg-secondary text-muted-foreground text-xs"><X data-source-location="pages/TaskBoard:349:130" data-dynamic-content="false" className="w-3 h-3" /></button>
+          </div>
+        </FormSection>
+
+        <div className="flex gap-2 pt-1">
+          <button onClick={() => addTask(key)} className="flex-1 py-2 rounded-lg bg-[#E87A5A] text-white text-xs font-medium hover:bg-[#D4694A] transition-all">Adicionar</button>
+          <button onClick={() => setAddingTo(null)} className="px-3 py-2 rounded-lg bg-secondary text-muted-foreground text-xs"><X className="w-3 h-3" /></button>
         </div>
       </div>);
 
@@ -560,6 +672,9 @@ export default function TaskBoard() {
             className={`py-2 px-3 rounded-xl text-xs font-medium flex items-center gap-1 transition-all ${filterCompleted !== null ? "bg-[#E87A5A] text-white" : "bg-secondary text-muted-foreground hover:bg-border"}`}>
               <Check data-source-location="pages/TaskBoard:440:14" data-dynamic-content="false" className="w-3.5 h-3.5" />
               {filterCompleted === null ? "Todas" : filterCompleted ? "Concluídas" : "Por fazer"}
+            </button>
+            <button onClick={() => setFilterHasSubtasks((v) => !v)} className={`py-2 px-3 rounded-xl text-xs font-medium flex items-center gap-1 transition-all ${filterHasSubtasks ? "bg-[#E87A5A] text-white" : "bg-secondary text-muted-foreground hover:bg-border"}`}>
+              <ListChecks className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Com subtarefas</span>
             </button>
             <button data-source-location="pages/TaskBoard:443:12" data-dynamic-content="true" onClick={() => setShowTagManager(true)} className="py-2 px-3 rounded-xl bg-secondary text-xs font-medium text-muted-foreground flex items-center gap-1 hover:bg-border transition-all">
               <Tags data-source-location="pages/TaskBoard:444:14" data-dynamic-content="false" className="w-3.5 h-3.5" /> <span data-source-location="pages/TaskBoard:444:47" data-dynamic-content="false" className="hidden sm:inline">Tags</span>
@@ -795,6 +910,37 @@ export default function TaskBoard() {
               )}
             </div>
             <button onClick={() => setSubtaskPopup(null)} className="w-full mt-4 py-2.5 rounded-xl bg-secondary text-sm font-medium hover:bg-border transition-all">Fechar</button>
+          </motion.div>
+        </motion.div>
+        }
+      </AnimatePresence>
+
+      {/* Delete recurrence confirm modal */}
+      <AnimatePresence>
+        {deleteConfirm &&
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+        className="fixed inset-0 z-50 bg-black/30 flex items-end sm:items-center justify-center"
+        onClick={() => setDeleteConfirm(null)}>
+          <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
+          className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-sm p-5 shadow-xl"
+          onClick={(e) => e.stopPropagation()}>
+            <h3 className="font-bold text-foreground mb-1">Tarefa recorrente</h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              Esta tarefa repete-se ({RECURRENCE_CONFIG[deleteConfirm.recurrence]?.label?.toLowerCase()}). Queres apagar só esta ocorrência ou toda a série?
+            </p>
+            <div className="space-y-2">
+              <button onClick={() => {deleteTask(deleteConfirm.id);setDeleteConfirm(null);}}
+              className="w-full py-2.5 rounded-xl bg-secondary text-sm font-medium text-foreground hover:bg-border transition-all">
+                Apagar só este dia
+              </button>
+              <button onClick={() => deleteAllRecurrence(deleteConfirm.recurrence_id)}
+              className="w-full py-2.5 rounded-xl bg-rose-50 text-rose-600 text-sm font-medium hover:bg-rose-100 transition-all">
+                Apagar toda a série
+              </button>
+              <button onClick={() => setDeleteConfirm(null)} className="w-full py-2.5 rounded-xl text-sm font-medium text-muted-foreground hover:bg-secondary transition-all">
+                Cancelar
+              </button>
+            </div>
           </motion.div>
         </motion.div>
         }
