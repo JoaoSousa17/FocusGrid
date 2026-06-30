@@ -96,6 +96,11 @@ export default function HabitsAnalytics() {
   const monthlyTotalCompletions = lastMonthEntries.length;
   const monthlyBestDay = monthlyDaily.reduce((best, d) => d.score > (best?.score || 0) ? d : best, null);
 
+  const monthlyAvgPerDay = monthlyTotalCompletions > 0
+    ? (monthlyTotalScore / 30).toFixed(1)
+    : "0";
+  const monthlyActiveDays = monthlyDaily.filter((d) => d.score > 0).length;
+
   const exportMonthlyPdf = async () => {
     if (!monthSectionRef.current) return;
     setExportingPdf(true);
@@ -104,31 +109,107 @@ export default function HabitsAnalytics() {
         import("html2canvas"),
         import("jspdf")
       ]);
-      const canvas = await html2canvas(monthSectionRef.current, { scale: 2, backgroundColor: "#FBF7F2" });
+
+      const canvas = await html2canvas(monthSectionRef.current, {
+        scale: 2.5,
+        backgroundColor: "#FFFAF5",
+        useCORS: true,
+        logging: false,
+      });
       const imgData = canvas.toDataURL("image/png");
-      const doc = new jsPDF({ unit: "pt", format: "a4" });
-      const pageWidth = doc.internal.pageSize.getWidth();
-      const margin = 32;
+      const doc = new jsPDF({ unit: "pt", format: "a4", orientation: "portrait" });
+      const pageW = doc.internal.pageSize.getWidth();
+      const pageH = doc.internal.pageSize.getHeight();
+      const margin = 40;
 
-      doc.setFontSize(18);
-      doc.setTextColor(40, 32, 28);
-      doc.text("FocusGrid — Relatório de Hábitos", margin, 48);
-      doc.setFontSize(10);
-      doc.setTextColor(120, 110, 100);
-      doc.text(`Últimos 30 dias · ${format(monthStart, "d MMM", { locale: pt })} – ${format(today, "d MMM yyyy", { locale: pt })}`, margin, 66);
+      // Background
+      doc.setFillColor(255, 250, 245);
+      doc.rect(0, 0, pageW, pageH, "F");
 
+      // Orange accent bar top
+      doc.setFillColor(232, 122, 90);
+      doc.rect(0, 0, pageW, 6, "F");
+
+      // Header
+      doc.setFontSize(22);
+      doc.setTextColor(40, 30, 25);
+      doc.setFont("helvetica", "bold");
+      doc.text("FocusGrid", margin, 40);
       doc.setFontSize(11);
-      doc.setTextColor(60, 50, 45);
-      const stats = [
-        `Pontuação total: ${monthlyTotalScore} pts`,
-        `Hábitos concluídos: ${monthlyTotalCompletions}`,
-        `Melhor dia: ${monthlyBestDay ? `${monthlyBestDay.date} (${monthlyBestDay.score} pts)` : "—"}`
-      ];
-      stats.forEach((line, i) => doc.text(line, margin, 92 + i * 16));
+      doc.setTextColor(150, 130, 120);
+      doc.setFont("helvetica", "normal");
+      doc.text("Relatório de Hábitos — Últimos 30 dias", margin, 56);
+      doc.setFontSize(9);
+      doc.text(`${format(monthStart, "d 'de' MMMM", { locale: pt })} a ${format(today, "d 'de' MMMM 'de' yyyy", { locale: pt })}`, margin, 68);
 
-      const imgWidth = pageWidth - margin * 2;
-      const imgHeight = imgWidth * (canvas.height / canvas.width);
-      doc.addImage(imgData, "PNG", margin, 150, imgWidth, imgHeight);
+      // Divider
+      doc.setDrawColor(232, 122, 90);
+      doc.setLineWidth(0.5);
+      doc.line(margin, 76, pageW - margin, 76);
+
+      // Stats row (3 boxes)
+      const boxW = (pageW - margin * 2 - 16) / 3;
+      const statsData = [
+        { label: "Pontuação Total", value: `${monthlyTotalScore} pts`, color: [251, 191, 36] },
+        { label: "Hábitos Feitos", value: `${monthlyTotalCompletions}`, color: [52, 211, 153] },
+        { label: "Dias Ativos", value: `${monthlyActiveDays}/30`, color: [99, 102, 241] },
+      ];
+      statsData.forEach((s, i) => {
+        const bx = margin + i * (boxW + 8);
+        doc.setFillColor(...s.color.map(c => Math.round(c * 0.15 + 240)));
+        doc.roundedRect(bx, 84, boxW, 50, 6, 6, "F");
+        doc.setFontSize(8);
+        doc.setTextColor(100, 90, 85);
+        doc.text(s.label, bx + 10, 98);
+        doc.setFontSize(18);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(...s.color);
+        doc.text(s.value, bx + 10, 118);
+        doc.setFont("helvetica", "normal");
+      });
+
+      // Extra stats line
+      doc.setFontSize(9);
+      doc.setTextColor(130, 120, 115);
+      doc.text(`Média diária: ${monthlyAvgPerDay} pts · Melhor dia: ${monthlyBestDay ? `${monthlyBestDay.date} (${monthlyBestDay.score} pts)` : "—"}`, margin, 148);
+
+      // Top habits table
+      if (monthlyByHabit.length > 0) {
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(40, 30, 25);
+        doc.text("Top Hábitos do Mês", margin, 168);
+        doc.setFont("helvetica", "normal");
+        monthlyByHabit.slice(0, 5).forEach((h, i) => {
+          const y = 180 + i * 16;
+          const barW = Math.round(Math.min(h.value / (monthlyByHabit[0]?.value || 1), 1) * (pageW - margin * 2 - 60));
+          doc.setFillColor(232, 122, 90, 30);
+          doc.roundedRect(margin + 52, y - 9, barW, 11, 2, 2, "F");
+          doc.setFontSize(8);
+          doc.setTextColor(80, 70, 65);
+          doc.text(`${i + 1}. ${h.name}`, margin, y);
+          doc.setTextColor(232, 122, 90);
+          doc.text(`${h.value} pts`, pageW - margin, y, { align: "right" });
+          doc.setTextColor(80, 70, 65);
+        });
+      }
+
+      // Chart image
+      const chartY = monthlyByHabit.length > 0 ? 190 + Math.min(monthlyByHabit.length, 5) * 16 : 168;
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(40, 30, 25);
+      doc.text("Pontuação Diária (últimos 30 dias)", margin, chartY + 14);
+      const imgW = pageW - margin * 2;
+      const imgH = imgW * (canvas.height / canvas.width);
+      doc.addImage(imgData, "PNG", margin, chartY + 22, imgW, Math.min(imgH, pageH - chartY - 80));
+
+      // Footer
+      doc.setFontSize(7);
+      doc.setTextColor(180, 170, 165);
+      doc.text(`Gerado em ${format(today, "d/M/yyyy 'às' HH:mm")} · focusgrid.app`, pageW / 2, pageH - 18, { align: "center" });
+      doc.setFillColor(232, 122, 90);
+      doc.rect(0, pageH - 4, pageW, 4, "F");
 
       doc.save(`focusgrid-habitos-${format(today, "yyyy-MM-dd")}.pdf`);
     } catch (err) {

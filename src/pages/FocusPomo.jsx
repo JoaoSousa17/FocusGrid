@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { ArrowLeft, ArrowRight, ArrowUp, ArrowDown } from "lucide-react";
-import { FocusSession, Tag } from "@/api/entities";
+import { FocusSession, Tag, Event } from "@/api/entities";
 import { auth } from "@/api/auth";
 import { useFocusTimer } from "@/context/FocusTimerContext";
 import FocusTimer from "@/components/FocusTimer";
@@ -49,6 +49,10 @@ export default function FocusPomo() {
     if (sessionCompleted) {
       setCompletedOranges((prev) => prev + 1);
       setShowOranges(true);
+      const sessionEnd = new Date();
+      const sessionStart = new Date(sessionEnd.getTime() - focusMin * 60 * 1000);
+      const tagColorHexMap = { blue: "#3B82F6", purple: "#8B5CF6", green: "#10B981", amber: "#F59E0B", rose: "#F43F5E", teal: "#14B8A6", indigo: "#6366F1", pink: "#EC4899" };
+      const tagHex = tagColorHexMap[selectedTag?.color] || "#E87A5A";
       FocusSession.create({
         tag_id: selectedTag?.id || null,
         tag_name: selectedTag?.name || "Estudo",
@@ -56,6 +60,12 @@ export default function FocusPomo() {
         duration_minutes: focusMin,
         type: "focus",
         completed: true
+      }).catch(() => {});
+      Event.create({
+        name: `🍊 Foco — ${selectedTag?.name || "Estudo"}`,
+        start_datetime: sessionStart.toISOString(),
+        end_datetime: sessionEnd.toISOString(),
+        color: tagHex,
       }).catch(() => {});
       resetSessionCompleted();
 

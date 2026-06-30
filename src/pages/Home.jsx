@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowLeft, ArrowRight, ArrowUp, ArrowDown, ListTodo, Heart, Timer, LayoutGrid } from "lucide-react";
+import { ArrowLeft, ArrowRight, ArrowUp, ArrowDown, ListTodo, Heart, Timer, LayoutGrid, MessageCircle } from "lucide-react";
 import { auth } from "@/api/auth";
 import { useEdgeSwipeNav } from "@/hooks/useEdgeSwipeNav";
 
@@ -142,6 +142,15 @@ export default function Home() {
             
           Produtividade com ritmo
         </motion.p>
+        <motion.button
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 1.0 }}
+          onClick={() => navigate("/chat")}
+          className="mt-4 flex items-center gap-2 px-4 py-2 rounded-2xl bg-white border border-border shadow-sm text-sm font-medium text-foreground hover:border-[#E87A5A]/40 hover:bg-[#E87A5A]/5 transition-all">
+          <MessageCircle className="w-4 h-4 text-[#E87A5A]" />
+          Assistente IA
+        </motion.button>
       </motion.div>
 
       {/* Swipe hints */}

@@ -1,13 +1,14 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowRight, Plus, Check, X, Search, Filter, Trash2, Tags, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, GripVertical, ListChecks, Repeat, Flag } from "lucide-react";
+import { ArrowRight, Plus, Check, X, Search, Filter, Trash2, Tags, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, GripVertical, ListChecks, Repeat, Flag, Timer } from "lucide-react";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import { Tag, Task } from "@/api/entities";
 import { startOfWeek, endOfWeek, addWeeks, subWeeks, addDays, addMonths, addYears, parseISO, format, eachDayOfInterval } from "date-fns";
 import { pt } from "date-fns/locale";
 import TagPicker from "@/components/TagPicker";
 import { useEdgeSwipeNav } from "@/hooks/useEdgeSwipeNav";
+import { useFocusTimer } from "@/context/FocusTimerContext";
 
 const DAY_LABELS = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"];
 const DAY_KEYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
@@ -164,6 +165,7 @@ function FormSection({ icon: Icon, label, badge, open, onToggle, children }) {
 
 export default function TaskBoard() {
   const navigate = useNavigate();
+  const { handlePlayPause, isRunning } = useFocusTimer();
   const [tasks, setTasks] = useState([]);
   const [allTags, setAllTags] = useState([]);
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -932,7 +934,12 @@ export default function TaskBoard() {
                   </div>
                 </div>
               </div>
-              <div data-source-location="pages/TaskBoard:593:14" data-dynamic-content="true" className="flex gap-2 mt-5">
+              <button
+                onClick={() => { setEditingTask(null); if (!isRunning) handlePlayPause(); navigate("/focus"); }}
+                className="w-full mt-4 py-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-700 text-sm font-semibold hover:bg-amber-100 transition-all flex items-center justify-center gap-2">
+                <Timer className="w-4 h-4" /> Iniciar Foco nesta tarefa
+              </button>
+              <div data-source-location="pages/TaskBoard:593:14" data-dynamic-content="true" className="flex gap-2 mt-2">
                 <button data-source-location="pages/TaskBoard:594:16" data-dynamic-content="true" onClick={() => setEditingTask(null)} className="flex-1 py-2.5 rounded-xl bg-secondary text-sm font-medium text-muted-foreground hover:bg-border transition-all">Cancelar</button>
                 <button data-source-location="pages/TaskBoard:595:16" data-dynamic-content="true" onClick={updateTaskDetails} className="flex-1 py-2.5 rounded-xl bg-[#E87A5A] text-white text-sm font-medium hover:bg-[#D4694A] transition-all">Guardar</button>
               </div>

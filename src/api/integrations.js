@@ -92,3 +92,12 @@ export async function clearPomodoroNotification() {
     body: { action: "clear" },
   }).catch(() => {});
 }
+
+// Chat multi-turn via Groq — envia array de mensagens e sistema prompt
+export async function InvokeLLMChat({ messages, system, model }) {
+  const { data, error } = await supabase.functions.invoke("invoke-llm", {
+    body: { messages, system, model },
+  });
+  if (error) throw error;
+  return data.result;
+}
