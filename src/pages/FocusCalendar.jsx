@@ -169,35 +169,44 @@ export default function FocusCalendar() {
     e.target.value = "";
   };
 
-  // Drag to create
+  // Drag to create — hour from Y using fixed 48px-per-hour row height
+  const HOUR_PX = 48;
   const hourFromY = (el, clientY) => {
     const rect = el.getBoundingClientRect();
-    const frac = Math.max(0, Math.min(1, (clientY - rect.top) / rect.height));
+    const relativeY = clientY - rect.top;
+    const frac = Math.max(0, Math.min(0.9999, relativeY / (HOUR_PX * 24)));
     return Math.floor(frac * 24);
   };
 
+  const dragRef = useRef(null);
+
   const onGridMouseDown = (e, dayKey) => {
-    if (!gridRef.current) return;
-    const startHour = hourFromY(e.currentTarget, e.clientY);
+    const startHour = hourFromY(e.currentTarget.closest(".day-col-grid"), e.clientY);
+    dragRef.current = { dayKey, startHour, endHour: startHour };
     setDrag({ dayKey, startHour, endHour: startHour });
     e.preventDefault();
   };
 
-  const onGridMouseMove = (e) => {
-    if (!drag) return;
-    const endHour = hourFromY(e.currentTarget, e.clientY);
-    setDrag((prev) => ({ ...prev, endHour }));
-  };
+  const onGridMouseMove = useCallback((e) => {
+    if (!dragRef.current) return;
+    const gridEl = e.currentTarget;
+    const endHour = hourFromY(gridEl, e.clientY);
+    dragRef.current = { ...dragRef.current, endHour };
+    setDrag({ ...dragRef.current });
+  }, []);
 
-  const onGridMouseUp = (e) => {
-    if (!drag) return;
-    const { dayKey, startHour, endHour } = drag;
+  const onGridMouseUp = useCallback((e) => {
+    if (!dragRef.current) return;
+    const { dayKey, startHour, endHour } = dragRef.current;
+    dragRef.current = null;
     setDrag(null);
     const s = Math.min(startHour, endHour);
     const end = Math.max(startHour, endHour) + 1;
-    setCreateModal({ dayKey, startHour: s, endHour: end });
-    setNewEventName("");
-  };
+    if (end - s >= 1) {
+      setCreateModal({ dayKey, startHour: s, endHour: end });
+      setNewEventName("");
+    }
+  }, []);
 
   const confirmCreateEvent = async () => {
     if (!createModal || !newEventName.trim()) return;
@@ -340,10 +349,11 @@ export default function FocusCalendar() {
                   ))}
                 </div>
                 <div
+                  ref={gridRef}
                   className="grid grid-cols-7 select-none"
                   onMouseMove={onGridMouseMove}
                   onMouseUp={onGridMouseUp}
-                  onMouseLeave={() => { if (drag) { setDrag(null); } }}
+                  onMouseLeave={() => { if (dragRef.current) { dragRef.current = null; setDrag(null); } }}
                 >
                   {weekDays.map((day) => {
                     const key = format(day, "yyyy-MM-dd");
@@ -352,25 +362,26 @@ export default function FocusCalendar() {
                     const dragMin = isDragDay ? Math.min(drag.startHour, drag.endHour) : -1;
                     const dragMax = isDragDay ? Math.max(drag.startHour, drag.endHour) : -1;
                     return (
-                      <div key={key} className="relative border-l border-border/30"
+                      <div key={key} className="relative border-l border-border/30 day-col-grid"
                         onMouseDown={(e) => onGridMouseDown(e, key)}>
                         {HOURS.map((h) => (
                           <div key={h} className={`h-12 border-b border-border/20 border-dashed ${isDragDay && h >= dragMin && h <= dragMax ? "bg-[#E87A5A]/15" : ""}`} />
                         ))}
                         {/* Drag ghost */}
                         {isDragDay && dragMin >= 0 && (
-                          <div className="absolute left-1 right-1 rounded-lg bg-[#E87A5A]/30 border border-[#E87A5A]/50 pointer-events-none flex items-center justify-center"
-                            style={{ top: `${dragMin / 24 * 100}%`, height: `${(dragMax - dragMin + 1) / 24 * 100}%`, minHeight: "24px" }}>
+                          <div className="absolute left-1 right-1 rounded-lg bg-[#E87A5A]/30 border border-[#E87A5A]/50 pointer-events-none flex items-center justify-center z-10"
+                            style={{ top: dragMin * 48, height: (dragMax - dragMin + 1) * 48, minHeight: 24 }}>
                             <span className="text-[9px] font-semibold text-[#E87A5A]">{dragMin}h–{dragMax + 1}h</span>
                           </div>
                         )}
                         {(d.sessions || []).map((s) => {
                           const date = new Date(s.created_date);
-                          const topPct = (date.getHours() + date.getMinutes() / 60) / 24 * 100;
+                          const topPx = (date.getHours() + date.getMinutes() / 60) * 48;
+                          const heightPx = Math.max(22, (s.duration_minutes || 25) / 60 * 48);
                           const colors = TAG_COLORS[s.tag_color] || TAG_COLORS.blue;
                           return (
-                            <div key={s.id} className="absolute left-1 right-1 rounded-lg px-1.5 py-1 text-[9px] font-semibold truncate shadow-sm"
-                              style={{ top: `${topPct}%`, backgroundColor: colors.bg, color: colors.text, minHeight: "22px", borderLeft: `3px solid ${colors.text}` }}>
+                            <div key={s.id} className="absolute left-1 right-1 rounded-lg px-1.5 py-1 text-[9px] font-semibold shadow-sm overflow-hidden"
+                              style={{ top: topPx, height: heightPx, backgroundColor: colors.bg, color: colors.text, borderLeft: `3px solid ${colors.text}` }}>
                               <span className="text-[10px]">{s.tag_name || "Foco"}</span>
                               <span className="ml-1 opacity-70">{s.duration_minutes}m</span>
                             </div>
@@ -378,27 +389,24 @@ export default function FocusCalendar() {
                         })}
                         {(d.deadlines || []).map((dl) => {
                           const date = new Date(dl.deadline);
-                          const topPct = (date.getHours() + date.getMinutes() / 60) / 24 * 100;
+                          const topPx = (date.getHours() + date.getMinutes() / 60) * 48;
                           const hex = dl.color && dl.color.startsWith("#") ? dl.color : "#E87A5A";
                           return (
                             <div key={dl.id} className="absolute left-1 right-1 rounded-lg px-1.5 py-1 text-[9px] font-semibold truncate shadow-sm"
-                              style={{ top: `${topPct}%`, backgroundColor: hex + "22", color: hex, minHeight: "20px", borderLeft: `3px solid ${hex}` }}>
+                              style={{ top: topPx, minHeight: 20, backgroundColor: hex + "22", color: hex, borderLeft: `3px solid ${hex}` }}>
                               ⏰ {dl.name}
                             </div>
                           );
                         })}
                         {(d.events || []).map((ev) => {
                           const startDate = new Date(ev.start_datetime);
-                          const topPct = (startDate.getHours() + startDate.getMinutes() / 60) / 24 * 100;
+                          const topPx = (startDate.getHours() + startDate.getMinutes() / 60) * 48;
                           const hex = ev.color && ev.color.startsWith("#") ? ev.color : "#8B5CF6";
-                          let heightPct = 4;
-                          if (ev.end_datetime) {
-                            const durMins = (new Date(ev.end_datetime) - startDate) / 60000;
-                            heightPct = Math.max(4, durMins / (24 * 60) * 100);
-                          }
+                          const durMins = ev.end_datetime ? (new Date(ev.end_datetime) - startDate) / 60000 : 60;
+                          const heightPx = Math.max(20, durMins / 60 * 48);
                           return (
-                            <div key={ev.id} className="absolute left-1 right-1 rounded-lg px-1.5 py-1 text-[9px] font-semibold truncate shadow-sm"
-                              style={{ top: `${topPct}%`, height: `${Math.min(heightPct, 30)}%`, backgroundColor: hex + "22", color: hex, borderLeft: `3px solid ${hex}`, overflow: "hidden" }}>
+                            <div key={ev.id} className="absolute left-1 right-1 rounded-lg px-1.5 py-1 text-[9px] font-semibold shadow-sm overflow-hidden"
+                              style={{ top: topPx, height: heightPx, backgroundColor: hex + "22", color: hex, borderLeft: `3px solid ${hex}` }}>
                               📅 {ev.name}
                             </div>
                           );

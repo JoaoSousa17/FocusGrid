@@ -56,13 +56,30 @@ export const Core = {
   },
 };
 
-// Análise/geração de texto estruturado via LLM (proxy seguro server-side).
-export async function InvokeLLM({ prompt, response_json_schema, model }) {
-  const { data, error } = await supabase.functions.invoke("invoke-llm", {
-    body: { prompt, response_json_schema, model },
+// Análise/geração de texto estruturado via Groq (chamada direta do browser, CORS suportado).
+export async function InvokeLLM({ prompt, response_json_schema, model = "llama-3.3-70b-versatile" }) {
+  const apiKey = import.meta.env.VITE_GROQ_API_KEY;
+  if (!apiKey) throw new Error("VITE_GROQ_API_KEY não definido no .env");
+  let finalPrompt = prompt;
+  if (response_json_schema) {
+    finalPrompt += `\n\nResponde APENAS com JSON válido correspondente a este schema (sem texto adicional):\n${JSON.stringify(response_json_schema)}`;
+  }
+  const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+    body: JSON.stringify({
+      model,
+      messages: [{ role: "user", content: finalPrompt }],
+      ...(response_json_schema ? { response_format: { type: "json_object" } } : {}),
+    }),
   });
-  if (error) throw error;
-  return response_json_schema ? data : data.result;
+  if (!res.ok) throw new Error(`Groq API error: ${res.status}`);
+  const json = await res.json();
+  const content = json.choices?.[0]?.message?.content ?? "";
+  if (response_json_schema) {
+    try { return JSON.parse(content); } catch { return {}; }
+  }
+  return content;
 }
 
 // Web Push: guarda/remove a subscrição do dispositivo atual.

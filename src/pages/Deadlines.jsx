@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 import { Deadline, Event } from "@/api/entities";
 import { Core } from "@/api/integrations";
-import { format, differenceInDays, differenceInMinutes, isPast, isToday } from "date-fns";
+import { format, differenceInDays, differenceInMinutes, isPast, isToday, addDays, addWeeks, addMonths, addYears } from "date-fns";
 import { pt } from "date-fns/locale";
 import { useEdgeSwipeNav } from "@/hooks/useEdgeSwipeNav";
 
@@ -36,6 +36,31 @@ const NOTIFY_OPTIONS = [
   { value: 72, label: "3 dias antes" },
   { value: 168, label: "1 semana antes" },
 ];
+
+// Given a stored deadline date and recurrence type, compute the next occurrence >= now.
+// For 'none', returns the original date unchanged.
+function getNextOccurrence(dateStr, recurrence) {
+  const base = new Date(dateStr);
+  if (!recurrence || recurrence === "none") return base;
+  const now = new Date();
+  let next = new Date(base);
+  const advance = {
+    daily: (d) => addDays(d, 1),
+    weekly: (d) => addWeeks(d, 1),
+    monthly: (d) => addMonths(d, 1),
+    yearly: (d) => addYears(d, 1),
+  }[recurrence];
+  if (!advance) return base;
+  while (next < now) next = advance(next);
+  return next;
+}
+
+// Returns a deadline object with its effective display date resolved for recurrence
+function resolveDeadline(dl) {
+  if (!dl.recurrence || dl.recurrence === "none") return dl;
+  const nextDate = getNextOccurrence(dl.deadline, dl.recurrence);
+  return { ...dl, _resolved_date: nextDate.toISOString() };
+}
 
 function urgencyInfo(dateStr) {
   const d = new Date(dateStr);
@@ -75,9 +100,12 @@ function recurrenceLabel(key) {
 }
 
 function DeadlineCard({ item, onDelete, index }) {
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const colorHex = PRESET_COLORS.find((c) => c.key === item.color)?.hex || item.color || "#E87A5A";
-  const urgency = urgencyInfo(item.deadline);
+  const displayDate = item._resolved_date || item.deadline;
+  const urgency = urgencyInfo(displayDate);
   const notifyLabel = NOTIFY_OPTIONS.find((o) => o.value === item.notify_before_hours)?.label;
+  const isRecurring = item.recurrence && item.recurrence !== "none";
 
   return (
     <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.05 }}
@@ -91,7 +119,7 @@ function DeadlineCard({ item, onDelete, index }) {
             </div>
             <div>
               <h3 className="text-sm font-bold text-foreground leading-tight">{item.name}</h3>
-              {item.recurrence && item.recurrence !== "none" && (
+              {isRecurring && (
                 <span className="text-[10px] text-muted-foreground flex items-center gap-0.5 mt-0.5">
                   <Repeat className="w-2.5 h-2.5" /> {recurrenceLabel(item.recurrence)}
                 </span>
@@ -102,7 +130,7 @@ function DeadlineCard({ item, onDelete, index }) {
             <span className="px-2.5 py-1 rounded-full text-[11px] font-bold text-white" style={{ backgroundColor: urgency.color }}>
               {urgency.label}
             </span>
-            <button onClick={() => onDelete(item.id)}
+            <button onClick={() => isRecurring ? setConfirmDelete(true) : onDelete(item.id)}
               className="w-7 h-7 rounded-xl bg-secondary flex items-center justify-center text-muted-foreground hover:text-rose-500 hover:bg-rose-50 transition-all">
               <Trash2 className="w-3.5 h-3.5" />
             </button>
@@ -111,8 +139,13 @@ function DeadlineCard({ item, onDelete, index }) {
 
         <div className="flex flex-wrap gap-1.5 ml-11">
           <div className="flex items-center gap-1 px-2.5 py-1 rounded-xl bg-secondary text-xs text-muted-foreground">
-            <Clock className="w-3 h-3" /> {formatDateTime(item.deadline)}
+            <Clock className="w-3 h-3" /> {formatDateTime(displayDate)}
           </div>
+          {isRecurring && item._resolved_date && item._resolved_date !== item.deadline && (
+            <div className="flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-medium" style={{ backgroundColor: colorHex + "18", color: colorHex }}>
+              <Repeat className="w-3 h-3" /> próxima ocorrência
+            </div>
+          )}
           {notifyLabel && (
             <div className="flex items-center gap-1 px-2.5 py-1 rounded-xl bg-secondary text-xs text-muted-foreground">
               <Bell className="w-3 h-3" /> {notifyLabel}
@@ -140,6 +173,29 @@ function DeadlineCard({ item, onDelete, index }) {
             </a>
           )}
         </div>
+
+        {/* Recurring delete confirmation */}
+        <AnimatePresence>
+          {confirmDelete && (
+            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}
+              className="mt-3 overflow-hidden">
+              <div className="bg-rose-50 border border-rose-100 rounded-2xl p-3">
+                <p className="text-xs font-semibold text-rose-700 mb-2">Cancelar prazo recorrente?</p>
+                <p className="text-[11px] text-rose-600 mb-3">Este prazo repete-se {recurrenceLabel(item.recurrence).toLowerCase()}. Cancelar irá eliminar todas as ocorrências futuras.</p>
+                <div className="flex gap-2">
+                  <button onClick={() => setConfirmDelete(false)}
+                    className="flex-1 py-1.5 rounded-xl bg-white border border-border text-xs font-medium text-muted-foreground">
+                    Manter
+                  </button>
+                  <button onClick={() => { setConfirmDelete(false); onDelete(item.id); }}
+                    className="flex-1 py-1.5 rounded-xl bg-rose-500 text-white text-xs font-semibold">
+                    Cancelar tudo
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </motion.div>
   );
@@ -441,12 +497,25 @@ export default function Deadlines() {
   const deleteDeadline = async (id) => { await Deadline.delete(id); refresh(); };
   const deleteEvent = async (id) => { await Event.delete(id); refresh(); };
 
-  const upcomingDeadlines = deadlines
-    .filter((i) => !isPast(new Date(i.deadline)) || isToday(new Date(i.deadline)))
-    .sort((a, b) => new Date(a.deadline) - new Date(b.deadline));
-  const expiredDeadlines = deadlines
-    .filter((i) => isPast(new Date(i.deadline)) && !isToday(new Date(i.deadline)))
-    .sort((a, b) => new Date(b.deadline) - new Date(a.deadline));
+  // Resolve each deadline's effective display date (handles recurrence)
+  const resolvedDeadlines = deadlines.map(resolveDeadline);
+
+  const upcomingDeadlines = resolvedDeadlines
+    .filter((i) => {
+      const d = new Date(i._resolved_date || i.deadline);
+      return !isPast(d) || isToday(d);
+    })
+    .sort((a, b) => new Date(a._resolved_date || a.deadline) - new Date(b._resolved_date || b.deadline));
+
+  // Non-recurring expired only (recurring ones always show future next occurrence)
+  const expiredDeadlines = resolvedDeadlines
+    .filter((i) => {
+      if (i.recurrence && i.recurrence !== "none") return false; // recurring never expire in this view
+      const d = new Date(i.deadline);
+      return isPast(d) && !isToday(d);
+    })
+    .sort((a, b) => new Date(b.deadline) - new Date(a.deadline))
+    .slice(0, 15); // max 15 expired
 
   const upcomingEvents = events
     .filter((i) => !isPast(new Date(i.end_datetime)))

@@ -1,26 +1,39 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, Mic, MicOff, Loader2, Clock, Brain, X, SquareCheckBig, Sparkles, Upload, FileText, Download, CalendarRange, Link2, Check, ChevronDown } from "lucide-react";
-import { Deadline, Event, MeetingRecording } from "@/api/entities";
+import {
+  ArrowLeft, Mic, MicOff, Loader2, Clock, Brain, X, SquareCheckBig, Sparkles,
+  Upload, FileText, Download, CalendarRange, Link2, ChevronDown, Plus, Check, CheckCircle2
+} from "lucide-react";
+import { Deadline, Event, MeetingRecording, Task } from "@/api/entities";
 import { Core, InvokeLLM } from "@/api/integrations";
-import { format } from "date-fns";
+import { format, addDays } from "date-fns";
 import { pt } from "date-fns/locale";
 import { useEdgeSwipeNav } from "@/hooks/useEdgeSwipeNav";
 
-function MindMapNode({ node, depth = 0, "data-collection-item-id": __dataCollectionItemId }) {
+function MindMapNode({ node, depth = 0 }) {
   const colors = ["#E87A5A", "#8B5CF6", "#3B82F6", "#10B981", "#F59E0B"];
   const color = colors[depth % colors.length];
-  return (
-    <div data-source-location="pages/MeetingAI:13:4" data-dynamic-content="true" className={`flex flex-col items-start ${depth > 0 ? "ml-5 border-l-2 pl-3" : ""}`}
-    style={{ borderColor: depth > 0 ? color + "40" : "transparent" }} data-collection-id="node" data-collection-item-id={__dataCollectionItemId}>
-      <div data-source-location="pages/MeetingAI:15:6" data-dynamic-content="true" className="px-3 py-1.5 rounded-xl text-xs font-semibold mb-1.5 text-white shadow-sm"
-      style={{ backgroundColor: color + (depth === 0 ? "ee" : "99") }} data-collection-item-field="label" data-collection-item-id={node?.id || node?._id}>
-        {node.label}
-      </div>
-      {node.children?.map((child, i) => <MindMapNode data-source-location="pages/MeetingAI:19:40" data-dynamic-content="true" key={i} node={child} depth={depth + 1} />)}
-    </div>);
+  const [open, setOpen] = useState(depth < 2);
+  const hasChildren = node.children?.length > 0;
 
+  return (
+    <div className={`${depth > 0 ? "ml-4 border-l-2 pl-3 mt-1" : ""}`}
+      style={{ borderColor: depth > 0 ? color + "50" : "transparent" }}>
+      <div className="flex items-center gap-1.5 mb-1">
+        <div className="px-2.5 py-1 rounded-xl text-[11px] font-semibold text-white flex-shrink-0 shadow-sm"
+          style={{ backgroundColor: color + (depth === 0 ? "ee" : depth === 1 ? "cc" : "99") }}>
+          {node.label}
+        </div>
+        {hasChildren && (
+          <button onClick={() => setOpen(!open)} className="w-4 h-4 rounded-full bg-border flex items-center justify-center flex-shrink-0 hover:bg-border/80 transition-all">
+            <span className="text-[8px] font-black text-muted-foreground">{open ? "−" : "+"}</span>
+          </button>
+        )}
+      </div>
+      {open && node.children?.map((child, i) => <MindMapNode key={i} node={child} depth={depth + 1} />)}
+    </div>
+  );
 }
 
 function formatDuration(seconds) {
@@ -34,147 +47,148 @@ function RecordingCard({ rec, events, onDelete }) {
   const [expanded, setExpanded] = useState(false);
   const [linking, setLinking] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState(rec.event_id || "");
+  const [createdTasks, setCreatedTasks] = useState({});
 
   const linkEvent = async (eventId) => {
     const ev = events.find((e) => e.id === eventId);
-    await MeetingRecording.update(rec.id, {
-      event_id: eventId,
-      event_name: ev?.name || ""
-    });
+    await MeetingRecording.update(rec.id, { event_id: eventId, event_name: ev?.name || "" });
     setLinking(false);
     setSelectedEvent(eventId);
   };
 
+  const createTaskFromAction = async (action, idx) => {
+    await Task.create({ title: action, status: "todo" }).catch(() => {});
+    setCreatedTasks((prev) => ({ ...prev, [idx]: true }));
+  };
+
   const linkedEvent = events.find((e) => e.id === (selectedEvent || rec.event_id));
+  let actionItems = [];
+  try { actionItems = JSON.parse(rec.action_items_json || "[]"); } catch {}
+  let mindMap = null;
+  try { mindMap = JSON.parse(rec.mind_map_json || "null"); } catch {}
 
   return (
-    <motion.div data-source-location="pages/MeetingAI:49:4" data-dynamic-content="true" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
-    className="bg-white rounded-2xl border border-border shadow-sm overflow-hidden">
-      <div data-source-location="pages/MeetingAI:51:6" data-dynamic-content="false" className="h-0.5 bg-gradient-to-r from-[#E87A5A] to-[#8B5CF6]" />
-      <div data-source-location="pages/MeetingAI:52:6" data-dynamic-content="true" className="p-4" data-collection-item-field="summary" data-collection-item-id={rec?.id || rec?._id}>
-        <div data-source-location="pages/MeetingAI:53:8" data-dynamic-content="true" className="flex items-start justify-between gap-2">
-          <div data-source-location="pages/MeetingAI:54:10" data-dynamic-content="true" className="flex-1">
-            <h3 data-source-location="pages/MeetingAI:55:12" data-dynamic-content="true" className="text-sm font-bold text-foreground leading-tight" data-collection-item-field="title" data-collection-item-id={rec?.id || rec?._id}>{rec.title}</h3>
-            <div data-source-location="pages/MeetingAI:56:12" data-dynamic-content="true" className="flex flex-wrap gap-1.5 mt-1.5" data-collection-item-field="meeting_date" data-collection-item-id={rec?.id || rec?._id}>
-              {rec.meeting_date &&
-              <span data-source-location="pages/MeetingAI:58:16" data-dynamic-content="true" className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-secondary text-[11px] text-muted-foreground">
-                  <Clock data-source-location="pages/MeetingAI:59:18" data-dynamic-content="false" className="w-3 h-3" />
+    <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
+      className="bg-white rounded-2xl border border-border shadow-sm overflow-hidden">
+      <div className="h-0.5 bg-gradient-to-r from-[#E87A5A] to-[#8B5CF6]" />
+      <div className="p-4">
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex-1">
+            <h3 className="text-sm font-bold text-foreground leading-tight">{rec.title}</h3>
+            <div className="flex flex-wrap gap-1.5 mt-1.5">
+              {rec.meeting_date && (
+                <span className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-secondary text-[11px] text-muted-foreground">
+                  <Clock className="w-3 h-3" />
                   {format(new Date(rec.meeting_date), "d MMM yyyy", { locale: pt })}
                 </span>
-              }
-              {rec.audio_duration_seconds > 0 &&
-              <span data-source-location="pages/MeetingAI:64:16" data-dynamic-content="true" className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-secondary text-[11px] text-muted-foreground">
-                  <Mic data-source-location="pages/MeetingAI:65:18" data-dynamic-content="false" className="w-3 h-3" /> {formatDuration(rec.audio_duration_seconds)}
+              )}
+              {rec.audio_duration_seconds > 0 && (
+                <span className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-secondary text-[11px] text-muted-foreground">
+                  <Mic className="w-3 h-3" /> {formatDuration(rec.audio_duration_seconds)}
                 </span>
-              }
-              {linkedEvent &&
-              <span data-source-location="pages/MeetingAI:69:16" data-dynamic-content="true" className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-purple-50 text-[11px] text-purple-600 font-medium" data-collection-item-field="name" data-collection-item-id={linkedEvent?.id || linkedEvent?._id}>
-                  <CalendarRange data-source-location="pages/MeetingAI:70:18" data-dynamic-content="false" className="w-3 h-3" /> {linkedEvent.name}
+              )}
+              {linkedEvent && (
+                <span className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-purple-50 text-[11px] text-purple-600 font-medium">
+                  <CalendarRange className="w-3 h-3" /> {linkedEvent.name}
                 </span>
-              }
+              )}
             </div>
           </div>
-          <div data-source-location="pages/MeetingAI:75:10" data-dynamic-content="true" className="flex items-center gap-1.5 flex-shrink-0" data-collection-item-field="pdf_url" data-collection-item-id={rec?.id || rec?._id}>
-            {rec.pdf_url &&
-            <a data-source-location="pages/MeetingAI:77:14" data-dynamic-content="true" href={rec.pdf_url} target="_blank" rel="noopener noreferrer"
-            className="w-8 h-8 rounded-xl bg-[#E87A5A]/10 flex items-center justify-center text-[#E87A5A] hover:bg-[#E87A5A]/20 transition-all"
-            title="Download PDF">
-                <Download data-source-location="pages/MeetingAI:80:16" data-dynamic-content="false" className="w-3.5 h-3.5" />
+          <div className="flex items-center gap-1.5 flex-shrink-0">
+            {rec.pdf_url && (
+              <a href={rec.pdf_url} target="_blank" rel="noopener noreferrer"
+                className="w-8 h-8 rounded-xl bg-[#E87A5A]/10 flex items-center justify-center text-[#E87A5A] hover:bg-[#E87A5A]/20 transition-all">
+                <Download className="w-3.5 h-3.5" />
               </a>
-            }
-            <button data-source-location="pages/MeetingAI:83:12" data-dynamic-content="true" onClick={() => setLinking(!linking)}
-            className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${
-            linking ? "bg-purple-100 text-purple-600" : "bg-secondary text-muted-foreground hover:text-purple-500"}`
-            } title="Associar evento">
-              <Link2 data-source-location="pages/MeetingAI:87:14" data-dynamic-content="false" className="w-3.5 h-3.5" />
+            )}
+            <button onClick={() => setLinking(!linking)}
+              className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${linking ? "bg-purple-100 text-purple-600" : "bg-secondary text-muted-foreground hover:text-purple-500"}`}>
+              <Link2 className="w-3.5 h-3.5" />
             </button>
-            <button data-source-location="pages/MeetingAI:89:12" data-dynamic-content="true" onClick={() => setExpanded(!expanded)}
-            className="w-8 h-8 rounded-xl bg-secondary flex items-center justify-center text-muted-foreground hover:text-foreground transition-all">
-              <ChevronDown data-source-location="pages/MeetingAI:91:14" data-dynamic-content="true" className={`w-3.5 h-3.5 transition-transform ${expanded ? "rotate-180" : ""}`} />
+            <button onClick={() => setExpanded(!expanded)}
+              className="w-8 h-8 rounded-xl bg-secondary flex items-center justify-center text-muted-foreground hover:text-foreground transition-all">
+              <ChevronDown className={`w-3.5 h-3.5 transition-transform ${expanded ? "rotate-180" : ""}`} />
             </button>
-            <button data-source-location="pages/MeetingAI:93:12" data-dynamic-content="true" onClick={() => onDelete(rec.id)}
-            className="w-8 h-8 rounded-xl bg-secondary flex items-center justify-center text-muted-foreground hover:text-rose-500 hover:bg-rose-50 transition-all">
-              <X data-source-location="pages/MeetingAI:95:14" data-dynamic-content="false" className="w-3.5 h-3.5" />
+            <button onClick={() => onDelete(rec.id)}
+              className="w-8 h-8 rounded-xl bg-secondary flex items-center justify-center text-muted-foreground hover:text-rose-500 hover:bg-rose-50 transition-all">
+              <X className="w-3.5 h-3.5" />
             </button>
           </div>
         </div>
 
-        {/* Link event picker */}
-        <AnimatePresence data-source-location="pages/MeetingAI:101:8" data-dynamic-content="true">
-          {linking &&
-          <motion.div data-source-location="pages/MeetingAI:103:12" data-dynamic-content="true" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}
-          className="mt-3 overflow-hidden">
-              <p data-source-location="pages/MeetingAI:105:14" data-dynamic-content="false" className="text-[11px] text-muted-foreground mb-2 font-medium">Associar a evento:</p>
-              <div data-source-location="pages/MeetingAI:106:14" data-dynamic-content="true" className="flex flex-wrap gap-1.5" data-collection-id="events">
-                <button data-source-location="pages/MeetingAI:107:16" data-dynamic-content="true" onClick={() => linkEvent("")}
-              className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all ${
-              !selectedEvent ? "bg-secondary text-foreground" : "bg-secondary/50 text-muted-foreground hover:bg-secondary"}`
-              }>
+        <AnimatePresence>
+          {linking && (
+            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="mt-3 overflow-hidden">
+              <p className="text-[11px] text-muted-foreground mb-2 font-medium">Associar a evento:</p>
+              <div className="flex flex-wrap gap-1.5">
+                <button onClick={() => linkEvent("")}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all ${!selectedEvent ? "bg-secondary text-foreground" : "bg-secondary/50 text-muted-foreground hover:bg-secondary"}`}>
                   Nenhum
                 </button>
-                {events.map((ev) =>
-              <button data-source-location="pages/MeetingAI:114:18" data-dynamic-content="true" key={ev.id} onClick={() => linkEvent(ev.id)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all ${
-              selectedEvent === ev.id ? "bg-purple-100 text-purple-700" : "bg-secondary/50 text-muted-foreground hover:bg-secondary"}`
-              } data-collection-item-id={ev?.id} data-collection-item-field="name">
+                {events.map((ev) => (
+                  <button key={ev.id} onClick={() => linkEvent(ev.id)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all ${selectedEvent === ev.id ? "bg-purple-100 text-purple-700" : "bg-secondary/50 text-muted-foreground hover:bg-secondary"}`}>
                     {ev.name}
                   </button>
-              )}
+                ))}
               </div>
             </motion.div>
-          }
+          )}
         </AnimatePresence>
 
-        {/* Summary */}
-        {rec.summary &&
-        <p data-source-location="pages/MeetingAI:128:10" data-dynamic-content="true" className="text-xs text-muted-foreground mt-2 leading-relaxed line-clamp-2" data-collection-item-field="summary" data-collection-item-id={rec?.id || rec?._id}>{rec.summary}</p>
-        }
+        {rec.summary && <p className="text-xs text-muted-foreground mt-2 leading-relaxed line-clamp-2">{rec.summary}</p>}
 
-        {/* Expanded details */}
-        <AnimatePresence data-source-location="pages/MeetingAI:132:8" data-dynamic-content="true">
-          {expanded &&
-          <motion.div data-source-location="pages/MeetingAI:134:12" data-dynamic-content="true" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}
-          className="mt-3 overflow-hidden space-y-2" data-collection-item-field="transcript" data-collection-item-id={rec?.id || rec?._id}>
-              {(() => {
-              let actionItems = [];
-              try {actionItems = JSON.parse(rec.action_items_json || "[]");} catch {}
-              return actionItems.length > 0 &&
-              <div data-source-location="pages/MeetingAI:140:18" data-dynamic-content="true" className="bg-secondary/50 rounded-xl p-3">
-                    <p data-source-location="pages/MeetingAI:141:20" data-dynamic-content="false" className="text-[10px] font-bold uppercase text-muted-foreground/60 mb-2">Ações</p>
-                    {actionItems.map((a, i) =>
-                <div data-source-location="pages/MeetingAI:143:22" data-dynamic-content="true" key={i} className="flex items-start gap-2 text-xs text-foreground mb-1" data-arr-index={i} data-arr-variable-name="actionItems">
-                        <span data-source-location="pages/MeetingAI:144:24" data-dynamic-content="true" className="w-4 h-4 rounded bg-[#E87A5A]/10 text-[#E87A5A] flex items-center justify-center text-[9px] font-black flex-shrink-0" data-arr-index={i} data-arr-variable-name="actionItems">{i + 1}</span>
-                        {a}
-                      </div>
-                )}
-                  </div>;
-
-            })()}
-              {rec.transcript &&
-            <div data-source-location="pages/MeetingAI:152:16" data-dynamic-content="true" className="bg-secondary/50 rounded-xl p-3">
-                  <p data-source-location="pages/MeetingAI:153:18" data-dynamic-content="false" className="text-[10px] font-bold uppercase text-muted-foreground/60 mb-1">Transcrição</p>
-                  <p data-source-location="pages/MeetingAI:154:18" data-dynamic-content="true" className="text-xs text-muted-foreground leading-relaxed max-h-28 overflow-y-auto" data-collection-item-field="transcript" data-collection-item-id={rec?.id || rec?._id}>{rec.transcript}</p>
+        <AnimatePresence>
+          {expanded && (
+            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="mt-3 overflow-hidden space-y-2">
+              {actionItems.length > 0 && (
+                <div className="bg-secondary/50 rounded-xl p-3">
+                  <p className="text-[10px] font-bold uppercase text-muted-foreground/60 mb-2">Ações</p>
+                  {actionItems.map((a, i) => (
+                    <div key={i} className="flex items-start gap-2 text-xs text-foreground mb-1.5">
+                      <span className="w-4 h-4 rounded bg-[#E87A5A]/10 text-[#E87A5A] flex items-center justify-center text-[9px] font-black flex-shrink-0 mt-0.5">{i + 1}</span>
+                      <span className="flex-1 leading-snug">{a}</span>
+                      <button onClick={() => createTaskFromAction(a, i)}
+                        className={`flex-shrink-0 w-6 h-6 rounded-lg flex items-center justify-center transition-all ${createdTasks[i] ? "bg-emerald-100 text-emerald-600" : "bg-[#E87A5A]/10 text-[#E87A5A] hover:bg-[#E87A5A]/20"}`}
+                        title="Criar tarefa">
+                        {createdTasks[i] ? <CheckCircle2 className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
+                      </button>
+                    </div>
+                  ))}
                 </div>
-            }
+              )}
+              {rec.transcript && (
+                <div className="bg-secondary/50 rounded-xl p-3">
+                  <p className="text-[10px] font-bold uppercase text-muted-foreground/60 mb-1">Transcrição</p>
+                  <p className="text-xs text-muted-foreground leading-relaxed max-h-28 overflow-y-auto">{rec.transcript}</p>
+                </div>
+              )}
+              {mindMap && mindMap.label && (
+                <div className="bg-secondary/50 rounded-xl p-3">
+                  <p className="text-[10px] font-bold uppercase text-muted-foreground/60 mb-2">Mapa Mental</p>
+                  <MindMapNode node={mindMap} />
+                </div>
+              )}
             </motion.div>
-          }
+          )}
         </AnimatePresence>
       </div>
-    </motion.div>);
-
+    </motion.div>
+  );
 }
 
 export default function MeetingAI() {
   const navigate = useNavigate();
   const [recording, setRecording] = useState(false);
   const [processing, setProcessing] = useState(false);
+  const [processingStep, setProcessingStep] = useState("");
   const [result, setResult] = useState(null);
   const [elapsed, setElapsed] = useState(0);
   const [recordings, setRecordings] = useState([]);
   const [events, setEvents] = useState([]);
   const [activeSection, setActiveSection] = useState("record");
   const [savingTitle, setSavingTitle] = useState("");
-  const [showSaveModal, setShowSaveModal] = useState(false);
+  const [createdItems, setCreatedItems] = useState({});
   const [lastDuration, setLastDuration] = useState(0);
   const mediaRecorder = useRef(null);
   const chunks = useRef([]);
@@ -187,15 +201,11 @@ export default function MeetingAI() {
 
   useEffect(() => {
     refreshRecordings();
-    // Load all events and deadlines for linking
-    Promise.all([
-    Event.list("-start_datetime", 100),
-    Deadline.list("-deadline", 100)]
-    ).then(([evts, dls]) => {
+    Promise.all([Event.list("-start_datetime", 100), Deadline.list("-deadline", 100)]).then(([evts, dls]) => {
       setEvents([
-      ...evts.map((e) => ({ ...e, _type: "event" })),
-      ...dls.map((d) => ({ ...d, _type: "deadline", start_datetime: d.deadline }))]
-      );
+        ...evts.map((e) => ({ ...e, _type: "event" })),
+        ...dls.map((d) => ({ ...d, _type: "deadline", start_datetime: d.deadline })),
+      ]);
     }).catch(() => {});
   }, []);
 
@@ -223,14 +233,16 @@ export default function MeetingAI() {
 
   const processAudio = async (audioBlob, durationSecs) => {
     setProcessing(true);
+    setProcessingStep("A transcrever áudio...");
     const { file_url } = await Core.UploadFile({ file: audioBlob });
     const transcript = await Core.TranscribeAudio({ audio_url: file_url });
 
+    setProcessingStep("A analisar com IA (Groq)...");
     const analysis = await InvokeLLM({
       prompt: `Analisa esta transcrição de reunião/brainstorm e extrai:
 1. action_items: lista de tarefas/ações concretas mencionadas (máx 8)
-2. deadlines: datas ou prazos mencionados (máx 5)
-3. mind_map: mapa mental hierárquico dos temas principais
+2. deadlines: datas ou prazos mencionados, em texto (máx 5)
+3. mind_map: mapa mental hierárquico dos temas principais (até 3 níveis)
 4. summary: resumo em 2-3 frases
 5. title: título curto e descritivo para esta reunião (máx 6 palavras)
 
@@ -248,13 +260,16 @@ Responde em português de Portugal.`,
             type: "object",
             properties: {
               label: { type: "string" },
-              children: { type: "array", items: {
+              children: {
+                type: "array",
+                items: {
                   type: "object",
                   properties: {
                     label: { type: "string" },
                     children: { type: "array", items: { type: "object", properties: { label: { type: "string" } } } }
                   }
-                } }
+                }
+              }
             }
           }
         }
@@ -263,6 +278,7 @@ Responde em português de Portugal.`,
     setResult({ ...analysis, transcript, audio_duration_seconds: durationSecs || lastDuration });
     setSavingTitle(analysis.title || "Nova Reunião");
     setProcessing(false);
+    setProcessingStep("");
   };
 
   const handleToggleRecord = async () => {
@@ -279,57 +295,43 @@ Responde em português de Portugal.`,
     if (!file) return;
     setProcessing(true);
     await processAudio(file, 0);
+    e.target.value = "";
   };
 
-  const generateAndSavePdf = async () => {
+  const createActionTask = async (action, idx) => {
+    await Task.create({ title: action, status: "todo" }).catch(() => {});
+    setCreatedItems((prev) => ({ ...prev, [`task-${idx}`]: true }));
+  };
+
+  const createDeadlineFromText = async (text, idx) => {
+    // Create with deadline 7 days from now by default (no natural-language parsing needed)
+    const deadline = addDays(new Date(), 7);
+    await Deadline.create({
+      name: text,
+      color: "amber",
+      deadline: deadline.toISOString(),
+      recurrence: "none",
+      notify_before_hours: 24,
+    }).catch(() => {});
+    setCreatedItems((prev) => ({ ...prev, [`dl-${idx}`]: true }));
+  };
+
+  const saveRecording = async () => {
     if (!result) return;
-    // Generate PDF content as text-based download
-    const content = `REUNIÃO IA - ${savingTitle}
-Data: ${new Date().toLocaleDateString("pt-PT")}
-Duração: ${formatDuration(result.audio_duration_seconds)}
-
-═══════════════════════════════
-RESUMO
-═══════════════════════════════
-${result.summary}
-
-═══════════════════════════════
-AÇÕES A TOMAR
-═══════════════════════════════
-${(result.action_items || []).map((a, i) => `${i + 1}. ${a}`).join("\n")}
-
-═══════════════════════════════
-PRAZOS MENCIONADOS
-═══════════════════════════════
-${(result.deadlines || []).join("\n") || "Nenhum"}
-
-═══════════════════════════════
-TRANSCRIÇÃO COMPLETA
-═══════════════════════════════
-${result.transcript}
-`;
-
-    // Save as a blob URL for download - use jspdf if available, otherwise text
+    const content = `REUNIÃO IA - ${savingTitle}\nData: ${new Date().toLocaleDateString("pt-PT")}\n\nRESUMO\n${result.summary}\n\nAÇÕES\n${(result.action_items || []).map((a, i) => `${i + 1}. ${a}`).join("\n")}\n\nPRAZOS\n${(result.deadlines || []).join("\n") || "Nenhum"}\n\nTRANSCRIÇÃO\n${result.transcript}`;
     let pdfUrl = null;
     try {
-      const { jsPDF } = await import("jspdf");
+      const { default: jsPDF } = await import("jspdf");
       const doc = new jsPDF();
       const lines = doc.splitTextToSize(content, 180);
       let y = 15;
       doc.setFontSize(10);
-      lines.forEach((line) => {
-        if (y > 280) {doc.addPage();y = 15;}
-        doc.text(line, 15, y);
-        y += 6;
-      });
+      lines.forEach((line) => { if (y > 280) { doc.addPage(); y = 15; } doc.text(line, 15, y); y += 6; });
       const blob = doc.output("blob");
       const { file_url } = await Core.UploadFile({ file: blob });
       pdfUrl = file_url;
-    } catch {
+    } catch {}
 
-      // fallback: store as text
-    }
-    // Save to entity
     await MeetingRecording.create({
       title: savingTitle,
       summary: result.summary,
@@ -339,11 +341,11 @@ ${result.transcript}
       mind_map_json: JSON.stringify(result.mind_map || {}),
       pdf_url: pdfUrl,
       audio_duration_seconds: result.audio_duration_seconds || 0,
-      meeting_date: new Date().toISOString().split("T")[0]
+      meeting_date: new Date().toISOString().split("T")[0],
     });
 
     setResult(null);
-    setShowSaveModal(false);
+    setCreatedItems({});
     refreshRecordings();
     setActiveSection("recordings");
   };
@@ -356,198 +358,198 @@ ${result.transcript}
   const formatTime = (s) => `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
 
   return (
-    <div data-source-location="pages/MeetingAI:370:4" data-dynamic-content="true" className="min-h-screen bg-cream flex flex-col select-none"
-    {...swipeHandlers}>
-      
-      <div data-source-location="pages/MeetingAI:378:6" data-dynamic-content="true" style={dragStyle} className="flex-1 flex flex-col">
+    <div className="min-h-screen bg-cream flex flex-col select-none" {...swipeHandlers}>
+      <div style={dragStyle} className="flex-1 flex flex-col">
         {/* Header */}
-        <div data-source-location="pages/MeetingAI:380:8" data-dynamic-content="true" className="px-5 pt-12 pb-4 flex items-center justify-between">
-          <div data-source-location="pages/MeetingAI:381:10" data-dynamic-content="true" className="flex items-center gap-3">
-            <button data-source-location="pages/MeetingAI:382:12" data-dynamic-content="true" onClick={() => navigate("/coming-soon")}
-            className="w-10 h-10 rounded-2xl bg-white border border-border flex items-center justify-center text-muted-foreground hover:text-foreground hover:border-[#E87A5A]/30 shadow-sm transition-all">
-              <ArrowLeft data-source-location="pages/MeetingAI:384:14" data-dynamic-content="false" className="w-5 h-5" />
+        <div className="px-5 pt-12 pb-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <button onClick={() => navigate("/coming-soon")}
+              className="w-10 h-10 rounded-2xl bg-white border border-border flex items-center justify-center text-muted-foreground hover:text-foreground hover:border-[#E87A5A]/30 shadow-sm transition-all">
+              <ArrowLeft className="w-5 h-5" />
             </button>
-            <div data-source-location="pages/MeetingAI:386:12" data-dynamic-content="false">
-              <h1 data-source-location="pages/MeetingAI:387:14" data-dynamic-content="false" className="text-xl font-bold text-foreground">Reuniões IA</h1>
-              <p data-source-location="pages/MeetingAI:388:14" data-dynamic-content="false" className="text-xs text-muted-foreground">Grava e obtém resumo automático</p>
+            <div>
+              <h1 className="text-xl font-bold text-foreground">Reuniões IA</h1>
+              <p className="text-xs text-muted-foreground">Groq · Whisper + Llama 3.3</p>
             </div>
           </div>
-          {activeSection === "record" &&
-          <label data-source-location="pages/MeetingAI:392:12" data-dynamic-content="true" className="w-10 h-10 rounded-2xl bg-white border border-border flex items-center justify-center text-muted-foreground hover:text-[#E87A5A] hover:border-[#E87A5A]/30 shadow-sm transition-all cursor-pointer">
-              <Upload data-source-location="pages/MeetingAI:393:14" data-dynamic-content="false" className="w-4 h-4" />
-              <input data-source-location="pages/MeetingAI:394:14" data-dynamic-content="true" type="file" accept="audio/*" className="hidden" onChange={handleUpload} />
+          {activeSection === "record" && (
+            <label className="w-10 h-10 rounded-2xl bg-white border border-border flex items-center justify-center text-muted-foreground hover:text-[#E87A5A] hover:border-[#E87A5A]/30 shadow-sm transition-all cursor-pointer">
+              <Upload className="w-4 h-4" />
+              <input type="file" accept="audio/*,video/*" className="hidden" onChange={handleUpload} />
             </label>
-          }
+          )}
         </div>
 
-        {/* Section tabs */}
-        <div data-source-location="pages/MeetingAI:400:8" data-dynamic-content="true" className="px-5 mb-4">
-          <div data-source-location="pages/MeetingAI:401:10" data-dynamic-content="true" className="flex bg-white rounded-2xl p-1.5 border border-border shadow-sm gap-1">
-            <button data-source-location="pages/MeetingAI:402:12" data-dynamic-content="true" onClick={() => setActiveSection("record")}
-            className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition-all ${
-            activeSection === "record" ? "bg-[#E87A5A] text-white shadow-md" : "text-muted-foreground hover:text-foreground"}`
-            }>
-              <Mic data-source-location="pages/MeetingAI:406:14" data-dynamic-content="false" className="w-4 h-4" /> Gravar
+        {/* Tabs */}
+        <div className="px-5 mb-4">
+          <div className="flex bg-white rounded-2xl p-1.5 border border-border shadow-sm gap-1">
+            <button onClick={() => setActiveSection("record")}
+              className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition-all ${activeSection === "record" ? "bg-[#E87A5A] text-white shadow-md" : "text-muted-foreground hover:text-foreground"}`}>
+              <Mic className="w-4 h-4" /> Gravar
             </button>
-            <button data-source-location="pages/MeetingAI:408:12" data-dynamic-content="true" onClick={() => setActiveSection("recordings")}
-            className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition-all ${
-            activeSection === "recordings" ? "bg-[#E87A5A] text-white shadow-md" : "text-muted-foreground hover:text-foreground"}`
-            }>
-              <FileText data-source-location="pages/MeetingAI:412:14" data-dynamic-content="false" className="w-4 h-4" /> Gravações
-              {recordings.length > 0 &&
-              <span data-source-location="pages/MeetingAI:414:16" data-dynamic-content="true" className="bg-white/20 rounded-full px-1.5 text-xs">{recordings.length}</span>
-              }
+            <button onClick={() => setActiveSection("recordings")}
+              className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition-all ${activeSection === "recordings" ? "bg-[#E87A5A] text-white shadow-md" : "text-muted-foreground hover:text-foreground"}`}>
+              <FileText className="w-4 h-4" /> Gravações
+              {recordings.length > 0 && <span className="bg-white/20 rounded-full px-1.5 text-xs">{recordings.length}</span>}
             </button>
           </div>
         </div>
 
         {/* Content */}
-        <div data-source-location="pages/MeetingAI:421:8" data-dynamic-content="true" className="flex-1 px-5 pb-10 overflow-auto">
-          {activeSection === "record" &&
-          <>
-              {!result && !processing &&
-            <div data-source-location="pages/MeetingAI:425:16" data-dynamic-content="true" className="flex flex-col items-center py-14 gap-6">
-                  <motion.button data-source-location="pages/MeetingAI:426:18" data-dynamic-content="true"
-              onClick={handleToggleRecord}
-              whileTap={{ scale: 0.95 }}
-              animate={recording ? { scale: [1, 1.06, 1] } : {}}
-              transition={recording ? { repeat: Infinity, duration: 1.2 } : {}}
-              className={`w-28 h-28 rounded-full flex items-center justify-center shadow-xl transition-all ${
-              recording ? "bg-rose-500 shadow-rose-500/30" : "bg-[#E87A5A] shadow-[#E87A5A]/30 hover:bg-[#D4694A]"}`
-              }>
-                    {recording ? <MicOff data-source-location="pages/MeetingAI:434:33" data-dynamic-content="false" className="w-12 h-12 text-white" /> : <Mic data-source-location="pages/MeetingAI:434:79" data-dynamic-content="false" className="w-12 h-12 text-white" />}
+        <div className="flex-1 px-5 pb-10 overflow-auto">
+          {activeSection === "record" && (
+            <>
+              {!result && !processing && (
+                <div className="flex flex-col items-center py-14 gap-6">
+                  <motion.button onClick={handleToggleRecord} whileTap={{ scale: 0.95 }}
+                    animate={recording ? { scale: [1, 1.06, 1] } : {}}
+                    transition={recording ? { repeat: Infinity, duration: 1.2 } : {}}
+                    className={`w-28 h-28 rounded-full flex items-center justify-center shadow-xl transition-all ${recording ? "bg-rose-500 shadow-rose-500/30" : "bg-[#E87A5A] shadow-[#E87A5A]/30 hover:bg-[#D4694A]"}`}>
+                    {recording ? <MicOff className="w-12 h-12 text-white" /> : <Mic className="w-12 h-12 text-white" />}
                   </motion.button>
 
-                  {recording ?
-              <motion.div data-source-location="pages/MeetingAI:438:20" data-dynamic-content="true" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col items-center gap-2">
-                      <div data-source-location="pages/MeetingAI:439:22" data-dynamic-content="true" className="flex gap-1 items-end h-8">
-                        {[...Array(5)].map((_, i) =>
-                  <motion.div data-source-location="pages/MeetingAI:441:26" data-dynamic-content="true" key={i}
-                  animate={{ scaleY: [0.3, 1, 0.3] }}
-                  transition={{ repeat: Infinity, duration: 0.9, delay: i * 0.15 }}
-                  className="w-1.5 rounded-full bg-[#E87A5A] origin-bottom"
-                  style={{ height: 24 }} data-arr-index={i} />
-                  )}
+                  {recording ? (
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col items-center gap-2">
+                      <div className="flex gap-1 items-end h-8">
+                        {[...Array(5)].map((_, i) => (
+                          <motion.div key={i} animate={{ scaleY: [0.3, 1, 0.3] }}
+                            transition={{ repeat: Infinity, duration: 0.9, delay: i * 0.15 }}
+                            className="w-1.5 rounded-full bg-[#E87A5A] origin-bottom" style={{ height: 24 }} />
+                        ))}
                       </div>
-                      <span data-source-location="pages/MeetingAI:448:22" data-dynamic-content="true" className="text-foreground text-sm font-mono font-bold">{formatTime(elapsed)}</span>
-                      <p data-source-location="pages/MeetingAI:449:22" data-dynamic-content="false" className="text-xs text-muted-foreground">Toca para parar e analisar</p>
-                    </motion.div> :
-
-              <div data-source-location="pages/MeetingAI:452:20" data-dynamic-content="false" className="text-center">
-                      <p data-source-location="pages/MeetingAI:453:22" data-dynamic-content="false" className="text-sm font-semibold text-foreground">Toca para gravar</p>
-                      <p data-source-location="pages/MeetingAI:454:22" data-dynamic-content="false" className="text-xs text-muted-foreground mt-1">ou usa o 📎 para carregar ficheiro</p>
+                      <span className="text-foreground text-sm font-mono font-bold">{formatTime(elapsed)}</span>
+                      <p className="text-xs text-muted-foreground">Toca para parar e analisar</p>
+                    </motion.div>
+                  ) : (
+                    <div className="text-center">
+                      <p className="text-sm font-semibold text-foreground">Toca para gravar</p>
+                      <p className="text-xs text-muted-foreground mt-1">ou usa o 📎 para carregar ficheiro (áudio ou vídeo)</p>
                     </div>
-              }
+                  )}
                 </div>
-            }
+              )}
 
-              {processing &&
-            <div data-source-location="pages/MeetingAI:461:16" data-dynamic-content="false" className="flex flex-col items-center py-16 gap-4">
-                  <div data-source-location="pages/MeetingAI:462:18" data-dynamic-content="false" className="w-20 h-20 rounded-[28px] bg-[#E87A5A]/10 flex items-center justify-center">
-                    <Loader2 data-source-location="pages/MeetingAI:463:20" data-dynamic-content="false" className="w-10 h-10 text-[#E87A5A] animate-spin" />
+              {processing && (
+                <div className="flex flex-col items-center py-16 gap-4">
+                  <div className="w-20 h-20 rounded-[28px] bg-[#E87A5A]/10 flex items-center justify-center">
+                    <Loader2 className="w-10 h-10 text-[#E87A5A] animate-spin" />
                   </div>
-                  <p data-source-location="pages/MeetingAI:465:18" data-dynamic-content="false" className="text-sm font-semibold text-foreground">A analisar com IA...</p>
-                  <p data-source-location="pages/MeetingAI:466:18" data-dynamic-content="false" className="text-xs text-muted-foreground">A extrair ações, prazos e mapa mental</p>
+                  <p className="text-sm font-semibold text-foreground">A analisar com IA...</p>
+                  <p className="text-xs text-muted-foreground">{processingStep || "A extrair ações, prazos e mapa mental"}</p>
                 </div>
-            }
+              )}
 
-              {result &&
-            <motion.div data-source-location="pages/MeetingAI:471:16" data-dynamic-content="true" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-3 pt-2" data-collection-item-field="mind_map" data-collection-item-id={result?.id || result?._id}>
-                  <div data-source-location="pages/MeetingAI:472:18" data-dynamic-content="true" className="flex items-center justify-between mb-1">
-                    <h2 data-source-location="pages/MeetingAI:473:20" data-dynamic-content="false" className="text-base font-black text-foreground flex items-center gap-2">
-                      <Sparkles data-source-location="pages/MeetingAI:474:22" data-dynamic-content="false" className="w-4 h-4 text-[#E87A5A]" /> Análise Completa
+              {result && (
+                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-3 pt-2">
+                  <div className="flex items-center justify-between mb-1">
+                    <h2 className="text-base font-black text-foreground flex items-center gap-2">
+                      <Sparkles className="w-4 h-4 text-[#E87A5A]" /> Análise Completa
                     </h2>
-                    <button data-source-location="pages/MeetingAI:476:20" data-dynamic-content="true" onClick={() => setResult(null)}
-                className="w-8 h-8 rounded-xl bg-secondary flex items-center justify-center text-muted-foreground hover:text-rose-500 transition-all">
-                      <X data-source-location="pages/MeetingAI:478:22" data-dynamic-content="false" className="w-4 h-4" />
+                    <button onClick={() => setResult(null)}
+                      className="w-8 h-8 rounded-xl bg-secondary flex items-center justify-center text-muted-foreground hover:text-rose-500 transition-all">
+                      <X className="w-4 h-4" />
                     </button>
                   </div>
 
-                  <div data-source-location="pages/MeetingAI:482:18" data-dynamic-content="true" className="bg-white rounded-2xl p-4 border border-border shadow-sm">
-                    <p data-source-location="pages/MeetingAI:483:20" data-dynamic-content="false" className="text-[11px] font-bold text-[#E87A5A] uppercase tracking-wide mb-2">Resumo</p>
-                    <p data-source-location="pages/MeetingAI:484:20" data-dynamic-content="true" className="text-sm text-foreground leading-relaxed" data-collection-item-field="summary" data-collection-item-id={result?.id || result?._id}>{result.summary}</p>
+                  {/* Summary */}
+                  <div className="bg-white rounded-2xl p-4 border border-border shadow-sm">
+                    <p className="text-[11px] font-bold text-[#E87A5A] uppercase tracking-wide mb-2">Resumo</p>
+                    <p className="text-sm text-foreground leading-relaxed">{result.summary}</p>
                   </div>
 
-                  {result.action_items?.length > 0 &&
-              <div data-source-location="pages/MeetingAI:488:20" data-dynamic-content="true" className="bg-white rounded-2xl p-4 border border-border shadow-sm">
-                      <p data-source-location="pages/MeetingAI:489:22" data-dynamic-content="false" className="text-[11px] font-bold text-foreground uppercase tracking-wide mb-3 flex items-center gap-1.5">
-                        <SquareCheckBig data-source-location="pages/MeetingAI:490:24" data-dynamic-content="false" className="w-3.5 h-3.5 text-emerald-500" /> Ações
+                  {/* Action items */}
+                  {result.action_items?.length > 0 && (
+                    <div className="bg-white rounded-2xl p-4 border border-border shadow-sm">
+                      <p className="text-[11px] font-bold text-foreground uppercase tracking-wide mb-3 flex items-center gap-1.5">
+                        <SquareCheckBig className="w-3.5 h-3.5 text-emerald-500" /> Ações
+                        <span className="text-[10px] text-muted-foreground font-normal normal-case ml-1">· toca + para criar tarefa</span>
                       </p>
-                      <div data-source-location="pages/MeetingAI:492:22" data-dynamic-content="true" className="space-y-2" data-collection-item-field="action_items" data-collection-item-id={result?.id || result?._id}>
-                        {result.action_items.map((item, i) =>
-                  <div data-source-location="pages/MeetingAI:494:26" data-dynamic-content="true" key={i} className="flex items-start gap-2.5 text-sm">
-                            <div data-source-location="pages/MeetingAI:495:28" data-dynamic-content="true" className="w-5 h-5 rounded-lg bg-[#E87A5A]/10 flex items-center justify-center flex-shrink-0 mt-0.5">
-                              <span data-source-location="pages/MeetingAI:496:30" data-dynamic-content="true" className="text-[10px] font-black text-[#E87A5A]">{i + 1}</span>
+                      <div className="space-y-2">
+                        {result.action_items.map((item, i) => (
+                          <div key={i} className="flex items-start gap-2.5 text-sm">
+                            <div className="w-5 h-5 rounded-lg bg-[#E87A5A]/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                              <span className="text-[10px] font-black text-[#E87A5A]">{i + 1}</span>
                             </div>
-                            <span data-source-location="pages/MeetingAI:498:28" data-dynamic-content="true" className="text-foreground leading-snug" data-collection-item-field="item">{item}</span>
+                            <span className="text-foreground leading-snug flex-1">{item}</span>
+                            <button onClick={() => createActionTask(item, i)}
+                              className={`flex-shrink-0 w-6 h-6 rounded-lg flex items-center justify-center transition-all ${createdItems[`task-${i}`] ? "bg-emerald-100 text-emerald-600" : "bg-secondary text-muted-foreground hover:bg-emerald-50 hover:text-emerald-600"}`}>
+                              {createdItems[`task-${i}`] ? <Check className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
+                            </button>
                           </div>
+                        ))}
+                      </div>
+                    </div>
                   )}
+
+                  {/* Deadlines */}
+                  {result.deadlines?.length > 0 && (
+                    <div className="bg-white rounded-2xl p-4 border border-border shadow-sm">
+                      <p className="text-[11px] font-bold text-foreground uppercase tracking-wide mb-3 flex items-center gap-1.5">
+                        <Clock className="w-3.5 h-3.5 text-amber-500" /> Prazos Mencionados
+                        <span className="text-[10px] text-muted-foreground font-normal normal-case ml-1">· toca + para criar prazo (7 dias)</span>
+                      </p>
+                      <div className="space-y-2">
+                        {result.deadlines.map((d, i) => (
+                          <div key={i} className="flex items-center gap-2">
+                            <span className="flex-1 px-3 py-1.5 rounded-2xl bg-secondary text-xs font-medium text-foreground border border-border">{d}</span>
+                            <button onClick={() => createDeadlineFromText(d, i)}
+                              className={`w-7 h-7 rounded-xl flex items-center justify-center flex-shrink-0 transition-all ${createdItems[`dl-${i}`] ? "bg-emerald-100 text-emerald-600" : "bg-secondary text-muted-foreground hover:bg-amber-50 hover:text-amber-600"}`}>
+                              {createdItems[`dl-${i}`] ? <Check className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
+                            </button>
+                          </div>
+                        ))}
                       </div>
                     </div>
-              }
-
-                  {result.deadlines?.length > 0 &&
-              <div data-source-location="pages/MeetingAI:506:20" data-dynamic-content="true" className="bg-white rounded-2xl p-4 border border-border shadow-sm">
-                      <p data-source-location="pages/MeetingAI:507:22" data-dynamic-content="false" className="text-[11px] font-bold text-foreground uppercase tracking-wide mb-3 flex items-center gap-1.5">
-                        <Clock data-source-location="pages/MeetingAI:508:24" data-dynamic-content="false" className="w-3.5 h-3.5 text-amber-500" /> Prazos Mencionados
-                      </p>
-                      <div data-source-location="pages/MeetingAI:510:22" data-dynamic-content="true" className="flex flex-wrap gap-2" data-collection-item-field="deadlines" data-collection-item-id={result?.id || result?._id}>
-                        {result.deadlines.map((d, i) =>
-                  <span data-source-location="pages/MeetingAI:512:26" data-dynamic-content="true" key={i} className="px-3 py-1.5 rounded-2xl bg-secondary text-xs font-medium text-foreground border border-border" data-collection-item-field="d">{d}</span>
                   )}
-                      </div>
-                    </div>
-              }
 
-                  {result.mind_map &&
-              <div data-source-location="pages/MeetingAI:519:20" data-dynamic-content="true" className="bg-white rounded-2xl p-4 border border-border shadow-sm">
-                      <p data-source-location="pages/MeetingAI:520:22" data-dynamic-content="false" className="text-[11px] font-bold text-foreground uppercase tracking-wide mb-3 flex items-center gap-1.5">
-                        <Brain data-source-location="pages/MeetingAI:521:24" data-dynamic-content="false" className="w-3.5 h-3.5 text-[#E87A5A]" /> Mapa Mental
+                  {/* Mind map */}
+                  {result.mind_map?.label && (
+                    <div className="bg-white rounded-2xl p-4 border border-border shadow-sm">
+                      <p className="text-[11px] font-bold text-foreground uppercase tracking-wide mb-3 flex items-center gap-1.5">
+                        <Brain className="w-3.5 h-3.5 text-[#E87A5A]" /> Mapa Mental
                       </p>
-                      <div data-source-location="pages/MeetingAI:523:22" data-dynamic-content="true" className="overflow-auto">
-                        <MindMapNode data-source-location="pages/MeetingAI:524:24" data-dynamic-content="true" node={result.mind_map} />
+                      <div className="overflow-auto">
+                        <MindMapNode node={result.mind_map} />
                       </div>
                     </div>
-              }
+                  )}
 
-                  {/* Save section */}
-                  <div data-source-location="pages/MeetingAI:530:18" data-dynamic-content="true" className="bg-white rounded-2xl p-4 border border-[#E87A5A]/20 shadow-sm">
-                    <p data-source-location="pages/MeetingAI:531:20" data-dynamic-content="false" className="text-[11px] font-bold text-[#E87A5A] uppercase tracking-wide mb-3">Guardar Gravação</p>
-                    <input data-source-location="pages/MeetingAI:532:20" data-dynamic-content="true" value={savingTitle} onChange={(e) => setSavingTitle(e.target.value)}
-                placeholder="Título da reunião..."
-                className="w-full px-3 py-2.5 rounded-xl bg-secondary/60 text-sm font-medium outline-none focus:bg-white transition-all mb-3" />
-                    <button data-source-location="pages/MeetingAI:535:20" data-dynamic-content="true" onClick={generateAndSavePdf}
-                className="w-full py-3 rounded-2xl bg-[#E87A5A] text-white text-sm font-bold hover:bg-[#D4694A] shadow-lg shadow-[#E87A5A]/25 transition-all flex items-center justify-center gap-2">
-                      <FileText data-source-location="pages/MeetingAI:537:22" data-dynamic-content="false" className="w-4 h-4" /> Guardar + Gerar PDF
+                  {/* Save */}
+                  <div className="bg-white rounded-2xl p-4 border border-[#E87A5A]/20 shadow-sm">
+                    <p className="text-[11px] font-bold text-[#E87A5A] uppercase tracking-wide mb-3">Guardar Gravação</p>
+                    <input value={savingTitle} onChange={(e) => setSavingTitle(e.target.value)}
+                      placeholder="Título da reunião..."
+                      className="w-full px-3 py-2.5 rounded-xl bg-secondary/60 text-sm font-medium outline-none focus:bg-white transition-all mb-3" />
+                    <button onClick={saveRecording}
+                      className="w-full py-3 rounded-2xl bg-[#E87A5A] text-white text-sm font-bold hover:bg-[#D4694A] shadow-lg shadow-[#E87A5A]/25 transition-all flex items-center justify-center gap-2">
+                      <FileText className="w-4 h-4" /> Guardar + Gerar PDF
                     </button>
                   </div>
 
-                  <button data-source-location="pages/MeetingAI:541:18" data-dynamic-content="true" onClick={() => setResult(null)}
-              className="w-full py-3 rounded-2xl bg-secondary text-muted-foreground text-sm font-medium hover:bg-border transition-all flex items-center justify-center gap-2">
-                    <X data-source-location="pages/MeetingAI:543:20" data-dynamic-content="false" className="w-4 h-4" /> Descartar
+                  <button onClick={() => setResult(null)}
+                    className="w-full py-3 rounded-2xl bg-secondary text-muted-foreground text-sm font-medium hover:bg-border transition-all flex items-center justify-center gap-2">
+                    <X className="w-4 h-4" /> Descartar
                   </button>
                 </motion.div>
-            }
+              )}
             </>
-          }
+          )}
 
-          {activeSection === "recordings" &&
-          <div data-source-location="pages/MeetingAI:551:12" data-dynamic-content="true" className="space-y-3" data-collection-id="MeetingRecording">
-              {recordings.length === 0 ?
-            <div data-source-location="pages/MeetingAI:553:16" data-dynamic-content="false" className="text-center py-20">
-                  <FileText data-source-location="pages/MeetingAI:554:18" data-dynamic-content="false" className="w-12 h-12 mx-auto mb-3 text-muted-foreground/20" />
-                  <p data-source-location="pages/MeetingAI:555:18" data-dynamic-content="false" className="text-muted-foreground text-sm font-medium">Sem gravações guardadas</p>
-                  <p data-source-location="pages/MeetingAI:556:18" data-dynamic-content="false" className="text-muted-foreground/50 text-xs mt-1">Grava uma reunião para começar</p>
-                </div> :
-
-            recordings.map((rec) =>
-            <RecordingCard data-source-location="pages/MeetingAI:560:18" data-dynamic-content="true" key={rec.id} rec={rec} events={events} onDelete={deleteRecording} data-collection-item-id={rec?.id} />
-            )
-            }
+          {activeSection === "recordings" && (
+            <div className="space-y-3">
+              {recordings.length === 0 ? (
+                <div className="text-center py-20">
+                  <FileText className="w-12 h-12 mx-auto mb-3 text-muted-foreground/20" />
+                  <p className="text-muted-foreground text-sm font-medium">Sem gravações guardadas</p>
+                  <p className="text-muted-foreground/50 text-xs mt-1">Grava uma reunião para começar</p>
+                </div>
+              ) : (
+                recordings.map((rec) => <RecordingCard key={rec.id} rec={rec} events={events} onDelete={deleteRecording} />)
+              )}
             </div>
-          }
+          )}
         </div>
       </div>
-    </div>);
-
+    </div>
+  );
 }
