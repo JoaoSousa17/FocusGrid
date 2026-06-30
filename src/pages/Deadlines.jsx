@@ -1,19 +1,41 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowRight, Plus, X, CalendarClock, MapPin, Globe, Clock, Check, Trash2, CalendarRange, Timer, ChevronDown, ChevronUp } from "lucide-react";
+import {
+  ArrowRight, Plus, X, CalendarClock, MapPin, Globe, Clock, Check, Trash2,
+  CalendarRange, Timer, ChevronDown, Bell, Repeat, Paperclip, Loader2
+} from "lucide-react";
 import { Deadline, Event } from "@/api/entities";
-import { format, differenceInDays, differenceInMinutes, differenceInHours, isPast, isToday, parseISO } from "date-fns";
+import { Core } from "@/api/integrations";
+import { format, differenceInDays, differenceInMinutes, isPast, isToday } from "date-fns";
 import { pt } from "date-fns/locale";
 import { useEdgeSwipeNav } from "@/hooks/useEdgeSwipeNav";
 
 const PRESET_COLORS = [
-{ key: "blue", hex: "#3B82F6" }, { key: "purple", hex: "#8B5CF6" },
-{ key: "emerald", hex: "#10B981" }, { key: "amber", hex: "#F59E0B" },
-{ key: "rose", hex: "#F43F5E" }, { key: "cyan", hex: "#06B6D4" },
-{ key: "indigo", hex: "#6366F1" }, { key: "pink", hex: "#EC4899" },
-{ key: "orange", hex: "#F97316" }, { key: "lime", hex: "#84CC16" }];
+  { key: "blue", hex: "#3B82F6" }, { key: "purple", hex: "#8B5CF6" },
+  { key: "emerald", hex: "#10B981" }, { key: "amber", hex: "#F59E0B" },
+  { key: "rose", hex: "#F43F5E" }, { key: "cyan", hex: "#06B6D4" },
+  { key: "indigo", hex: "#6366F1" }, { key: "pink", hex: "#EC4899" },
+  { key: "orange", hex: "#F97316" }, { key: "lime", hex: "#84CC16" },
+];
 
+const RECURRENCE_OPTIONS = [
+  { key: "none", label: "Sem repetição" },
+  { key: "daily", label: "Diariamente" },
+  { key: "weekly", label: "Semanalmente" },
+  { key: "monthly", label: "Mensalmente" },
+  { key: "yearly", label: "Anualmente" },
+];
+
+const NOTIFY_OPTIONS = [
+  { value: 0, label: "Na hora" },
+  { value: 1, label: "1 hora antes" },
+  { value: 6, label: "6 horas antes" },
+  { value: 24, label: "1 dia antes" },
+  { value: 48, label: "2 dias antes" },
+  { value: 72, label: "3 dias antes" },
+  { value: 168, label: "1 semana antes" },
+];
 
 function urgencyInfo(dateStr) {
   const d = new Date(dateStr);
@@ -44,253 +66,343 @@ function eventDuration(start, end) {
   const hours = Math.floor(mins / 60);
   const rem = mins % 60;
   const days = Math.floor(hours / 24);
-  if (days > 0) {
-    const remHours = hours % 24;
-    return remHours > 0 ? `${days}d ${remHours}h` : `${days} dia${days > 1 ? "s" : ""}`;
-  }
+  if (days > 0) { const rH = hours % 24; return rH > 0 ? `${days}d ${rH}h` : `${days} dia${days > 1 ? "s" : ""}`; }
   return rem > 0 ? `${hours}h ${rem}min` : `${hours}h`;
 }
 
-function DeadlineCard({ item, onDelete, index, "data-collection-item-id": __dataCollectionItemId }) {
+function recurrenceLabel(key) {
+  return RECURRENCE_OPTIONS.find((o) => o.key === key)?.label || "";
+}
+
+function DeadlineCard({ item, onDelete, index }) {
   const colorHex = PRESET_COLORS.find((c) => c.key === item.color)?.hex || item.color || "#E87A5A";
   const urgency = urgencyInfo(item.deadline);
+  const notifyLabel = NOTIFY_OPTIONS.find((o) => o.value === item.notify_before_hours)?.label;
 
   return (
-    <motion.div data-source-location="pages/Deadlines:58:4" data-dynamic-content="true"
-    initial={{ opacity: 0, y: 16 }}
-    animate={{ opacity: 1, y: 0 }}
-    transition={{ delay: index * 0.05 }}
-    className="bg-white rounded-3xl border border-border shadow-sm overflow-hidden" data-collection-item-id={__dataCollectionItemId}>
-      
-      <div data-source-location="pages/Deadlines:64:6" data-dynamic-content="true" className="h-1" style={{ background: colorHex }} />
-      <div data-source-location="pages/Deadlines:65:6" data-dynamic-content="true" className="p-4">
-        <div data-source-location="pages/Deadlines:66:8" data-dynamic-content="true" className="flex items-start justify-between gap-2 mb-3">
-          <div data-source-location="pages/Deadlines:67:10" data-dynamic-content="true" className="flex items-center gap-2.5">
-            <div data-source-location="pages/Deadlines:68:12" data-dynamic-content="true" className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: colorHex + "18" }}>
-              <CalendarClock data-source-location="pages/Deadlines:69:14" data-dynamic-content="true" className="w-4 h-4" style={{ color: colorHex }} />
+    <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.05 }}
+      className="bg-white rounded-3xl border border-border shadow-sm overflow-hidden">
+      <div className="h-1" style={{ background: colorHex }} />
+      <div className="p-4">
+        <div className="flex items-start justify-between gap-2 mb-3">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: colorHex + "18" }}>
+              <CalendarClock className="w-4 h-4" style={{ color: colorHex }} />
             </div>
-            <h3 data-source-location="pages/Deadlines:71:12" data-dynamic-content="true" className="text-sm font-bold text-foreground leading-tight" data-collection-item-field="name" data-collection-item-id={item?.id || item?._id}>{item.name}</h3>
+            <div>
+              <h3 className="text-sm font-bold text-foreground leading-tight">{item.name}</h3>
+              {item.recurrence && item.recurrence !== "none" && (
+                <span className="text-[10px] text-muted-foreground flex items-center gap-0.5 mt-0.5">
+                  <Repeat className="w-2.5 h-2.5" /> {recurrenceLabel(item.recurrence)}
+                </span>
+              )}
+            </div>
           </div>
-          <div data-source-location="pages/Deadlines:73:10" data-dynamic-content="true" className="flex items-center gap-1.5 flex-shrink-0">
-            <span data-source-location="pages/Deadlines:74:12" data-dynamic-content="true" className="px-2.5 py-1 rounded-full text-[11px] font-bold text-white" style={{ backgroundColor: urgency.color }} data-collection-item-field="label" data-collection-item-id={urgency?.id || urgency?._id}>
+          <div className="flex items-center gap-1.5 flex-shrink-0">
+            <span className="px-2.5 py-1 rounded-full text-[11px] font-bold text-white" style={{ backgroundColor: urgency.color }}>
               {urgency.label}
             </span>
-            <button data-source-location="pages/Deadlines:77:12" data-dynamic-content="true" onClick={() => onDelete(item.id)}
-            className="w-7 h-7 rounded-xl bg-secondary flex items-center justify-center text-muted-foreground hover:text-rose-500 hover:bg-rose-50 transition-all">
-              <Trash2 data-source-location="pages/Deadlines:79:14" data-dynamic-content="false" className="w-3.5 h-3.5" />
+            <button onClick={() => onDelete(item.id)}
+              className="w-7 h-7 rounded-xl bg-secondary flex items-center justify-center text-muted-foreground hover:text-rose-500 hover:bg-rose-50 transition-all">
+              <Trash2 className="w-3.5 h-3.5" />
             </button>
           </div>
         </div>
 
-        <div data-source-location="pages/Deadlines:84:8" data-dynamic-content="true" className="flex flex-wrap gap-1.5 ml-11" data-collection-item-field="location" data-collection-item-id={item?.id || item?._id}>
-          <div data-source-location="pages/Deadlines:85:10" data-dynamic-content="true" className="flex items-center gap-1 px-2.5 py-1 rounded-xl bg-secondary text-xs text-muted-foreground">
-            <Clock data-source-location="pages/Deadlines:86:12" data-dynamic-content="false" className="w-3 h-3" /> {formatDateTime(item.deadline)}
+        <div className="flex flex-wrap gap-1.5 ml-11">
+          <div className="flex items-center gap-1 px-2.5 py-1 rounded-xl bg-secondary text-xs text-muted-foreground">
+            <Clock className="w-3 h-3" /> {formatDateTime(item.deadline)}
           </div>
-          {item.location &&
-          <div data-source-location="pages/Deadlines:89:12" data-dynamic-content="true" className="flex items-center gap-1 px-2.5 py-1 rounded-xl bg-secondary text-xs text-muted-foreground">
-              <MapPin data-source-location="pages/Deadlines:90:14" data-dynamic-content="false" className="w-3 h-3" />
-              <span data-source-location="pages/Deadlines:91:14" data-dynamic-content="true" className="truncate max-w-[100px]" data-collection-item-field="location" data-collection-item-id={item?.id || item?._id}>{item.location}</span>
+          {notifyLabel && (
+            <div className="flex items-center gap-1 px-2.5 py-1 rounded-xl bg-secondary text-xs text-muted-foreground">
+              <Bell className="w-3 h-3" /> {notifyLabel}
             </div>
-          }
-          {item.website &&
-          <a data-source-location="pages/Deadlines:95:12" data-dynamic-content="true" href={item.website.startsWith("http") ? item.website : `https://${item.website}`}
-          target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}
-          className="flex items-center gap-1 px-2.5 py-1 rounded-xl bg-secondary text-xs text-muted-foreground hover:text-[#E87A5A] transition-all">
-              <Globe data-source-location="pages/Deadlines:98:14" data-dynamic-content="false" className="w-3 h-3" />
-              <span data-source-location="pages/Deadlines:99:14" data-dynamic-content="true" className="truncate max-w-[100px]" data-collection-item-field="website" data-collection-item-id={item?.id || item?._id}>{item.website.replace(/^https?:\/\//, "")}</span>
+          )}
+          {item.location && (
+            <div className="flex items-center gap-1 px-2.5 py-1 rounded-xl bg-secondary text-xs text-muted-foreground">
+              <MapPin className="w-3 h-3" />
+              <span className="truncate max-w-[100px]">{item.location}</span>
+            </div>
+          )}
+          {item.website && (
+            <a href={item.website.startsWith("http") ? item.website : `https://${item.website}`}
+              target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}
+              className="flex items-center gap-1 px-2.5 py-1 rounded-xl bg-secondary text-xs text-muted-foreground hover:text-[#E87A5A] transition-all">
+              <Globe className="w-3 h-3" />
+              <span className="truncate max-w-[100px]">{item.website.replace(/^https?:\/\//, "")}</span>
             </a>
-          }
+          )}
+          {item.attachment_url && (
+            <a href={item.attachment_url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}
+              className="flex items-center gap-1 px-2.5 py-1 rounded-xl bg-secondary text-xs text-muted-foreground hover:text-[#E87A5A] transition-all">
+              <Paperclip className="w-3 h-3" />
+              <span className="truncate max-w-[100px]">{item.attachment_name || "Anexo"}</span>
+            </a>
+          )}
         </div>
       </div>
-    </motion.div>);
-
+    </motion.div>
+  );
 }
 
-function EventCard({ item, onDelete, index, "data-collection-item-id": __dataCollectionItemId }) {
+function EventCard({ item, onDelete, index }) {
   const colorHex = PRESET_COLORS.find((c) => c.key === item.color)?.hex || item.color || "#8B5CF6";
   const duration = eventDuration(item.start_datetime, item.end_datetime);
   const startUrgency = urgencyInfo(item.start_datetime);
 
   return (
-    <motion.div data-source-location="pages/Deadlines:114:4" data-dynamic-content="true"
-    initial={{ opacity: 0, y: 16 }}
-    animate={{ opacity: 1, y: 0 }}
-    transition={{ delay: index * 0.05 }}
-    className="bg-white rounded-3xl border border-border shadow-sm overflow-hidden" data-collection-item-id={__dataCollectionItemId}>
-      
-      <div data-source-location="pages/Deadlines:120:6" data-dynamic-content="true" className="h-1" style={{ background: `linear-gradient(to right, ${colorHex}, ${colorHex}88)` }} />
-      <div data-source-location="pages/Deadlines:121:6" data-dynamic-content="true" className="p-4">
-        <div data-source-location="pages/Deadlines:122:8" data-dynamic-content="true" className="flex items-start justify-between gap-2 mb-3">
-          <div data-source-location="pages/Deadlines:123:10" data-dynamic-content="true" className="flex items-center gap-2.5">
-            <div data-source-location="pages/Deadlines:124:12" data-dynamic-content="true" className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: colorHex + "18" }}>
-              <CalendarRange data-source-location="pages/Deadlines:125:14" data-dynamic-content="true" className="w-4 h-4" style={{ color: colorHex }} />
+    <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.05 }}
+      className="bg-white rounded-3xl border border-border shadow-sm overflow-hidden">
+      <div className="h-1" style={{ background: `linear-gradient(to right, ${colorHex}, ${colorHex}88)` }} />
+      <div className="p-4">
+        <div className="flex items-start justify-between gap-2 mb-3">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: colorHex + "18" }}>
+              <CalendarRange className="w-4 h-4" style={{ color: colorHex }} />
             </div>
-            <div data-source-location="pages/Deadlines:127:12" data-dynamic-content="true" data-collection-item-field="description" data-collection-item-id={item?.id || item?._id}>
-              <h3 data-source-location="pages/Deadlines:128:14" data-dynamic-content="true" className="text-sm font-bold text-foreground leading-tight" data-collection-item-field="name" data-collection-item-id={item?.id || item?._id}>{item.name}</h3>
-              {item.description && <p data-source-location="pages/Deadlines:129:35" data-dynamic-content="true" className="text-[11px] text-muted-foreground mt-0.5 leading-snug" data-collection-item-field="description" data-collection-item-id={item?.id || item?._id}>{item.description}</p>}
+            <div>
+              <h3 className="text-sm font-bold text-foreground leading-tight">{item.name}</h3>
+              {item.description && <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">{item.description}</p>}
             </div>
           </div>
-          <div data-source-location="pages/Deadlines:132:10" data-dynamic-content="true" className="flex items-center gap-1.5 flex-shrink-0">
-            <span data-source-location="pages/Deadlines:133:12" data-dynamic-content="true" className="px-2.5 py-1 rounded-full text-[11px] font-bold text-white" style={{ backgroundColor: startUrgency.color }} data-collection-item-field="label" data-collection-item-id={startUrgency?.id || startUrgency?._id}>
+          <div className="flex items-center gap-1.5 flex-shrink-0">
+            <span className="px-2.5 py-1 rounded-full text-[11px] font-bold text-white" style={{ backgroundColor: startUrgency.color }}>
               {startUrgency.label}
             </span>
-            <button data-source-location="pages/Deadlines:136:12" data-dynamic-content="true" onClick={() => onDelete(item.id)}
-            className="w-7 h-7 rounded-xl bg-secondary flex items-center justify-center text-muted-foreground hover:text-rose-500 hover:bg-rose-50 transition-all">
-              <Trash2 data-source-location="pages/Deadlines:138:14" data-dynamic-content="false" className="w-3.5 h-3.5" />
+            <button onClick={() => onDelete(item.id)}
+              className="w-7 h-7 rounded-xl bg-secondary flex items-center justify-center text-muted-foreground hover:text-rose-500 hover:bg-rose-50 transition-all">
+              <Trash2 className="w-3.5 h-3.5" />
             </button>
           </div>
         </div>
 
-        <div data-source-location="pages/Deadlines:143:8" data-dynamic-content="true" className="flex flex-wrap gap-1.5 ml-11" data-collection-item-field="location" data-collection-item-id={item?.id || item?._id}>
-          <div data-source-location="pages/Deadlines:144:10" data-dynamic-content="true" className="flex items-center gap-1 px-2.5 py-1 rounded-xl bg-secondary text-xs text-muted-foreground">
-            <Clock data-source-location="pages/Deadlines:145:12" data-dynamic-content="false" className="w-3 h-3" /> {formatDateTime(item.start_datetime)}
+        <div className="flex flex-wrap gap-1.5 ml-11">
+          <div className="flex items-center gap-1 px-2.5 py-1 rounded-xl bg-secondary text-xs text-muted-foreground">
+            <Clock className="w-3 h-3" /> {formatDateTime(item.start_datetime)}
           </div>
-          <div data-source-location="pages/Deadlines:147:10" data-dynamic-content="true" className="flex items-center gap-1 px-2.5 py-1 rounded-xl bg-secondary text-xs text-muted-foreground">
-            <ChevronDown data-source-location="pages/Deadlines:148:12" data-dynamic-content="false" className="w-3 h-3" /> {formatDateTime(item.end_datetime)}
+          <div className="flex items-center gap-1 px-2.5 py-1 rounded-xl bg-secondary text-xs text-muted-foreground">
+            <ChevronDown className="w-3 h-3" /> {formatDateTime(item.end_datetime)}
           </div>
-          {duration &&
-          <div data-source-location="pages/Deadlines:151:12" data-dynamic-content="true" className="flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold text-white" style={{ backgroundColor: colorHex }} data-collection-item-field="duration" data-collection-item-id={__dataCollectionItemId}>
-              <Timer data-source-location="pages/Deadlines:152:14" data-dynamic-content="false" className="w-3 h-3" /> {duration}
+          {duration && (
+            <div className="flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold text-white" style={{ backgroundColor: colorHex }}>
+              <Timer className="w-3 h-3" /> {duration}
             </div>
-          }
-          {item.location &&
-          <div data-source-location="pages/Deadlines:156:12" data-dynamic-content="true" className="flex items-center gap-1 px-2.5 py-1 rounded-xl bg-secondary text-xs text-muted-foreground">
-              <MapPin data-source-location="pages/Deadlines:157:14" data-dynamic-content="false" className="w-3 h-3" />
-              <span data-source-location="pages/Deadlines:158:14" data-dynamic-content="true" className="truncate max-w-[100px]" data-collection-item-field="location" data-collection-item-id={item?.id || item?._id}>{item.location}</span>
+          )}
+          {item.location && (
+            <div className="flex items-center gap-1 px-2.5 py-1 rounded-xl bg-secondary text-xs text-muted-foreground">
+              <MapPin className="w-3 h-3" />
+              <span className="truncate max-w-[100px]">{item.location}</span>
             </div>
-          }
-          {item.website &&
-          <a data-source-location="pages/Deadlines:162:12" data-dynamic-content="true" href={item.website.startsWith("http") ? item.website : `https://${item.website}`}
-          target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}
-          className="flex items-center gap-1 px-2.5 py-1 rounded-xl bg-secondary text-xs text-muted-foreground hover:text-[#E87A5A] transition-all">
-              <Globe data-source-location="pages/Deadlines:165:14" data-dynamic-content="false" className="w-3 h-3" />
-              <span data-source-location="pages/Deadlines:166:14" data-dynamic-content="true" className="truncate max-w-[100px]" data-collection-item-field="website" data-collection-item-id={item?.id || item?._id}>{item.website.replace(/^https?:\/\//, "")}</span>
+          )}
+          {item.website && (
+            <a href={item.website.startsWith("http") ? item.website : `https://${item.website}`}
+              target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}
+              className="flex items-center gap-1 px-2.5 py-1 rounded-xl bg-secondary text-xs text-muted-foreground hover:text-[#E87A5A] transition-all">
+              <Globe className="w-3 h-3" />
+              <span className="truncate max-w-[100px]">{item.website.replace(/^https?:\/\//, "")}</span>
             </a>
-          }
+          )}
         </div>
       </div>
-    </motion.div>);
-
+    </motion.div>
+  );
 }
 
 function AddDeadlineForm({ onSave, onCancel }) {
-  const [form, setForm] = useState({ name: "", color: "orange", location: "", website: "", deadline: "" });
+  const [form, setForm] = useState({
+    name: "", color: "orange", location: "", website: "",
+    deadline: "", recurrence: "none", notify_before_hours: 24,
+    attachment_url: "", attachment_name: ""
+  });
+  const [uploading, setUploading] = useState(false);
+  const fileRef = useRef(null);
   const colorHex = PRESET_COLORS.find((c) => c.key === form.color)?.hex || "#F97316";
 
+  const handleFile = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const { file_url } = await Core.UploadFile({ file });
+      setForm((f) => ({ ...f, attachment_url: file_url, attachment_name: file.name }));
+    } catch { }
+    setUploading(false);
+    e.target.value = "";
+  };
+
   return (
-    <motion.div data-source-location="pages/Deadlines:180:4" data-dynamic-content="true" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-    className="bg-white rounded-3xl border border-border shadow-md overflow-hidden mb-2">
-      <div data-source-location="pages/Deadlines:182:6" data-dynamic-content="true" className="h-1" style={{ background: colorHex }} />
-      <div data-source-location="pages/Deadlines:183:6" data-dynamic-content="true" className="p-4 space-y-3">
-        <input data-source-location="pages/Deadlines:184:8" data-dynamic-content="true" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}
-        placeholder="Nome do prazo"
-        className="w-full px-4 py-3 rounded-2xl bg-secondary/60 text-sm font-semibold outline-none focus:bg-white transition-all" />
-        <div data-source-location="pages/Deadlines:187:8" data-dynamic-content="true" className="grid grid-cols-2 gap-2">
-          <input data-source-location="pages/Deadlines:188:10" data-dynamic-content="true" value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })}
-          placeholder="📍 Local"
-          className="px-3 py-2.5 rounded-2xl bg-secondary/60 text-sm outline-none focus:bg-white transition-all" />
-          <input data-source-location="pages/Deadlines:191:10" data-dynamic-content="true" value={form.website} onChange={(e) => setForm({ ...form, website: e.target.value })}
-          placeholder="🌐 Website"
-          className="px-3 py-2.5 rounded-2xl bg-secondary/60 text-sm outline-none focus:bg-white transition-all" />
+    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
+      className="bg-white rounded-3xl border border-border shadow-md overflow-hidden mb-2">
+      <div className="h-1" style={{ background: colorHex }} />
+      <div className="p-4 space-y-3">
+        <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}
+          placeholder="Nome do prazo"
+          className="w-full px-4 py-3 rounded-2xl bg-secondary/60 text-sm font-semibold outline-none focus:bg-white transition-all" />
+
+        <div className="grid grid-cols-2 gap-2">
+          <input value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })}
+            placeholder="📍 Local"
+            className="px-3 py-2.5 rounded-2xl bg-secondary/60 text-sm outline-none focus:bg-white transition-all" />
+          <input value={form.website} onChange={(e) => setForm({ ...form, website: e.target.value })}
+            placeholder="🌐 Website"
+            className="px-3 py-2.5 rounded-2xl bg-secondary/60 text-sm outline-none focus:bg-white transition-all" />
         </div>
-        <div data-source-location="pages/Deadlines:195:8" data-dynamic-content="true">
-          <label data-source-location="pages/Deadlines:196:10" data-dynamic-content="false" className="text-[11px] text-muted-foreground mb-1 block">Data e hora limite</label>
-          <input data-source-location="pages/Deadlines:197:10" data-dynamic-content="true" type="datetime-local" value={form.deadline} onChange={(e) => setForm({ ...form, deadline: e.target.value })}
-          className="w-full px-4 py-2.5 rounded-2xl bg-secondary/60 text-sm outline-none focus:bg-white transition-all" />
+
+        <div>
+          <label className="text-[11px] text-muted-foreground mb-1 block">Data e hora limite</label>
+          <input type="datetime-local" value={form.deadline} onChange={(e) => setForm({ ...form, deadline: e.target.value })}
+            className="w-full px-4 py-2.5 rounded-2xl bg-secondary/60 text-sm outline-none focus:bg-white transition-all" />
         </div>
-        <div data-source-location="pages/Deadlines:200:8" data-dynamic-content="true">
-          <p data-source-location="pages/Deadlines:201:10" data-dynamic-content="false" className="text-[11px] text-muted-foreground mb-2">Cor</p>
-          <div data-source-location="pages/Deadlines:202:10" data-dynamic-content="true" className="flex gap-2 flex-wrap">
-            {PRESET_COLORS.map((c, __arrIdx__) =>
-            <button data-source-location="pages/Deadlines:204:14" data-dynamic-content="true" key={c.key} onClick={() => setForm({ ...form, color: c.key })}
-            className={`w-7 h-7 rounded-xl transition-all ${form.color === c.key ? "ring-2 ring-offset-2 scale-110" : "hover:scale-105 opacity-70"}`}
-            style={{ backgroundColor: c.hex }} data-arr-index={__arrIdx__} data-arr-variable-name="PRESET_COLORS" />
-            )}
+
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <label className="text-[11px] text-muted-foreground mb-1 block flex items-center gap-1"><Repeat className="w-3 h-3" /> Repetição</label>
+            <select value={form.recurrence} onChange={(e) => setForm({ ...form, recurrence: e.target.value })}
+              className="w-full px-3 py-2.5 rounded-2xl bg-secondary/60 text-sm outline-none focus:bg-white transition-all">
+              {RECURRENCE_OPTIONS.map((o) => <option key={o.key} value={o.key}>{o.label}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="text-[11px] text-muted-foreground mb-1 block flex items-center gap-1"><Bell className="w-3 h-3" /> Notificação</label>
+            <select value={form.notify_before_hours} onChange={(e) => setForm({ ...form, notify_before_hours: Number(e.target.value) })}
+              className="w-full px-3 py-2.5 rounded-2xl bg-secondary/60 text-sm outline-none focus:bg-white transition-all">
+              {NOTIFY_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
           </div>
         </div>
-        <div data-source-location="pages/Deadlines:210:8" data-dynamic-content="true" className="flex gap-2 pt-1">
-          <button data-source-location="pages/Deadlines:211:10" data-dynamic-content="true" onClick={onCancel}
-          className="flex-1 py-2.5 rounded-2xl bg-secondary text-muted-foreground text-sm font-semibold hover:bg-border transition-all">
+
+        {/* Attachment */}
+        <div>
+          <label className="text-[11px] text-muted-foreground mb-1 block flex items-center gap-1"><Paperclip className="w-3 h-3" /> Anexo</label>
+          {form.attachment_url ? (
+            <div className="flex items-center gap-2 px-3 py-2 rounded-2xl bg-secondary/60 text-sm">
+              <Paperclip className="w-3.5 h-3.5 text-muted-foreground" />
+              <span className="truncate text-xs text-foreground flex-1">{form.attachment_name}</span>
+              <button onClick={() => setForm((f) => ({ ...f, attachment_url: "", attachment_name: "" }))}
+                className="text-rose-400 hover:text-rose-600 transition-all"><X className="w-3.5 h-3.5" /></button>
+            </div>
+          ) : (
+            <button onClick={() => fileRef.current?.click()} disabled={uploading}
+              className="w-full px-3 py-2.5 rounded-2xl bg-secondary/60 text-sm text-muted-foreground flex items-center gap-2 hover:bg-border transition-all disabled:opacity-50">
+              {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Paperclip className="w-4 h-4" />}
+              {uploading ? "A carregar..." : "Anexar ficheiro"}
+            </button>
+          )}
+          <input ref={fileRef} type="file" className="hidden" onChange={handleFile} />
+        </div>
+
+        <div>
+          <p className="text-[11px] text-muted-foreground mb-2">Cor</p>
+          <div className="flex gap-2 flex-wrap">
+            {PRESET_COLORS.map((c) => (
+              <button key={c.key} onClick={() => setForm({ ...form, color: c.key })}
+                className={`w-7 h-7 rounded-xl transition-all ${form.color === c.key ? "ring-2 ring-offset-2 scale-110" : "hover:scale-105 opacity-70"}`}
+                style={{ backgroundColor: c.hex }} />
+            ))}
+          </div>
+        </div>
+
+        <div className="flex gap-2 pt-1">
+          <button onClick={onCancel}
+            className="flex-1 py-2.5 rounded-2xl bg-secondary text-muted-foreground text-sm font-semibold hover:bg-border transition-all">
             Cancelar
           </button>
-          <button data-source-location="pages/Deadlines:215:10" data-dynamic-content="true" onClick={() => form.name.trim() && form.deadline && onSave(form)}
-          disabled={!form.name.trim() || !form.deadline}
-          className="flex-1 py-2.5 rounded-2xl text-white text-sm font-bold transition-all hover:opacity-90 active:scale-[0.98] disabled:opacity-40 flex items-center justify-center gap-1.5"
-          style={{ backgroundColor: colorHex }}>
-            <Check data-source-location="pages/Deadlines:219:12" data-dynamic-content="false" className="w-4 h-4" /> Adicionar
+          <button onClick={() => form.name.trim() && form.deadline && onSave(form)}
+            disabled={!form.name.trim() || !form.deadline}
+            className="flex-1 py-2.5 rounded-2xl text-white text-sm font-bold transition-all hover:opacity-90 active:scale-[0.98] disabled:opacity-40 flex items-center justify-center gap-1.5"
+            style={{ backgroundColor: colorHex }}>
+            <Check className="w-4 h-4" /> Adicionar
           </button>
         </div>
       </div>
-    </motion.div>);
-
+    </motion.div>
+  );
 }
 
-function AddEventForm({ onSave, onCancel, id }) {
-  const [form, setForm] = useState({ name: "", color: "purple", location: "", website: "", description: "", start_datetime: "", end_datetime: "" });
+function AddEventForm({ onSave, onCancel }) {
+  const [form, setForm] = useState({
+    name: "", color: "purple", location: "", website: "", description: "",
+    start_datetime: "", end_datetime: ""
+  });
   const colorHex = PRESET_COLORS.find((c) => c.key === form.color)?.hex || "#8B5CF6";
   const duration = eventDuration(form.start_datetime, form.end_datetime);
 
   return (
-    <motion.div data-source-location="pages/Deadlines:233:4" data-dynamic-content="true" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-    className="bg-white rounded-3xl border border-border shadow-md overflow-hidden mb-2">
-      <div data-source-location="pages/Deadlines:235:6" data-dynamic-content="true" className="h-1" style={{ background: `linear-gradient(to right, ${colorHex}, ${colorHex}88)` }} />
-      <div data-source-location="pages/Deadlines:236:6" data-dynamic-content="true" className="p-4 space-y-3">
-        <input data-source-location="pages/Deadlines:237:8" data-dynamic-content="true" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}
-        placeholder="Nome do evento"
-        className="w-full px-4 py-3 rounded-2xl bg-secondary/60 text-sm font-semibold outline-none focus:bg-white transition-all" />
-        <input data-source-location="pages/Deadlines:240:8" data-dynamic-content="true" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })}
-        placeholder="Descrição (opcional)"
-        className="w-full px-4 py-2.5 rounded-2xl bg-secondary/60 text-sm outline-none focus:bg-white transition-all" />
-        <div data-source-location="pages/Deadlines:243:8" data-dynamic-content="true" className="grid grid-cols-2 gap-2">
-          <input data-source-location="pages/Deadlines:244:10" data-dynamic-content="true" value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })}
-          placeholder="📍 Local"
-          className="px-3 py-2.5 rounded-2xl bg-secondary/60 text-sm outline-none focus:bg-white transition-all" />
-          <input data-source-location="pages/Deadlines:247:10" data-dynamic-content="true" value={form.website} onChange={(e) => setForm({ ...form, website: e.target.value })}
-          placeholder="🌐 Website"
-          className="px-3 py-2.5 rounded-2xl bg-secondary/60 text-sm outline-none focus:bg-white transition-all" />
+    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
+      className="bg-white rounded-3xl border border-border shadow-md overflow-hidden mb-2">
+      <div className="h-1" style={{ background: `linear-gradient(to right, ${colorHex}, ${colorHex}88)` }} />
+      <div className="p-4 space-y-3">
+        <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}
+          placeholder="Nome do evento"
+          className="w-full px-4 py-3 rounded-2xl bg-secondary/60 text-sm font-semibold outline-none focus:bg-white transition-all" />
+        <input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })}
+          placeholder="Descrição (opcional)"
+          className="w-full px-4 py-2.5 rounded-2xl bg-secondary/60 text-sm outline-none focus:bg-white transition-all" />
+        <div className="grid grid-cols-2 gap-2">
+          <input value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })}
+            placeholder="📍 Local"
+            className="px-3 py-2.5 rounded-2xl bg-secondary/60 text-sm outline-none focus:bg-white transition-all" />
+          <input value={form.website} onChange={(e) => setForm({ ...form, website: e.target.value })}
+            placeholder="🌐 Website"
+            className="px-3 py-2.5 rounded-2xl bg-secondary/60 text-sm outline-none focus:bg-white transition-all" />
         </div>
-        <div data-source-location="pages/Deadlines:251:8" data-dynamic-content="true" className="space-y-2">
-          <div data-source-location="pages/Deadlines:252:10" data-dynamic-content="true">
-            <label data-source-location="pages/Deadlines:253:12" data-dynamic-content="false" className="text-[11px] text-muted-foreground mb-1 block">▶ Início</label>
-            <input data-source-location="pages/Deadlines:254:12" data-dynamic-content="true" type="datetime-local" value={form.start_datetime} onChange={(e) => setForm({ ...form, start_datetime: e.target.value })}
-            className="w-full px-4 py-2.5 rounded-2xl bg-secondary/60 text-sm outline-none focus:bg-white transition-all" />
+        <div className="space-y-2">
+          <div>
+            <label className="text-[11px] text-muted-foreground mb-1 block">▶ Início</label>
+            <input type="datetime-local" value={form.start_datetime} onChange={(e) => setForm({ ...form, start_datetime: e.target.value })}
+              className="w-full px-4 py-2.5 rounded-2xl bg-secondary/60 text-sm outline-none focus:bg-white transition-all" />
           </div>
-          <div data-source-location="pages/Deadlines:257:10" data-dynamic-content="true">
-            <label data-source-location="pages/Deadlines:258:12" data-dynamic-content="false" className="text-[11px] text-muted-foreground mb-1 block">■ Fim</label>
-            <input data-source-location="pages/Deadlines:259:12" data-dynamic-content="true" type="datetime-local" value={form.end_datetime} onChange={(e) => setForm({ ...form, end_datetime: e.target.value })}
-            className="w-full px-4 py-2.5 rounded-2xl bg-secondary/60 text-sm outline-none focus:bg-white transition-all" />
+          <div>
+            <label className="text-[11px] text-muted-foreground mb-1 block">■ Fim</label>
+            <input type="datetime-local" value={form.end_datetime} onChange={(e) => setForm({ ...form, end_datetime: e.target.value })}
+              className="w-full px-4 py-2.5 rounded-2xl bg-secondary/60 text-sm outline-none focus:bg-white transition-all" />
           </div>
-          {duration &&
-          <div data-source-location="pages/Deadlines:263:12" data-dynamic-content="true" className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-white" style={{ backgroundColor: colorHex }} data-collection-item-field="duration" data-collection-item-id={id}>
-              <Timer data-source-location="pages/Deadlines:264:14" data-dynamic-content="false" className="w-3.5 h-3.5" /> Duração: {duration}
+          {duration && (
+            <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-white" style={{ backgroundColor: colorHex }}>
+              <Timer className="w-3.5 h-3.5" /> Duração: {duration}
             </div>
-          }
+          )}
         </div>
-        <div data-source-location="pages/Deadlines:268:8" data-dynamic-content="true">
-          <p data-source-location="pages/Deadlines:269:10" data-dynamic-content="false" className="text-[11px] text-muted-foreground mb-2">Cor</p>
-          <div data-source-location="pages/Deadlines:270:10" data-dynamic-content="true" className="flex gap-2 flex-wrap">
-            {PRESET_COLORS.map((c, __arrIdx__) =>
-            <button data-source-location="pages/Deadlines:272:14" data-dynamic-content="true" key={c.key} onClick={() => setForm({ ...form, color: c.key })}
-            className={`w-7 h-7 rounded-xl transition-all ${form.color === c.key ? "ring-2 ring-offset-2 scale-110" : "hover:scale-105 opacity-70"}`}
-            style={{ backgroundColor: c.hex }} data-arr-index={__arrIdx__} data-arr-variable-name="PRESET_COLORS" />
-            )}
+        <div>
+          <p className="text-[11px] text-muted-foreground mb-2">Cor</p>
+          <div className="flex gap-2 flex-wrap">
+            {PRESET_COLORS.map((c) => (
+              <button key={c.key} onClick={() => setForm({ ...form, color: c.key })}
+                className={`w-7 h-7 rounded-xl transition-all ${form.color === c.key ? "ring-2 ring-offset-2 scale-110" : "hover:scale-105 opacity-70"}`}
+                style={{ backgroundColor: c.hex }} />
+            ))}
           </div>
         </div>
-        <div data-source-location="pages/Deadlines:278:8" data-dynamic-content="true" className="flex gap-2 pt-1">
-          <button data-source-location="pages/Deadlines:279:10" data-dynamic-content="true" onClick={onCancel}
-          className="flex-1 py-2.5 rounded-2xl bg-secondary text-muted-foreground text-sm font-semibold hover:bg-border transition-all">
+        <div className="flex gap-2 pt-1">
+          <button onClick={onCancel}
+            className="flex-1 py-2.5 rounded-2xl bg-secondary text-muted-foreground text-sm font-semibold hover:bg-border transition-all">
             Cancelar
           </button>
-          <button data-source-location="pages/Deadlines:283:10" data-dynamic-content="true" onClick={() => form.name.trim() && form.start_datetime && form.end_datetime && onSave(form)}
-          disabled={!form.name.trim() || !form.start_datetime || !form.end_datetime}
-          className="flex-1 py-2.5 rounded-2xl text-white text-sm font-bold transition-all hover:opacity-90 active:scale-[0.98] disabled:opacity-40 flex items-center justify-center gap-1.5"
-          style={{ backgroundColor: colorHex }}>
-            <Check data-source-location="pages/Deadlines:287:12" data-dynamic-content="false" className="w-4 h-4" /> Adicionar
+          <button onClick={() => form.name.trim() && form.start_datetime && form.end_datetime && onSave(form)}
+            disabled={!form.name.trim() || !form.start_datetime || !form.end_datetime}
+            className="flex-1 py-2.5 rounded-2xl text-white text-sm font-bold transition-all hover:opacity-90 active:scale-[0.98] disabled:opacity-40 flex items-center justify-center gap-1.5"
+            style={{ backgroundColor: colorHex }}>
+            <Check className="w-4 h-4" /> Adicionar
           </button>
         </div>
       </div>
-    </motion.div>);
+    </motion.div>
+  );
+}
 
+// Schedule browser notification for a deadline
+function scheduleNotification(deadline) {
+  if (!("Notification" in window) || Notification.permission !== "granted") return;
+  const deadlineTime = new Date(deadline.deadline).getTime();
+  const notifyAt = deadlineTime - (deadline.notify_before_hours || 24) * 60 * 60 * 1000;
+  const msUntil = notifyAt - Date.now();
+  if (msUntil > 0 && msUntil < 7 * 24 * 60 * 60 * 1000) {
+    setTimeout(() => {
+      new Notification("FocusGrid — Prazo", {
+        body: `"${deadline.name}" termina em ${NOTIFY_OPTIONS.find((o) => o.value === deadline.notify_before_hours)?.label || "breve"}`,
+      });
+    }, msUntil);
+  }
 }
 
 export default function Deadlines() {
@@ -306,10 +418,16 @@ export default function Deadlines() {
     Event.list("-start_datetime", 100).then(setEvents).catch(() => setEvents([]));
   };
 
-  useEffect(() => {refresh();}, []);
+  useEffect(() => {
+    refresh();
+    if ("Notification" in window && Notification.permission === "default") {
+      Notification.requestPermission();
+    }
+  }, []);
 
   const addDeadline = async (form) => {
-    await Deadline.create(form);
+    const dl = await Deadline.create(form);
+    if (dl) scheduleNotification(dl);
     setShowForm(false);
     refresh();
   };
@@ -320,127 +438,118 @@ export default function Deadlines() {
     refresh();
   };
 
-  const deleteDeadline = async (id) => {
-    await Deadline.delete(id);
-    refresh();
-  };
+  const deleteDeadline = async (id) => { await Deadline.delete(id); refresh(); };
+  const deleteEvent = async (id) => { await Event.delete(id); refresh(); };
 
-  const deleteEvent = async (id) => {
-    await Event.delete(id);
-    refresh();
-  };
+  const upcomingDeadlines = deadlines
+    .filter((i) => !isPast(new Date(i.deadline)) || isToday(new Date(i.deadline)))
+    .sort((a, b) => new Date(a.deadline) - new Date(b.deadline));
+  const expiredDeadlines = deadlines
+    .filter((i) => isPast(new Date(i.deadline)) && !isToday(new Date(i.deadline)))
+    .sort((a, b) => new Date(b.deadline) - new Date(a.deadline));
 
-  const upcomingDeadlines = deadlines.filter((i) => !isPast(new Date(i.deadline)) || isToday(new Date(i.deadline))).
-  sort((a, b) => new Date(a.deadline) - new Date(b.deadline));
-  const expiredDeadlines = deadlines.filter((i) => isPast(new Date(i.deadline)) && !isToday(new Date(i.deadline))).
-  sort((a, b) => new Date(b.deadline) - new Date(a.deadline));
+  const upcomingEvents = events
+    .filter((i) => !isPast(new Date(i.end_datetime)))
+    .sort((a, b) => new Date(a.start_datetime) - new Date(b.start_datetime));
+  const pastEvents = events
+    .filter((i) => isPast(new Date(i.end_datetime)))
+    .sort((a, b) => new Date(b.start_datetime) - new Date(a.start_datetime));
 
-  const upcomingEvents = events.filter((i) => !isPast(new Date(i.end_datetime))).
-  sort((a, b) => new Date(a.start_datetime) - new Date(b.start_datetime));
-  const pastEvents = events.filter((i) => isPast(new Date(i.end_datetime))).
-  sort((a, b) => new Date(b.start_datetime) - new Date(a.start_datetime));
-
-  const isEmpty = activeTab === "prazos" ?
-  upcomingDeadlines.length === 0 && expiredDeadlines.length === 0 :
-  upcomingEvents.length === 0 && pastEvents.length === 0;
+  const isEmpty = activeTab === "prazos"
+    ? upcomingDeadlines.length === 0 && expiredDeadlines.length === 0
+    : upcomingEvents.length === 0 && pastEvents.length === 0;
 
   return (
-    <div data-source-location="pages/Deadlines:360:4" data-dynamic-content="true" className="min-h-screen bg-cream flex flex-col select-none"
-    {...swipeHandlers}>
-      
-      <div data-source-location="pages/Deadlines:368:6" data-dynamic-content="true" style={dragStyle} className="flex-1 flex flex-col">
+    <div className="min-h-screen bg-cream flex flex-col select-none" {...swipeHandlers}>
+      <div style={dragStyle} className="flex-1 flex flex-col">
         {/* Header */}
-        <div data-source-location="pages/Deadlines:370:8" data-dynamic-content="true" className="px-5 pt-12 pb-4 flex items-center justify-between">
-          <div data-source-location="pages/Deadlines:371:10" data-dynamic-content="true" className="flex items-center gap-3">
-            <button data-source-location="pages/Deadlines:372:12" data-dynamic-content="true" onClick={() => navigate("/coming-soon")}
-            className="w-10 h-10 rounded-2xl bg-white border border-border flex items-center justify-center text-muted-foreground hover:text-foreground hover:border-[#E87A5A]/30 shadow-sm transition-all">
-              <ArrowRight data-source-location="pages/Deadlines:374:14" data-dynamic-content="false" className="w-5 h-5" />
+        <div className="px-5 pt-12 pb-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <button onClick={() => navigate("/coming-soon")}
+              className="w-10 h-10 rounded-2xl bg-white border border-border flex items-center justify-center text-muted-foreground hover:text-foreground hover:border-[#E87A5A]/30 shadow-sm transition-all">
+              <ArrowRight className="w-5 h-5" />
             </button>
-            <div data-source-location="pages/Deadlines:376:12" data-dynamic-content="true">
-              <h1 data-source-location="pages/Deadlines:377:14" data-dynamic-content="false" className="text-xl font-bold text-foreground">Controlo de Datas</h1>
-              <p data-source-location="pages/Deadlines:378:14" data-dynamic-content="true" className="text-xs text-muted-foreground">
-                {activeTab === "prazos" ? `${upcomingDeadlines.length} prazo${upcomingDeadlines.length !== 1 ? "s" : ""}` : `${upcomingEvents.length} evento${upcomingEvents.length !== 1 ? "s" : ""}`}
+            <div>
+              <h1 className="text-xl font-bold text-foreground">Controlo de Datas</h1>
+              <p className="text-xs text-muted-foreground">
+                {activeTab === "prazos"
+                  ? `${upcomingDeadlines.length} prazo${upcomingDeadlines.length !== 1 ? "s" : ""}`
+                  : `${upcomingEvents.length} evento${upcomingEvents.length !== 1 ? "s" : ""}`}
               </p>
             </div>
           </div>
-          <button data-source-location="pages/Deadlines:383:10" data-dynamic-content="true" onClick={() => setShowForm(!showForm)}
-          className={`w-10 h-10 rounded-2xl flex items-center justify-center text-white shadow-lg transition-all ${
-          showForm ? "bg-muted-foreground" : "bg-[#E87A5A] shadow-[#E87A5A]/25 hover:bg-[#D4694A]"}`
-          }>
-            {showForm ? <X data-source-location="pages/Deadlines:387:24" data-dynamic-content="false" className="w-5 h-5" /> : <Plus data-source-location="pages/Deadlines:387:52" data-dynamic-content="false" className="w-5 h-5" />}
+          <button onClick={() => setShowForm(!showForm)}
+            className={`w-10 h-10 rounded-2xl flex items-center justify-center text-white shadow-lg transition-all ${showForm ? "bg-muted-foreground" : "bg-[#E87A5A] shadow-[#E87A5A]/25 hover:bg-[#D4694A]"}`}>
+            {showForm ? <X className="w-5 h-5" /> : <Plus className="w-5 h-5" />}
           </button>
         </div>
 
         {/* Tabs */}
-        <div data-source-location="pages/Deadlines:392:8" data-dynamic-content="true" className="px-5 mb-4">
-          <div data-source-location="pages/Deadlines:393:10" data-dynamic-content="true" className="flex bg-white rounded-2xl p-1.5 border border-border shadow-sm gap-1">
-            <button data-source-location="pages/Deadlines:394:12" data-dynamic-content="true" onClick={() => {setActiveTab("prazos");setShowForm(false);}}
-            className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition-all ${
-            activeTab === "prazos" ? "bg-[#E87A5A] text-white shadow-md" : "text-muted-foreground hover:text-foreground"}`
-            }>
-              <CalendarClock data-source-location="pages/Deadlines:398:14" data-dynamic-content="false" className="w-4 h-4" /> Prazos
+        <div className="px-5 mb-4">
+          <div className="flex bg-white rounded-2xl p-1.5 border border-border shadow-sm gap-1">
+            <button onClick={() => { setActiveTab("prazos"); setShowForm(false); }}
+              className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition-all ${activeTab === "prazos" ? "bg-[#E87A5A] text-white shadow-md" : "text-muted-foreground hover:text-foreground"}`}>
+              <CalendarClock className="w-4 h-4" /> Prazos
             </button>
-            <button data-source-location="pages/Deadlines:400:12" data-dynamic-content="true" onClick={() => {setActiveTab("eventos");setShowForm(false);}}
-            className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition-all ${
-            activeTab === "eventos" ? "bg-[#8B5CF6] text-white shadow-md" : "text-muted-foreground hover:text-foreground"}`
-            }>
-              <CalendarRange data-source-location="pages/Deadlines:404:14" data-dynamic-content="false" className="w-4 h-4" /> Eventos
+            <button onClick={() => { setActiveTab("eventos"); setShowForm(false); }}
+              className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition-all ${activeTab === "eventos" ? "bg-[#8B5CF6] text-white shadow-md" : "text-muted-foreground hover:text-foreground"}`}>
+              <CalendarRange className="w-4 h-4" /> Eventos
             </button>
           </div>
         </div>
 
         {/* Content */}
-        <div data-source-location="pages/Deadlines:410:8" data-dynamic-content="true" className="flex-1 px-5 pb-10 space-y-3 overflow-auto">
-          <AnimatePresence data-source-location="pages/Deadlines:411:10" data-dynamic-content="true" mode="wait">
-            {showForm && activeTab === "prazos" && <AddDeadlineForm data-source-location="pages/Deadlines:412:51" data-dynamic-content="true" key="dl-form" onSave={addDeadline} onCancel={() => setShowForm(false)} />}
-            {showForm && activeTab === "eventos" && <AddEventForm data-source-location="pages/Deadlines:413:52" data-dynamic-content="true" key="ev-form" onSave={addEvent} onCancel={() => setShowForm(false)} />}
+        <div className="flex-1 px-5 pb-10 space-y-3 overflow-auto">
+          <AnimatePresence mode="wait">
+            {showForm && activeTab === "prazos" && <AddDeadlineForm key="dl-form" onSave={addDeadline} onCancel={() => setShowForm(false)} />}
+            {showForm && activeTab === "eventos" && <AddEventForm key="ev-form" onSave={addEvent} onCancel={() => setShowForm(false)} />}
           </AnimatePresence>
 
-          {isEmpty && !showForm &&
-          <div data-source-location="pages/Deadlines:417:12" data-dynamic-content="true" className="text-center py-20">
-              {activeTab === "prazos" ?
-            <CalendarClock data-source-location="pages/Deadlines:419:18" data-dynamic-content="false" className="w-12 h-12 mx-auto mb-3 text-muted-foreground/20" /> :
-            <CalendarRange data-source-location="pages/Deadlines:420:18" data-dynamic-content="false" className="w-12 h-12 mx-auto mb-3 text-muted-foreground/20" />}
-              <p data-source-location="pages/Deadlines:421:14" data-dynamic-content="true" className="text-muted-foreground text-sm font-medium">
+          {isEmpty && !showForm && (
+            <div className="text-center py-20">
+              {activeTab === "prazos"
+                ? <CalendarClock className="w-12 h-12 mx-auto mb-3 text-muted-foreground/20" />
+                : <CalendarRange className="w-12 h-12 mx-auto mb-3 text-muted-foreground/20" />}
+              <p className="text-muted-foreground text-sm font-medium">
                 {activeTab === "prazos" ? "Sem prazos" : "Sem eventos"}
               </p>
-              <p data-source-location="pages/Deadlines:424:14" data-dynamic-content="false" className="text-muted-foreground/50 text-xs mt-1">Toca no + para adicionar</p>
+              <p className="text-muted-foreground/50 text-xs mt-1">Toca no + para adicionar</p>
             </div>
-          }
+          )}
 
-          {activeTab === "prazos" &&
-          <>
-              {upcomingDeadlines.map((item, i) => <DeadlineCard data-source-location="pages/Deadlines:430:50" data-dynamic-content="true" key={item.id} item={item} onDelete={deleteDeadline} index={i} data-collection-item-id={item?.id} />)}
-              {expiredDeadlines.length > 0 &&
-            <div data-source-location="pages/Deadlines:432:16" data-dynamic-content="true" className="mt-4">
-                  <p data-source-location="pages/Deadlines:433:18" data-dynamic-content="false" className="text-[11px] font-bold text-muted-foreground/40 uppercase tracking-wider mb-2 px-1">Expirados</p>
-                  {expiredDeadlines.map((item, i) =>
-              <div data-source-location="pages/Deadlines:435:20" data-dynamic-content="true" key={item.id} className="opacity-40 mb-2" data-collection-item-id={item?.id}>
-                      <DeadlineCard data-source-location="pages/Deadlines:436:22" data-dynamic-content="true" item={item} onDelete={deleteDeadline} index={i} />
+          {activeTab === "prazos" && (
+            <>
+              {upcomingDeadlines.map((item, i) => <DeadlineCard key={item.id} item={item} onDelete={deleteDeadline} index={i} />)}
+              {expiredDeadlines.length > 0 && (
+                <div className="mt-4">
+                  <p className="text-[11px] font-bold text-muted-foreground/40 uppercase tracking-wider mb-2 px-1">Expirados</p>
+                  {expiredDeadlines.map((item, i) => (
+                    <div key={item.id} className="opacity-40 mb-2">
+                      <DeadlineCard item={item} onDelete={deleteDeadline} index={i} />
                     </div>
-              )}
+                  ))}
                 </div>
-            }
+              )}
             </>
-          }
+          )}
 
-          {activeTab === "eventos" &&
-          <>
-              {upcomingEvents.map((item, i) => <EventCard data-source-location="pages/Deadlines:446:47" data-dynamic-content="true" key={item.id} item={item} onDelete={deleteEvent} index={i} data-collection-item-id={item?.id} />)}
-              {pastEvents.length > 0 &&
-            <div data-source-location="pages/Deadlines:448:16" data-dynamic-content="true" className="mt-4">
-                  <p data-source-location="pages/Deadlines:449:18" data-dynamic-content="false" className="text-[11px] font-bold text-muted-foreground/40 uppercase tracking-wider mb-2 px-1">Passados</p>
-                  {pastEvents.map((item, i) =>
-              <div data-source-location="pages/Deadlines:451:20" data-dynamic-content="true" key={item.id} className="opacity-40 mb-2" data-collection-item-id={item?.id}>
-                      <EventCard data-source-location="pages/Deadlines:452:22" data-dynamic-content="true" item={item} onDelete={deleteEvent} index={i} />
+          {activeTab === "eventos" && (
+            <>
+              {upcomingEvents.map((item, i) => <EventCard key={item.id} item={item} onDelete={deleteEvent} index={i} />)}
+              {pastEvents.length > 0 && (
+                <div className="mt-4">
+                  <p className="text-[11px] font-bold text-muted-foreground/40 uppercase tracking-wider mb-2 px-1">Passados</p>
+                  {pastEvents.map((item, i) => (
+                    <div key={item.id} className="opacity-40 mb-2">
+                      <EventCard item={item} onDelete={deleteEvent} index={i} />
                     </div>
-              )}
+                  ))}
                 </div>
-            }
+              )}
             </>
-          }
+          )}
         </div>
       </div>
-    </div>);
-
+    </div>
+  );
 }

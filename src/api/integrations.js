@@ -93,11 +93,19 @@ export async function clearPomodoroNotification() {
   }).catch(() => {});
 }
 
-// Chat multi-turn via Groq — envia array de mensagens e sistema prompt
-export async function InvokeLLMChat({ messages, system, model }) {
-  const { data, error } = await supabase.functions.invoke("invoke-llm", {
-    body: { messages, system, model },
+// Chat multi-turn via Groq — chama a API diretamente do browser (CORS suportado)
+export async function InvokeLLMChat({ messages, system, model = "llama-3.3-70b-versatile" }) {
+  const apiKey = import.meta.env.VITE_GROQ_API_KEY;
+  if (!apiKey) throw new Error("VITE_GROQ_API_KEY não definido no .env");
+  const finalMessages = system
+    ? [{ role: "system", content: system }, ...messages.filter((m) => m.role !== "system")]
+    : messages;
+  const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+    body: JSON.stringify({ model, messages: finalMessages }),
   });
-  if (error) throw error;
-  return data.result;
+  if (!res.ok) throw new Error(`Groq API error: ${res.status}`);
+  const json = await res.json();
+  return json.choices?.[0]?.message?.content ?? "";
 }

@@ -307,7 +307,7 @@ export default function FocusCalendar() {
                   const d = allByDay[key];
                   const total = (d?.sessions?.length || 0) + (d?.deadlines?.length || 0) + (d?.events?.length || 0);
                   return (
-                    <button key={key} onClick={() => { setSelectedDay(key); setViewMode("week"); setCurrentDate(day); }}
+                    <button key={key} onClick={() => setSelectedDay(selectedDay === key ? null : key)}
                       className={`min-h-[60px] p-1.5 border-b border-r border-border/20 flex flex-col items-start hover:bg-[#E87A5A]/5 transition-all ${!inMonth ? "opacity-30" : ""}`}>
                       <span className={`text-xs font-bold w-6 h-6 rounded-full flex items-center justify-center mb-1 ${isToday ? "bg-[#E87A5A] text-white" : "text-foreground"}`}>
                         {format(day, "d")}
