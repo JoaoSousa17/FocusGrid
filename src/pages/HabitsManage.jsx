@@ -110,7 +110,8 @@ Máximo 5 hábitos. Sê criativo e útil. Usa português de Portugal.`,
       });
       setAiResponse(res.habits || []);
     } catch (err) {
-      setAiError("Erro ao gerar sugestões. Tenta novamente.");
+      console.error("AI suggest error:", err);
+      setAiError("Erro: " + (err?.message || "Tenta novamente."));
     }
     setAiLoading(false);
   };
