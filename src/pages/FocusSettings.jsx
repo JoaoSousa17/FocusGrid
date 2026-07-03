@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowRight, Bell, Clock, RefreshCw, Volume2, Check, Zap, CalendarDays } from "lucide-react";
+import { ArrowRight, Bell, Clock, RefreshCw, Volume2, Check, Zap, CalendarDays, Upload, Play } from "lucide-react";
 import { auth } from "@/api/auth";
 import { supabase } from "@/api/supabaseClient";
 import { useEdgeSwipeNav } from "@/hooks/useEdgeSwipeNav";
-import { savePushSubscription, removePushSubscription } from "@/api/integrations";
+import { savePushSubscription, removePushSubscription, Core } from "@/api/integrations";
+import { SOUND_LIBRARY, playSound } from "@/lib/sounds";
 
 function urlBase64ToUint8Array(base64String) {
   const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
@@ -59,7 +60,12 @@ export default function FocusSettings() {
   const navigate = useNavigate();
   const [tab, setTab] = useState("notifications");
   const [notifications, setNotifications] = useState(true);
-  const [sound, setSound] = useState("default");
+  const [focusSound, setFocusSound] = useState("bell");
+  const [shortBreakSound, setShortBreakSound] = useState("chime");
+  const [longBreakSound, setLongBreakSound] = useState("gong");
+  const [uploadingSound, setUploadingSound] = useState(false);
+  const [customSoundUrl, setCustomSoundUrl] = useState("");
+  const soundFileRef = useRef(null);
   const [focusMin, setFocusMin] = useState(25);
   const [shortBreakMin, setShortBreakMin] = useState(5);
   const [longBreakMin, setLongBreakMin] = useState(20);
@@ -79,7 +85,10 @@ export default function FocusSettings() {
       if (meta.long_break_min) setLongBreakMin(meta.long_break_min);
       if (meta.orange_reset) setOrangeReset(meta.orange_reset);
       if (meta.notifications_enabled !== undefined) setNotifications(meta.notifications_enabled);
-      if (meta.notification_sound) setSound(meta.notification_sound);
+      if (meta.focus_sound) setFocusSound(meta.focus_sound);
+      if (meta.short_break_sound) setShortBreakSound(meta.short_break_sound);
+      if (meta.long_break_sound) setLongBreakSound(meta.long_break_sound);
+      if (meta.custom_sound_url) setCustomSoundUrl(meta.custom_sound_url);
       if (meta.week_starts_on !== undefined) setWeekStartsOn(meta.week_starts_on);
     }).catch(() => {});
   }, []);
@@ -98,7 +107,8 @@ export default function FocusSettings() {
       data: {
         focus_min: focusMin, short_break_min: shortBreakMin, long_break_min: longBreakMin,
         orange_reset: orangeReset, notifications_enabled: notifications,
-        notification_sound: sound, week_starts_on: weekStartsOn
+        focus_sound: focusSound, short_break_sound: shortBreakSound, long_break_sound: longBreakSound,
+        custom_sound_url: customSoundUrl, week_starts_on: weekStartsOn
       }
     });
     setSaved(true);
@@ -160,23 +170,67 @@ export default function FocusSettings() {
               </div>
 
               {notifications &&
-            <div data-source-location="pages/FocusSettings:141:16" data-dynamic-content="true" className="bg-white rounded-2xl p-5 border border-border shadow-sm">
-                  <h3 data-source-location="pages/FocusSettings:142:18" data-dynamic-content="false" className="font-semibold text-sm text-foreground mb-3 flex items-center gap-2">
-                    <span data-source-location="pages/FocusSettings:143:20" data-dynamic-content="false" className="w-8 h-8 rounded-xl bg-[#E87A5A]/10 flex items-center justify-center"><Volume2 data-source-location="pages/FocusSettings:143:106" data-dynamic-content="false" className="w-4 h-4 text-[#E87A5A]" /></span>
-                    Som da notificação
-                  </h3>
-                  <div data-source-location="pages/FocusSettings:146:18" data-dynamic-content="true" className="grid grid-cols-2 gap-2">
-                    {SOUNDS.map((s, __arrIdx__) =>
-                <button data-source-location="pages/FocusSettings:148:22" data-dynamic-content="true" key={s.key} onClick={() => setSound(s.key)}
-                className={`relative px-4 py-3 rounded-xl text-sm font-medium transition-all text-left ${
-                sound === s.key ? "bg-[#E87A5A] text-white shadow-md" : "bg-secondary text-muted-foreground hover:bg-[#E8E0D8]"}`
-                } data-arr-index={__arrIdx__} data-arr-variable-name="SOUNDS" data-arr-field="label">
-                        <span data-source-location="pages/FocusSettings:152:24" data-dynamic-content="true" className="mr-1.5" data-arr-index={__arrIdx__} data-arr-variable-name="SOUNDS" data-arr-field="icon">{s.icon}</span> {s.label}
-                        {sound === s.key && <Check data-source-location="pages/FocusSettings:153:44" data-dynamic-content="false" className="absolute top-2 right-2 w-3.5 h-3.5" data-arr-index={__arrIdx__} data-arr-variable-name="SOUNDS" />}
-                      </button>
-                )}
+            <div className="space-y-3">
+                {[
+                  { label: "🔥 Foco", value: focusSound, set: setFocusSound, color: "#E87A5A" },
+                  { label: "☕ Pausa Curta", value: shortBreakSound, set: setShortBreakSound, color: "#7EB8A0" },
+                  { label: "🌿 Pausa Longa", value: longBreakSound, set: setLongBreakSound, color: "#A78BFA" },
+                ].map((phase) => (
+                  <div key={phase.label} className="bg-white rounded-2xl p-4 border border-border shadow-sm">
+                    <h4 className="font-semibold text-sm text-foreground mb-3 flex items-center gap-2">
+                      <span className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: phase.color + "22" }}>
+                        <Volume2 className="w-3.5 h-3.5" style={{ color: phase.color }} />
+                      </span>
+                      {phase.label}
+                    </h4>
+                    <div className="grid grid-cols-2 gap-1.5">
+                      {SOUND_LIBRARY.map((s) => (
+                        <button key={s.key} onClick={() => { phase.set(s.key); playSound(s.key === "none" ? "none" : s.key); }}
+                        className={`relative px-3 py-2 rounded-xl text-xs font-medium transition-all text-left ${
+                          phase.value === s.key ? "text-white shadow-md" : "bg-secondary text-muted-foreground hover:bg-[#E8E0D8]"
+                        }`} style={phase.value === s.key ? { backgroundColor: phase.color } : {}}>
+                          <span className="mr-1">{s.icon}</span> {s.label}
+                          {phase.value === s.key && <Check className="absolute top-1.5 right-1.5 w-3 h-3" />}
+                        </button>
+                      ))}
+                    </div>
                   </div>
+                ))}
+
+                <div className="bg-white rounded-2xl p-4 border border-border shadow-sm">
+                  <h4 className="font-semibold text-sm text-foreground mb-2 flex items-center gap-2">
+                    <Upload className="w-4 h-4 text-[#E87A5A]" /> Som personalizado
+                  </h4>
+                  <p className="text-xs text-muted-foreground mb-3">Máx. 10 seg. Formatos: mp3, wav, ogg.</p>
+                  {customSoundUrl && (
+                    <div className="flex items-center gap-2 mb-3">
+                      <button onClick={() => playSound(customSoundUrl)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#E87A5A]/10 text-[#E87A5A] text-xs font-medium hover:bg-[#E87A5A]/20 transition-all">
+                        <Play className="w-3 h-3" /> Testar som
+                      </button>
+                      <button onClick={() => { [setFocusSound, setShortBreakSound, setLongBreakSound].forEach(fn => fn(customSoundUrl)); }}
+                        className="px-3 py-1.5 rounded-xl bg-secondary text-xs font-medium text-muted-foreground hover:bg-border transition-all">
+                        Aplicar a todas as fases
+                      </button>
+                    </div>
+                  )}
+                  <input ref={soundFileRef} type="file" accept="audio/mp3,audio/wav,audio/ogg,audio/*" className="hidden"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      setUploadingSound(true);
+                      try {
+                        const { file_url } = await Core.UploadFile({ file });
+                        setCustomSoundUrl(file_url);
+                      } catch {}
+                      setUploadingSound(false);
+                    }} />
+                  <button onClick={() => soundFileRef.current?.click()} disabled={uploadingSound}
+                    className="w-full py-2.5 rounded-xl border-2 border-dashed border-border text-sm text-muted-foreground hover:border-[#E87A5A]/40 hover:text-[#E87A5A] transition-all flex items-center justify-center gap-2 disabled:opacity-50">
+                    {uploadingSound ? "A enviar..." : <><Upload className="w-4 h-4" /> Carregar ficheiro de áudio</>}
+                  </button>
                 </div>
+              </div>
             }
             </motion.div>
           }

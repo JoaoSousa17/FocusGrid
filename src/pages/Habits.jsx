@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, ArrowRight, ArrowUp, ArrowDown, Sparkles, Trophy } from "lucide-react";
+import { ArrowLeft, ArrowRight, ArrowUp, ArrowDown, Sparkles, Trophy, X } from "lucide-react";
 import TetrisGrid from "@/components/habits/TetrisGrid";
 import { Habit, HabitEntry } from "@/api/entities";
 import { format, startOfWeek, isToday as isTodayFn } from "date-fns";
@@ -23,6 +23,8 @@ export default function Habits() {
   const [entries, setEntries] = useState([]);
   const { swipeHandlers, dragStyle } = useEdgeSwipeNav({ left: "/habits/analytics", right: "/", down: "/habits/manage", up: "/habits/rewards" });
   const [animating, setAnimating] = useState(null);
+  const [numericPopup, setNumericPopup] = useState(null); // habit pending a numeric log
+  const [numericValue, setNumericValue] = useState("");
 
   const todayStr = format(new Date(), "yyyy-MM-dd");
 
@@ -43,6 +45,11 @@ export default function Habits() {
   const doneHabits = useMemo(() => activeHabits.filter((h) => completedIds.has(h.id)), [activeHabits, completedIds]);
 
   const completeHabit = async (habit) => {
+    if (habit.goal_type === "numeric") {
+      setNumericValue("");
+      setNumericPopup(habit);
+      return;
+    }
     setAnimating(habit.id);
     const colorHex = PRESET_COLORS.find((c) => c.key === habit.color)?.hex || habit.color;
     await HabitEntry.create({
@@ -50,6 +57,33 @@ export default function Habits() {
       habit_color: colorHex, score: habit.score,
       date: todayStr
     });
+    refreshData();
+    setTimeout(() => setAnimating(null), 300);
+  };
+
+  const confirmNumericHabit = async () => {
+    const habit = numericPopup;
+    if (!habit) return;
+    const value = Number(numericValue);
+    if (Number.isNaN(value) || value < 0) return;
+    const target = Number(habit.goal_target) || 0;
+    let percent = 0;
+    if (target > 0) {
+      percent = habit.goal_direction === "at_most" ?
+      Math.max(0, 1 - value / target) :
+      Math.min(1, value / target);
+    } else {
+      percent = value > 0 ? 1 : 0;
+    }
+    const score = Math.round((habit.score || 0) * percent);
+    const colorHex = PRESET_COLORS.find((c) => c.key === habit.color)?.hex || habit.color;
+    setAnimating(habit.id);
+    await HabitEntry.create({
+      habit_id: habit.id, habit_name: habit.name,
+      habit_color: colorHex, score, goal_value: value,
+      date: todayStr
+    });
+    setNumericPopup(null);
     refreshData();
     setTimeout(() => setAnimating(null), 300);
   };
@@ -135,6 +169,37 @@ export default function Habits() {
           
         </div>
       </div>
+
+      {/* Numeric goal log popup */}
+      <AnimatePresence>
+        {numericPopup &&
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+        className="fixed inset-0 z-50 bg-black/30 flex items-end sm:items-center justify-center"
+        onClick={() => setNumericPopup(null)}>
+          <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
+          className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-sm p-5 shadow-xl"
+          onClick={(e) => e.stopPropagation()}>
+            <h3 className="font-bold text-foreground mb-1">{numericPopup.name}</h3>
+            <p className="text-xs text-muted-foreground mb-4">
+              Meta: {numericPopup.goal_direction === "at_most" ? "não ultrapassar " : "pelo menos "}
+              {numericPopup.goal_target}{numericPopup.goal_unit ? ` ${numericPopup.goal_unit}` : ""}
+            </p>
+            <div className="flex gap-2 items-center">
+              <input autoFocus type="number" min={0} step="any" value={numericValue}
+              onChange={(e) => setNumericValue(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && confirmNumericHabit()}
+              placeholder="Quanto fizeste hoje?"
+              className="flex-1 px-3 py-2.5 rounded-xl border border-border text-sm outline-none focus:border-[#E87A5A]/50 transition-all" />
+              {numericPopup.goal_unit && <span className="text-xs text-muted-foreground">{numericPopup.goal_unit}</span>}
+            </div>
+            <div className="flex gap-2 mt-4">
+              <button onClick={() => setNumericPopup(null)} className="flex-1 py-2.5 rounded-xl bg-secondary text-sm font-medium text-muted-foreground hover:bg-border transition-all">Cancelar</button>
+              <button onClick={confirmNumericHabit} disabled={numericValue === ""} className="flex-1 py-2.5 rounded-xl bg-[#E87A5A] text-white text-sm font-medium hover:bg-[#D4694A] disabled:opacity-40 transition-all">Registar</button>
+            </div>
+          </motion.div>
+        </motion.div>
+        }
+      </AnimatePresence>
     </div>);
 
 }

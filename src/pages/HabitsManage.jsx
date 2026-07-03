@@ -24,7 +24,7 @@ export default function HabitsManage() {
   const navigate = useNavigate();
   const [habits, setHabits] = useState([]);
   const [editingId, setEditingId] = useState(null);
-  const [form, setForm] = useState({ name: "", description: "", score: 10, color: "blue" });
+  const [form, setForm] = useState({ name: "", description: "", score: 10, color: "blue", goal_type: "boolean", goal_target: 1, goal_unit: "", goal_direction: "at_least" });
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [showAI, setShowAI] = useState(false);
   const [aiPrompt, setAiPrompt] = useState("");
@@ -45,7 +45,7 @@ export default function HabitsManage() {
 
   const resetForm = () => {
     setEditingId(null);
-    setForm({ name: "", description: "", score: 10, color: getNextColor(usedColors) });
+    setForm({ name: "", description: "", score: 10, color: getNextColor(usedColors), goal_type: "boolean", goal_target: 1, goal_unit: "", goal_direction: "at_least" });
     setShowColorPicker(false);
   };
 
@@ -63,7 +63,11 @@ export default function HabitsManage() {
 
   const editHabit = (h) => {
     setEditingId(h.id);
-    setForm({ name: h.name, description: h.description || "", score: h.score, color: h.color });
+    setForm({
+      name: h.name, description: h.description || "", score: h.score, color: h.color,
+      goal_type: h.goal_type || "boolean", goal_target: h.goal_target || 1,
+      goal_unit: h.goal_unit || "", goal_direction: h.goal_direction || "at_least"
+    });
   };
 
   const deleteHabit = async (id) => {
@@ -106,7 +110,8 @@ Máximo 5 hábitos. Sê criativo e útil. Usa português de Portugal.`,
       });
       setAiResponse(res.habits || []);
     } catch (err) {
-      setAiError("Erro ao gerar sugestões. Tenta novamente.");
+      console.error("AI suggest error:", err);
+      setAiError("Erro: " + (err?.message || "Tenta novamente."));
     }
     setAiLoading(false);
   };
@@ -222,6 +227,58 @@ Máximo 5 hábitos. Sê criativo e útil. Usa português de Portugal.`,
                 </div>
               </div>
 
+              {/* Goal type */}
+              <div>
+                <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Tipo de meta</label>
+                <div className="mt-1.5 flex gap-2">
+                  <button type="button" onClick={() => setForm({ ...form, goal_type: "boolean" })}
+                  className={`flex-1 py-2.5 rounded-xl text-xs font-semibold transition-all ${form.goal_type === "boolean" ? "bg-[#E87A5A] text-white" : "bg-secondary/50 text-muted-foreground hover:bg-secondary"}`}>
+                    Sim / Não
+                  </button>
+                  <button type="button" onClick={() => setForm({ ...form, goal_type: "numeric" })}
+                  className={`flex-1 py-2.5 rounded-xl text-xs font-semibold transition-all ${form.goal_type === "numeric" ? "bg-[#E87A5A] text-white" : "bg-secondary/50 text-muted-foreground hover:bg-secondary"}`}>
+                    Numérico (%)
+                  </button>
+                </div>
+              </div>
+
+              {form.goal_type === "numeric" &&
+              <div className="bg-secondary/30 rounded-2xl p-3.5 space-y-3">
+                <div className="flex gap-3">
+                  <div className="flex-1">
+                    <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Meta</label>
+                    <input type="number" min={0} step="any" value={form.goal_target}
+                    onChange={(e) => setForm({ ...form, goal_target: Number(e.target.value) })}
+                    className="mt-1 w-full px-3 py-2 rounded-xl bg-white border border-border text-sm outline-none focus:border-[#E87A5A]/40 transition-all" />
+                  </div>
+                  <div className="flex-1">
+                    <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Unidade</label>
+                    <input value={form.goal_unit} onChange={(e) => setForm({ ...form, goal_unit: e.target.value })}
+                    placeholder="ex: L, cigarros, min"
+                    className="mt-1 w-full px-3 py-2 rounded-xl bg-white border border-border text-sm outline-none focus:border-[#E87A5A]/40 transition-all" />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Direção</label>
+                  <div className="mt-1 flex gap-2">
+                    <button type="button" onClick={() => setForm({ ...form, goal_direction: "at_least" })}
+                    className={`flex-1 py-2 rounded-xl text-[11px] font-medium transition-all ${form.goal_direction === "at_least" ? "bg-emerald-500 text-white" : "bg-white text-muted-foreground border border-border"}`}>
+                      Atingir pelo menos
+                    </button>
+                    <button type="button" onClick={() => setForm({ ...form, goal_direction: "at_most" })}
+                    className={`flex-1 py-2 rounded-xl text-[11px] font-medium transition-all ${form.goal_direction === "at_most" ? "bg-rose-500 text-white" : "bg-white text-muted-foreground border border-border"}`}>
+                      Não ultrapassar
+                    </button>
+                  </div>
+                  <p className="text-[9px] text-muted-foreground mt-1.5">
+                    {form.goal_direction === "at_least" ?
+                    "Ex: meta 2L água — bebes 1L, ganhas 50% dos pontos." :
+                    "Ex: meta 4 cigarros (nível atual) — fumas 2, ganhas 50% dos pontos."}
+                  </p>
+                </div>
+              </div>
+              }
+
               {/* Actions */}
               <div data-source-location="pages/HabitsManage:241:14" data-dynamic-content="true" className="flex gap-2 pt-1">
                 {editingId &&
@@ -253,7 +310,9 @@ Máximo 5 hábitos. Sê criativo e útil. Usa português de Portugal.`,
                   <div data-source-location="pages/HabitsManage:268:18" data-dynamic-content="true" className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: colorHex }} />
                   <div data-source-location="pages/HabitsManage:269:18" data-dynamic-content="true" className="flex-1 min-w-0">
                     <p data-source-location="pages/HabitsManage:270:20" data-dynamic-content="true" className={`text-sm ${h.active === false ? "line-through text-muted-foreground/50" : "text-foreground"}`} data-collection-item-field="name" data-collection-item-id={h?.id}>{h.name}</p>
-                    <p data-source-location="pages/HabitsManage:271:20" data-dynamic-content="true" className="text-[10px] text-muted-foreground" data-collection-item-field="score" data-collection-item-id={h?.id}>{h.score} pts</p>
+                    <p data-source-location="pages/HabitsManage:271:20" data-dynamic-content="true" className="text-[10px] text-muted-foreground" data-collection-item-field="score" data-collection-item-id={h?.id}>
+                      {h.score} pts{h.goal_type === "numeric" && h.goal_target ? ` · meta ${h.goal_target}${h.goal_unit ? " " + h.goal_unit : ""}` : ""}
+                    </p>
                   </div>
                   <button data-source-location="pages/HabitsManage:273:18" data-dynamic-content="true" onClick={() => editHabit(h)} className="w-7 h-7 rounded-lg bg-secondary flex items-center justify-center text-muted-foreground hover:text-[#E87A5A] transition-all">
                     <Sparkles data-source-location="pages/HabitsManage:274:20" data-dynamic-content="false" className="w-3.5 h-3.5" />

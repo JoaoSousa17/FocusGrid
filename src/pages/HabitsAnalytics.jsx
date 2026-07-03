@@ -1,10 +1,10 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowLeft, Trophy, TrendingUp, Star, Medal, BarChart3 } from "lucide-react";
+import { ArrowLeft, Trophy, TrendingUp, Star, Medal, BarChart3, FileDown, Loader2 } from "lucide-react";
 import { Habit, HabitEntry } from "@/api/entities";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from "recharts";
-import { format, startOfWeek, endOfWeek, subWeeks, eachDayOfInterval, isWithinInterval } from "date-fns";
+import { format, startOfWeek, endOfWeek, subWeeks, subDays, eachDayOfInterval, isWithinInterval } from "date-fns";
 import { pt } from "date-fns/locale";
 import { useEdgeSwipeNav } from "@/hooks/useEdgeSwipeNav";
 
@@ -16,6 +16,8 @@ export default function HabitsAnalytics() {
   const [habits, setHabits] = useState([]);
 
   const { swipeHandlers, dragStyle } = useEdgeSwipeNav({ right: "/habits" });
+  const monthSectionRef = useRef(null);
+  const [exportingPdf, setExportingPdf] = useState(false);
 
   useEffect(() => {
     HabitEntry.list("-created_date", 500).then(setEntries).catch(() => setEntries([]));
@@ -70,6 +72,152 @@ export default function HabitsAnalytics() {
     });
   }, [entries, today]);
 
+  // Último mês (30 dias) — usado no resumo exportável em PDF
+  const monthStart = subDays(today, 29);
+  const monthDays = eachDayOfInterval({ start: monthStart, end: today });
+  const lastMonthEntries = useMemo(
+    () => entries.filter((e) => isWithinInterval(new Date(e.date), { start: monthStart, end: today })),
+    [entries, today]
+  );
+  const monthlyDaily = useMemo(() => monthDays.map((d) => {
+    const key = format(d, "yyyy-MM-dd");
+    const dayEntries = lastMonthEntries.filter((e) => e.date === key);
+    return { date: format(d, "d/M"), score: dayEntries.reduce((s, e) => s + (e.score || 0), 0) };
+  }), [lastMonthEntries, monthDays]);
+  const monthlyByHabit = useMemo(() => {
+    const map = {};
+    lastMonthEntries.forEach((e) => {
+      if (!map[e.habit_id]) map[e.habit_id] = { name: e.habit_name, value: 0 };
+      map[e.habit_id].value += e.score || 0;
+    });
+    return Object.values(map).filter((h) => h.value > 0).sort((a, b) => b.value - a.value);
+  }, [lastMonthEntries]);
+  const monthlyTotalScore = lastMonthEntries.reduce((s, e) => s + (e.score || 0), 0);
+  const monthlyTotalCompletions = lastMonthEntries.length;
+  const monthlyBestDay = monthlyDaily.reduce((best, d) => d.score > (best?.score || 0) ? d : best, null);
+
+  const monthlyAvgPerDay = monthlyTotalCompletions > 0
+    ? (monthlyTotalScore / 30).toFixed(1)
+    : "0";
+  const monthlyActiveDays = monthlyDaily.filter((d) => d.score > 0).length;
+
+  const exportMonthlyPdf = async () => {
+    if (!monthSectionRef.current) return;
+    setExportingPdf(true);
+    try {
+      const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
+        import("html2canvas"),
+        import("jspdf")
+      ]);
+
+      const canvas = await html2canvas(monthSectionRef.current, {
+        scale: 2.5,
+        backgroundColor: "#FFFAF5",
+        useCORS: true,
+        logging: false,
+      });
+      const imgData = canvas.toDataURL("image/png");
+      const doc = new jsPDF({ unit: "pt", format: "a4", orientation: "portrait" });
+      const pageW = doc.internal.pageSize.getWidth();
+      const pageH = doc.internal.pageSize.getHeight();
+      const margin = 40;
+
+      // Background
+      doc.setFillColor(255, 250, 245);
+      doc.rect(0, 0, pageW, pageH, "F");
+
+      // Orange accent bar top
+      doc.setFillColor(232, 122, 90);
+      doc.rect(0, 0, pageW, 6, "F");
+
+      // Header
+      doc.setFontSize(22);
+      doc.setTextColor(40, 30, 25);
+      doc.setFont("helvetica", "bold");
+      doc.text("FocusGrid", margin, 40);
+      doc.setFontSize(11);
+      doc.setTextColor(150, 130, 120);
+      doc.setFont("helvetica", "normal");
+      doc.text("Relatório de Hábitos — Últimos 30 dias", margin, 56);
+      doc.setFontSize(9);
+      doc.text(`${format(monthStart, "d 'de' MMMM", { locale: pt })} a ${format(today, "d 'de' MMMM 'de' yyyy", { locale: pt })}`, margin, 68);
+
+      // Divider
+      doc.setDrawColor(232, 122, 90);
+      doc.setLineWidth(0.5);
+      doc.line(margin, 76, pageW - margin, 76);
+
+      // Stats row (3 boxes)
+      const boxW = (pageW - margin * 2 - 16) / 3;
+      const statsData = [
+        { label: "Pontuação Total", value: `${monthlyTotalScore} pts`, color: [251, 191, 36] },
+        { label: "Hábitos Feitos", value: `${monthlyTotalCompletions}`, color: [52, 211, 153] },
+        { label: "Dias Ativos", value: `${monthlyActiveDays}/30`, color: [99, 102, 241] },
+      ];
+      statsData.forEach((s, i) => {
+        const bx = margin + i * (boxW + 8);
+        doc.setFillColor(...s.color.map(c => Math.round(c * 0.15 + 240)));
+        doc.roundedRect(bx, 84, boxW, 50, 6, 6, "F");
+        doc.setFontSize(8);
+        doc.setTextColor(100, 90, 85);
+        doc.text(s.label, bx + 10, 98);
+        doc.setFontSize(18);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(...s.color);
+        doc.text(s.value, bx + 10, 118);
+        doc.setFont("helvetica", "normal");
+      });
+
+      // Extra stats line
+      doc.setFontSize(9);
+      doc.setTextColor(130, 120, 115);
+      doc.text(`Média diária: ${monthlyAvgPerDay} pts · Melhor dia: ${monthlyBestDay ? `${monthlyBestDay.date} (${monthlyBestDay.score} pts)` : "—"}`, margin, 148);
+
+      // Top habits table
+      if (monthlyByHabit.length > 0) {
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(40, 30, 25);
+        doc.text("Top Hábitos do Mês", margin, 168);
+        doc.setFont("helvetica", "normal");
+        monthlyByHabit.slice(0, 5).forEach((h, i) => {
+          const y = 180 + i * 16;
+          const barW = Math.round(Math.min(h.value / (monthlyByHabit[0]?.value || 1), 1) * (pageW - margin * 2 - 60));
+          doc.setFillColor(232, 122, 90, 30);
+          doc.roundedRect(margin + 52, y - 9, barW, 11, 2, 2, "F");
+          doc.setFontSize(8);
+          doc.setTextColor(80, 70, 65);
+          doc.text(`${i + 1}. ${h.name}`, margin, y);
+          doc.setTextColor(232, 122, 90);
+          doc.text(`${h.value} pts`, pageW - margin, y, { align: "right" });
+          doc.setTextColor(80, 70, 65);
+        });
+      }
+
+      // Chart image
+      const chartY = monthlyByHabit.length > 0 ? 190 + Math.min(monthlyByHabit.length, 5) * 16 : 168;
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(40, 30, 25);
+      doc.text("Pontuação Diária (últimos 30 dias)", margin, chartY + 14);
+      const imgW = pageW - margin * 2;
+      const imgH = imgW * (canvas.height / canvas.width);
+      doc.addImage(imgData, "PNG", margin, chartY + 22, imgW, Math.min(imgH, pageH - chartY - 80));
+
+      // Footer
+      doc.setFontSize(7);
+      doc.setTextColor(180, 170, 165);
+      doc.text(`Gerado em ${format(today, "d/M/yyyy 'às' HH:mm")} · focusgrid.app`, pageW / 2, pageH - 18, { align: "center" });
+      doc.setFillColor(232, 122, 90);
+      doc.rect(0, pageH - 4, pageW, 4, "F");
+
+      doc.save(`focusgrid-habitos-${format(today, "yyyy-MM-dd")}.pdf`);
+    } catch (err) {
+      console.error("Falha ao exportar PDF", err);
+    }
+    setExportingPdf(false);
+  };
+
   // Top and bottom habits
   const sortedByCount = [...habitStats].sort((a, b) => b.count - a.count);
   const mostDone = sortedByCount.slice(0, 3);
@@ -90,10 +238,15 @@ export default function HabitsAnalytics() {
           <button data-source-location="pages/HabitsAnalytics:106:10" data-dynamic-content="true" onClick={() => navigate("/habits")} className="w-10 h-10 rounded-2xl bg-white border border-border flex items-center justify-center text-muted-foreground hover:text-foreground transition-all">
             <ArrowLeft data-source-location="pages/HabitsAnalytics:107:12" data-dynamic-content="false" className="w-5 h-5" />
           </button>
-          <div data-source-location="pages/HabitsAnalytics:109:10" data-dynamic-content="false">
+          <div data-source-location="pages/HabitsAnalytics:109:10" data-dynamic-content="false" className="flex-1">
             <h1 data-source-location="pages/HabitsAnalytics:110:12" data-dynamic-content="false" className="text-xl font-bold text-foreground">Analytics</h1>
             <p data-source-location="pages/HabitsAnalytics:111:12" data-dynamic-content="false" className="text-[10px] text-muted-foreground">Hábitos saudáveis</p>
           </div>
+          <button onClick={exportMonthlyPdf} disabled={exportingPdf}
+          className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#E87A5A] text-white text-xs font-semibold hover:bg-[#D4694A] disabled:opacity-50 transition-all">
+            {exportingPdf ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileDown className="w-3.5 h-3.5" />}
+            PDF
+          </button>
         </div>
 
         <div data-source-location="pages/HabitsAnalytics:115:8" data-dynamic-content="true" className="flex-1 overflow-auto p-4 space-y-4">
@@ -187,6 +340,57 @@ export default function HabitsAnalytics() {
                 )}
               </div>
             </div>
+          </div>
+
+          {/* Monthly summary — exportable as PDF */}
+          <div ref={monthSectionRef} className="bg-white rounded-2xl p-5 border border-border space-y-4">
+            <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
+              <FileDown className="w-4 h-4 text-[#E87A5A]" /> Resumo do Último Mês
+            </h3>
+
+            <div className="grid grid-cols-3 gap-3">
+              <div className="bg-amber-50 rounded-xl p-3 border border-amber-100">
+                <p className="text-[9px] text-amber-600 font-medium">Total</p>
+                <p className="text-lg font-bold text-amber-700">{monthlyTotalScore} pts</p>
+              </div>
+              <div className="bg-emerald-50 rounded-xl p-3 border border-emerald-100">
+                <p className="text-[9px] text-emerald-600 font-medium">Concluídos</p>
+                <p className="text-lg font-bold text-emerald-700">{monthlyTotalCompletions}</p>
+              </div>
+              <div className="bg-indigo-50 rounded-xl p-3 border border-indigo-100">
+                <p className="text-[9px] text-indigo-600 font-medium">Melhor dia</p>
+                <p className="text-lg font-bold text-indigo-700">{monthlyBestDay ? monthlyBestDay.date : "—"}</p>
+              </div>
+            </div>
+
+            <div className="h-[160px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={monthlyDaily} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#F0EBE3" />
+                  <XAxis dataKey="date" tick={{ fontSize: 9, fill: "#9CA3AF" }} axisLine={false} tickLine={false} interval={4} />
+                  <YAxis tick={{ fontSize: 10, fill: "#9CA3AF" }} axisLine={false} tickLine={false} />
+                  <Tooltip contentStyle={{ borderRadius: 12, border: "1px solid #E8E0D8", background: "#fff", fontSize: 12 }}
+                  formatter={(value) => [`${value} pts`, "Pontuação"]} />
+                  <Bar dataKey="score" radius={[6, 6, 0, 0]} fill="#E87A5A" maxBarSize={10} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+
+            {monthlyByHabit.length > 0 &&
+            <div className="h-[200px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie data={monthlyByHabit} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={70} label={{ fontSize: 10 }}>
+                    {monthlyByHabit.map((entry, i) =>
+                    <Cell key={i} fill={PRESET_COLORS[i % PRESET_COLORS.length]} />
+                    )}
+                  </Pie>
+                  <Tooltip contentStyle={{ borderRadius: 12, border: "1px solid #E8E0D8", background: "#fff", fontSize: 12 }}
+                  formatter={(value, name) => [`${value} pts`, name]} />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+            }
           </div>
 
           {/* All habits ranking */}

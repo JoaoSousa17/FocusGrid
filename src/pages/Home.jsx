@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowLeft, ArrowRight, ArrowUp, ArrowDown, ListTodo, Heart, Timer, LayoutGrid } from "lucide-react";
+import { ArrowLeft, ArrowRight, ArrowUp, ArrowDown, ListTodo, Heart, Timer, LayoutGrid, MessageCircle, UserCircle2 } from "lucide-react";
 import { auth } from "@/api/auth";
 import { useEdgeSwipeNav } from "@/hooks/useEdgeSwipeNav";
 
@@ -142,7 +142,26 @@ export default function Home() {
             
           Produtividade com ritmo
         </motion.p>
+        <motion.button
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 1.0 }}
+          onClick={() => navigate("/chat")}
+          className="mt-4 flex items-center gap-2 px-4 py-2 rounded-2xl bg-white border border-border shadow-sm text-sm font-medium text-foreground hover:border-[#E87A5A]/40 hover:bg-[#E87A5A]/5 transition-all">
+          <MessageCircle className="w-4 h-4 text-[#E87A5A]" />
+          Assistente IA
+        </motion.button>
       </motion.div>
+
+      {/* Profile button */}
+      <motion.button
+        initial={{ opacity: 0, scale: 0.8 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ delay: 0.5 }}
+        onClick={() => navigate("/profile")}
+        className="absolute top-4 right-4 z-20 w-10 h-10 rounded-2xl bg-white border border-border shadow-sm flex items-center justify-center hover:border-[#E87A5A]/40 hover:bg-[#E87A5A]/5 transition-all">
+        <UserCircle2 className="w-5 h-5 text-muted-foreground" />
+      </motion.button>
 
       {/* Swipe hints */}
       <div data-source-location="pages/Home:216:6" data-dynamic-content="true" className="absolute bottom-28 left-1/2 -translate-x-1/2 flex items-center gap-8 z-10">

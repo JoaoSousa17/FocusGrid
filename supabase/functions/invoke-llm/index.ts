@@ -18,13 +18,27 @@ Deno.serve(async (req) => {
   const { data: { user }, error: authError } = await supabase.auth.getUser();
   if (authError || !user) return jsonResponse({ error: "invalid_token" }, 401);
 
-  const { prompt, response_json_schema, model = "llama-3.3-70b-versatile" } = await req.json();
-  if (!prompt) return jsonResponse({ error: "missing_prompt" }, 400);
+  const { prompt, messages, system, response_json_schema, model = "llama-3.3-70b-versatile" } = await req.json();
+  if (!prompt && !messages) return jsonResponse({ error: "missing_prompt" }, 400);
 
-  let finalPrompt = prompt;
-  if (response_json_schema) {
-    finalPrompt += `\n\nResponde APENAS com JSON válido seguindo este schema: ${JSON.stringify(response_json_schema)}`;
+  let finalMessages: { role: string; content: string }[];
+  if (messages && Array.isArray(messages)) {
+    finalMessages = messages;
+    if (response_json_schema) {
+      const last = finalMessages[finalMessages.length - 1];
+      finalMessages = [...finalMessages.slice(0, -1), {
+        ...last,
+        content: last.content + `\n\nResponde APENAS com JSON válido seguindo este schema: ${JSON.stringify(response_json_schema)}`,
+      }];
+    }
+  } else {
+    let finalPrompt = prompt;
+    if (response_json_schema) {
+      finalPrompt += `\n\nResponde APENAS com JSON válido seguindo este schema: ${JSON.stringify(response_json_schema)}`;
+    }
+    finalMessages = [{ role: "user", content: finalPrompt }];
   }
+  if (system) finalMessages = [{ role: "system", content: system }, ...finalMessages.filter(m => m.role !== "system")];
 
   const completionRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
     method: "POST",
@@ -34,7 +48,7 @@ Deno.serve(async (req) => {
     },
     body: JSON.stringify({
       model,
-      messages: [{ role: "user", content: finalPrompt }],
+      messages: finalMessages,
       response_format: response_json_schema ? { type: "json_object" } : undefined,
     }),
   });
