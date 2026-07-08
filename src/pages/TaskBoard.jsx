@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowRight, Plus, Check, X, Search, Filter, Trash2, Tags, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, GripVertical, ListChecks, Repeat, Flag, Timer } from "lucide-react";
+import { ArrowRight, Plus, Check, X, Search, Filter, Trash2, Tags, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, GripVertical, ListChecks, Repeat, Flag, Timer, ChevronsRight } from "lucide-react";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import { Tag, Task } from "@/api/entities";
 import { startOfWeek, endOfWeek, addWeeks, subWeeks, addDays, addMonths, addYears, parseISO, format, eachDayOfInterval } from "date-fns";
@@ -186,6 +186,8 @@ export default function TaskBoard() {
   const [subtaskPopup, setSubtaskPopup] = useState(null); // { key } | { editing: true } | null
   const [subtaskInput, setSubtaskInput] = useState("");
   const [deleteConfirm, setDeleteConfirm] = useState(null); // task pending deletion with recurrence
+  const [rolloverConfirm, setRolloverConfirm] = useState(false);
+  const [rollingOver, setRollingOver] = useState(false);
   const [formOpenSections, setFormOpenSections] = useState({ details: true, recurrence: false, tags: false, subtasks: false });
   const { swipeHandlers, dragStyle } = useEdgeSwipeNav({ left: "/" }, { edgeGated: true });
 
@@ -386,6 +388,36 @@ export default function TaskBoard() {
     const weekTasks = tasks.filter((t) => t.week_start === weekKey);
     for (const t of weekTasks) await Task.delete(t.id).catch(() => {});
     refreshData();
+  };
+
+  const incompleteThisWeek = useMemo(() =>
+    tasks.filter((t) => t.week_start === weekKey && !t.completed && (!t.recurrence || t.recurrence === "none")),
+    [tasks, weekKey]
+  );
+
+  const rolloverToNextWeek = async () => {
+    if (incompleteThisWeek.length === 0) return;
+    setRollingOver(true);
+    const nextWeekStart = format(addWeeks(parseISO(weekKey), 1), "yyyy-MM-dd");
+    const toCreate = incompleteThisWeek.map((t) => ({
+      title: t.title,
+      weekday: "none",
+      completed: false,
+      order: t.order || 0,
+      week_start: nextWeekStart,
+      period: t.period || null,
+      description: t.description || "",
+      tags_json: t.tags_json || "[]",
+      priority: t.priority || "medium",
+      recurrence: "none",
+      recurrence_id: null,
+      subtasks_json: "[]",
+    }));
+    await Task.bulkCreate(toCreate).catch(() => {});
+    setRollingOver(false);
+    setRolloverConfirm(false);
+    // Navigate to next week so the user sees the result
+    setCurrentDate(addWeeks(currentDate, 1));
   };
 
   const createTag = async () => {
@@ -750,6 +782,17 @@ export default function TaskBoard() {
             <button data-source-location="pages/TaskBoard:446:12" data-dynamic-content="true" onClick={clearWeek} className="py-2 px-3 rounded-xl bg-rose-50 text-rose-600 text-xs font-medium flex items-center gap-1 hover:bg-rose-100 transition-all">
               <Trash2 data-source-location="pages/TaskBoard:447:14" data-dynamic-content="false" className="w-3.5 h-3.5" />
             </button>
+            <button
+              onClick={() => incompleteThisWeek.length > 0 && setRolloverConfirm(true)}
+              disabled={incompleteThisWeek.length === 0}
+              title="Passar tarefas por fazer para a semana seguinte"
+              className="py-2 px-3 rounded-xl bg-amber-50 text-amber-600 text-xs font-medium flex items-center gap-1 hover:bg-amber-100 transition-all disabled:opacity-40 disabled:cursor-not-allowed">
+              <ChevronsRight className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Passar</span>
+              {incompleteThisWeek.length > 0 && (
+                <span className="bg-amber-200 text-amber-700 rounded-full px-1.5 py-0.5 text-[10px] font-bold leading-none">{incompleteThisWeek.length}</span>
+              )}
+            </button>
           </div>
         </div>
 
@@ -1012,6 +1055,54 @@ export default function TaskBoard() {
               </button>
               <button onClick={() => setDeleteConfirm(null)} className="w-full py-2.5 rounded-xl text-sm font-medium text-muted-foreground hover:bg-secondary transition-all">
                 Cancelar
+              </button>
+            </div>
+          </motion.div>
+        </motion.div>
+        }
+      </AnimatePresence>
+
+      {/* Rollover confirm modal */}
+      <AnimatePresence>
+        {rolloverConfirm &&
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+        className="fixed inset-0 z-50 bg-black/30 flex items-end sm:items-center justify-center"
+        onClick={() => !rollingOver && setRolloverConfirm(false)}>
+          <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
+          transition={{ type: "spring", damping: 25 }}
+          className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-sm p-5 shadow-xl"
+          onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-10 h-10 rounded-2xl bg-amber-100 flex items-center justify-center flex-shrink-0">
+                <ChevronsRight className="w-5 h-5 text-amber-600" />
+              </div>
+              <div>
+                <h3 className="font-bold text-foreground">Passar para semana seguinte</h3>
+                <p className="text-xs text-muted-foreground">{incompleteThisWeek.length} tarefa{incompleteThisWeek.length !== 1 ? "s" : ""} por fazer</p>
+              </div>
+            </div>
+            <p className="text-sm text-muted-foreground mb-1">
+              As tarefas serão copiadas para <strong>"Sem dia"</strong> na semana seguinte. As originais ficam nesta semana.
+            </p>
+            <div className="max-h-32 overflow-y-auto space-y-1 my-3 pr-1">
+              {incompleteThisWeek.map((t) => (
+                <div key={t.id} className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-secondary/50 text-xs text-foreground">
+                  <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: PRIORITY_CONFIG[t.priority || "medium"].color }} />
+                  <span className="truncate">{t.title}</span>
+                </div>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <button onClick={() => setRolloverConfirm(false)} disabled={rollingOver}
+                className="flex-1 py-2.5 rounded-xl bg-secondary text-sm font-medium text-muted-foreground hover:bg-border transition-all disabled:opacity-50">
+                Cancelar
+              </button>
+              <button onClick={rolloverToNextWeek} disabled={rollingOver}
+                className="flex-1 py-2.5 rounded-xl bg-amber-500 text-white text-sm font-semibold hover:bg-amber-600 transition-all disabled:opacity-60 flex items-center justify-center gap-2">
+                {rollingOver
+                  ? <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> A copiar...</>
+                  : <><ChevronsRight className="w-4 h-4" /> Confirmar</>
+                }
               </button>
             </div>
           </motion.div>
