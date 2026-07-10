@@ -399,20 +399,26 @@ export default function TaskBoard() {
     if (incompleteThisWeek.length === 0) return;
     setRollingOver(true);
     const nextWeekStart = format(addWeeks(parseISO(weekKey), 1), "yyyy-MM-dd");
-    const toCreate = incompleteThisWeek.map((t) => ({
-      title: t.title,
-      weekday: "none",
-      completed: false,
-      order: t.order || 0,
-      week_start: nextWeekStart,
-      period: t.period || null,
-      description: t.description || "",
-      tags_json: t.tags_json || "[]",
-      priority: t.priority || "medium",
-      recurrence: "none",
-      recurrence_id: null,
-      subtasks_json: "[]",
-    }));
+    const toCreate = incompleteThisWeek.map((t) => {
+      // Reset only subtasks that were already completed; keep incomplete subtasks
+      let subtasks = [];
+      try { subtasks = JSON.parse(t.subtasks_json || "[]"); } catch {}
+      const resetSubtasks = subtasks.map((s) => ({ ...s, completed: false }));
+      return {
+        title: t.title,
+        weekday: "none",
+        completed: false,
+        order: t.order || 0,
+        week_start: nextWeekStart,
+        period: t.period || null,
+        description: t.description || "",
+        tags_json: t.tags_json || "[]",
+        priority: t.priority || "medium",
+        recurrence: "none",
+        recurrence_id: null,
+        subtasks_json: JSON.stringify(resetSubtasks),
+      };
+    });
     await Task.bulkCreate(toCreate).catch(() => {});
     setRollingOver(false);
     setRolloverConfirm(false);
