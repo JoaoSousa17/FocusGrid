@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import ICalFeed from "@/components/ICalFeed";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -486,6 +487,7 @@ function GeneralTab() {
           <p className="text-xs text-muted-foreground flex-1">{t("profile.ics_export_sub")}</p>
           <Toggle on={icsExport} onChange={setIcsExport} />
         </div>
+        {icsExport && <ICalFeed />}
       </Section>
       <button onClick={save}
         className="w-full py-3 rounded-2xl bg-[#E87A5A] text-white font-semibold text-sm shadow-md shadow-[#E87A5A]/25 flex items-center justify-center gap-2 transition-all hover:bg-[#D4694A] active:scale-95">

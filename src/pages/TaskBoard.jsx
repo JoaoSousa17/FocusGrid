@@ -1,12 +1,13 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowRight, Plus, Check, X, Search, Filter, Trash2, Tags, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, GripVertical, ListChecks, Repeat, Flag, Timer, ChevronsRight } from "lucide-react";
+import { ArrowRight, Plus, Check, X, Search, Filter, Trash2, Tags, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, GripVertical, ListChecks, Repeat, Flag, Timer, ChevronsRight, Share2 } from "lucide-react";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import { Tag, Task } from "@/api/entities";
 import { startOfWeek, endOfWeek, addWeeks, subWeeks, addDays, addMonths, addYears, parseISO, format, eachDayOfInterval } from "date-fns";
 import { pt } from "date-fns/locale";
 import TagPicker from "@/components/TagPicker";
+import TaskShare from "@/components/TaskShare";
 import { useEdgeSwipeNav } from "@/hooks/useEdgeSwipeNav";
 import { useFocusTimer } from "@/context/FocusTimerContext";
 import { useLang } from "@/context/LangContext";
@@ -195,6 +196,7 @@ export default function TaskBoard() {
   const [addingTo, setAddingTo] = useState(null);
   const [editingTask, setEditingTask] = useState(null);
   const [showTagManager, setShowTagManager] = useState(false);
+  const [showShare, setShowShare] = useState(false);
   const [showTagPickerFor, setShowTagPickerFor] = useState(null);
   const [showEditTagPicker, setShowEditTagPicker] = useState(false);
   const [newTagName, setNewTagName] = useState("");
@@ -820,6 +822,9 @@ export default function TaskBoard() {
             <button data-source-location="pages/TaskBoard:443:12" data-dynamic-content="true" onClick={() => setShowTagManager(true)} className="py-2 px-3 rounded-xl bg-secondary text-xs font-medium text-muted-foreground flex items-center gap-1 hover:bg-border transition-all">
               <Tags data-source-location="pages/TaskBoard:444:14" data-dynamic-content="false" className="w-3.5 h-3.5" /> <span data-source-location="pages/TaskBoard:444:47" data-dynamic-content="false" className="hidden sm:inline">Tags</span>
             </button>
+            <button onClick={() => setShowShare(true)} className="py-2 px-3 rounded-xl bg-secondary text-xs font-medium text-muted-foreground flex items-center gap-1 hover:bg-border transition-all">
+              <Share2 className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Partilhar</span>
+            </button>
             <button data-source-location="pages/TaskBoard:446:12" data-dynamic-content="true" onClick={clearWeek} className="py-2 px-3 rounded-xl bg-rose-50 text-rose-600 text-xs font-medium flex items-center gap-1 hover:bg-rose-100 transition-all">
               <Trash2 data-source-location="pages/TaskBoard:447:14" data-dynamic-content="false" className="w-3.5 h-3.5" />
             </button>
@@ -1206,6 +1211,7 @@ export default function TaskBoard() {
           </motion.div>
         }
       </AnimatePresence>
+      <TaskShare open={showShare} onClose={() => setShowShare(false)} />
     </div>);
 
 }
