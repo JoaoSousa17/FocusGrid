@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Plus, Check } from "lucide-react";
 import { Tag } from "@/api/entities";
+import { useLang } from "@/context/LangContext";
 
 const PRESET_COLORS = [
 { key: "blue", hex: "#3B82F6", name: "Azul" },
@@ -22,6 +23,7 @@ const TAG_COLORS_MAP = {
 };
 
 export default function TagPicker({ open, onClose, selectedTag, onSelect, multiSelect = false, selectedTags = [], onMultiSelect }) {
+  const { t } = useLang();
   const [tags, setTags] = useState([]);
   const [newName, setNewName] = useState("");
   const [newColor, setNewColor] = useState("blue");
@@ -40,12 +42,15 @@ export default function TagPicker({ open, onClose, selectedTag, onSelect, multiS
     }
     const created = await Tag.create({ name: newName.trim(), color });
     setTags((prev) => [...prev, created]);
-    setNewName("");setNewHex("");setShowCreate(false);
-    if (multiSelect && onMultiSelect) {
+    setNewName("");setNewHex("");setNewColor("blue");setShowCreate(false);
+    if (onMultiSelect) {
       const updated = [...selectedTags.filter((t) => t.id !== created.id), { id: created.id, name: created.name, color: created.color }];
       onMultiSelect(updated);
-    } else {
+      if (!multiSelect) onClose();
+    } else if (onSelect) {
       onSelect(created);
+      onClose();
+    } else {
       onClose();
     }
   };
@@ -82,7 +87,7 @@ export default function TagPicker({ open, onClose, selectedTag, onSelect, multiS
           
             <div data-source-location="components/TagPicker:83:12" data-dynamic-content="true" className="flex items-center justify-between mb-5">
               <h3 data-source-location="components/TagPicker:84:14" data-dynamic-content="true" className="text-lg font-bold text-foreground">
-                {multiSelect ? "Escolhe até 3 tags" : "Escolhe uma tag"}
+                {multiSelect ? t("tags.choose_multi") : t("tags.choose_one")}
               </h3>
               <button data-source-location="components/TagPicker:87:14" data-dynamic-content="true" onClick={onClose} className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center">
                 <X data-source-location="components/TagPicker:88:16" data-dynamic-content="false" className="w-4 h-4" />
@@ -108,7 +113,7 @@ export default function TagPicker({ open, onClose, selectedTag, onSelect, multiS
             !selectedTag ? "border-[#E87A5A] bg-[#E87A5A]/5 text-[#E87A5A]" : "border-border text-muted-foreground"}`
             }>
               
-                  Nenhuma
+                  {t("tags.none_opt")}
                 </button>
             }
               {tags.map((tag) => {
@@ -137,13 +142,13 @@ export default function TagPicker({ open, onClose, selectedTag, onSelect, multiS
           onClick={() => setShowCreate(true)}
           className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl border-2 border-dashed border-border text-muted-foreground hover:text-[#E87A5A] hover:border-[#E87A5A]/30 transition-all text-sm font-medium">
             
-                <Plus data-source-location="components/TagPicker:140:16" data-dynamic-content="false" className="w-4 h-4" /> Criar nova tag
+                <Plus data-source-location="components/TagPicker:140:16" data-dynamic-content="false" className="w-4 h-4" /> {t("tags.create")}
               </button> :
 
           <div data-source-location="components/TagPicker:143:14" data-dynamic-content="true" className="space-y-3">
                 <input data-source-location="components/TagPicker:144:16" data-dynamic-content="true"
             value={newName} onChange={(e) => setNewName(e.target.value)}
-            placeholder="Nome da tag..." autoFocus
+            placeholder={t("tags.name_placeholder")} autoFocus
             className="w-full px-4 py-3 rounded-2xl border border-border bg-white text-sm focus:outline-none focus:border-[#E87A5A] transition-all" />
             
                 <div data-source-location="components/TagPicker:149:16" data-dynamic-content="true" className="flex gap-2 flex-wrap">
@@ -160,10 +165,10 @@ export default function TagPicker({ open, onClose, selectedTag, onSelect, multiS
               )}
                 </div>
                 <div data-source-location="components/TagPicker:162:16" data-dynamic-content="true" className="flex items-center gap-2">
-                  <span data-source-location="components/TagPicker:163:18" data-dynamic-content="false" className="text-xs text-muted-foreground">ou</span>
+                  <span data-source-location="components/TagPicker:163:18" data-dynamic-content="false" className="text-xs text-muted-foreground">{t("tags.or")}</span>
                   <input data-source-location="components/TagPicker:164:18" data-dynamic-content="true"
               value={newHex} onChange={(e) => {setNewHex(e.target.value);if (e.target.value) setNewColor("");}}
-              placeholder="#ff6600" maxLength={7}
+              placeholder={t("tags.hex_placeholder")} maxLength={7}
               className="flex-1 px-3 py-2 rounded-xl border border-border text-xs font-mono focus:outline-none focus:border-[#E87A5A] transition-all" />
               
                   {newHex && /^#[0-9A-Fa-f]{6}$/.test(newHex) &&
@@ -172,17 +177,17 @@ export default function TagPicker({ open, onClose, selectedTag, onSelect, multiS
                 </div>
                 <div data-source-location="components/TagPicker:173:16" data-dynamic-content="true" className="flex gap-2">
                   <button data-source-location="components/TagPicker:174:18" data-dynamic-content="true" onClick={() => setShowCreate(false)} className="flex-1 py-2.5 rounded-2xl border border-border text-sm text-muted-foreground hover:bg-secondary transition-all">
-                    Cancelar
+                    {t("cancel")}
                   </button>
                   <button data-source-location="components/TagPicker:177:18" data-dynamic-content="true" onClick={createTag} disabled={!newName.trim()} className="flex-1 py-2.5 rounded-2xl bg-[#E87A5A] text-white text-sm font-semibold hover:bg-[#D4694A] transition-all disabled:opacity-50 flex items-center justify-center gap-1">
-                    <Check data-source-location="components/TagPicker:178:20" data-dynamic-content="false" className="w-4 h-4" /> Criar
+                    <Check data-source-location="components/TagPicker:178:20" data-dynamic-content="false" className="w-4 h-4" /> {t("tags.create_btn")}
                   </button>
                 </div>
               </div>
           }
 
             <button data-source-location="components/TagPicker:184:12" data-dynamic-content="true" onClick={onClose} className="w-full mt-4 py-2.5 rounded-2xl bg-secondary text-sm font-medium text-foreground hover:bg-border transition-all">
-              {multiSelect ? "Concluído" : "Fechar"}
+              {multiSelect ? t("tags.done") : t("close")}
             </button>
           </motion.div>
         </motion.div>

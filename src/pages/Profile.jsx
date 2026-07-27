@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { auth } from "@/api/auth";
 import { supabase } from "@/api/supabaseClient";
+import { useLang } from "@/context/LangContext";
 import { savePushSubscription, removePushSubscription } from "@/api/integrations";
 
 // ---------- helpers ----------
@@ -422,6 +423,7 @@ function NotificationsTab() {
 }
 
 function GeneralTab() {
+  const { lang, setLang, t } = useLang();
   const [weekStartsOn, setWeekStartsOn] = useState(1);
   const [saved, setSaved] = useState(false);
 
@@ -440,11 +442,27 @@ function GeneralTab() {
 
   return (
     <div>
-      <Section title="Calendário">
+      <Section title={t("profile.language")}>
         <div className="px-4 py-3">
-          <p className="text-sm font-medium text-foreground mb-2">Início da semana</p>
+          <p className="text-xs text-muted-foreground mb-3">{t("profile.language_sub")}</p>
           <div className="flex gap-2">
-            {[{ key: 0, label: "Dom" }, { key: 1, label: "Seg" }].map((o) => (
+            {[{ key: "en", label: "English" }, { key: "pt", label: "Português" }].map((o) => (
+              <button key={o.key} onClick={() => setLang(o.key)}
+                className={`flex-1 py-2 rounded-xl text-sm font-medium border transition-all ${
+                  lang === o.key
+                    ? "bg-[#E87A5A] text-white border-[#E87A5A]"
+                    : "bg-white text-muted-foreground border-border hover:border-[#E87A5A]/40"
+                }`}>
+                {o.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </Section>
+      <Section title={t("profile.week_start")}>
+        <div className="px-4 py-3">
+          <div className="flex gap-2">
+            {[{ key: 0, label: t("profile.sunday") }, { key: 1, label: t("profile.monday") }].map((o) => (
               <button key={o.key} onClick={() => setWeekStartsOn(o.key)}
                 className={`flex-1 py-2 rounded-xl text-sm font-medium border transition-all ${
                   weekStartsOn === o.key
@@ -459,7 +477,7 @@ function GeneralTab() {
       </Section>
       <button onClick={save}
         className="w-full py-3 rounded-2xl bg-[#E87A5A] text-white font-semibold text-sm shadow-md shadow-[#E87A5A]/25 flex items-center justify-center gap-2 transition-all hover:bg-[#D4694A] active:scale-95">
-        {saved ? <><Check className="w-4 h-4" /> Guardado!</> : "Guardar"}
+        {saved ? <><Check className="w-4 h-4" /> {t("save")}d!</> : t("save")}
       </button>
     </div>
   );
@@ -467,19 +485,20 @@ function GeneralTab() {
 
 // ---------- Main ----------
 
-const TABS = [
-  { key: "account", icon: User, label: "Conta" },
-  { key: "security", icon: Shield, label: "Segurança" },
-  { key: "pomodoro", icon: Clock, label: "Pomodoro" },
-  { key: "notifications", icon: Bell, label: "Notificações" },
-  { key: "general", icon: Settings, label: "Geral" },
-];
-
 export default function Profile() {
   const navigate = useNavigate();
+  const { t } = useLang();
   const [tab, setTab] = useState("account");
   const [user, setUser] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  const TABS = [
+    { key: "account", icon: User, label: t("profile.tab.account") },
+    { key: "security", icon: Shield, label: t("profile.tab.security") },
+    { key: "pomodoro", icon: Clock, label: t("profile.tab.pomodoro") },
+    { key: "notifications", icon: Bell, label: t("profile.tab.notifications") },
+    { key: "general", icon: Settings, label: t("profile.tab.general") },
+  ];
 
   useEffect(() => {
     auth.me().then(setUser).catch(() => {});
@@ -501,7 +520,7 @@ export default function Profile() {
           <ArrowLeft className="w-5 h-5" />
         </button>
         <div className="flex-1 min-w-0">
-          <h1 className="text-lg font-bold text-foreground">Perfil</h1>
+          <h1 className="text-lg font-bold text-foreground">{t("profile.title")}</h1>
           <p className="text-xs text-muted-foreground truncate">{user?.email || "..."}</p>
         </div>
         <button onClick={handleLogout}

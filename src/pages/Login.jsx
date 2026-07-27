@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { auth } from "@/api/auth";
+import { useLang } from "@/context/LangContext";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,6 +11,7 @@ import { motion } from "framer-motion";
 import { Mail, Lock, LogIn, ArrowRight, Eye, EyeOff } from "lucide-react";
 
 export default function Login() {
+  const { t } = useLang();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -24,7 +26,7 @@ export default function Login() {
       await auth.login(email, password);
       window.location.href = "/";
     } catch (err) {
-      setError("Email ou password inválidos.");
+      setError(t("auth.login") + " failed. Check your email and password.");
     } finally {
       setLoading(false);
     }
@@ -35,7 +37,7 @@ export default function Login() {
     try {
       await auth.loginWithGoogle();
     } catch (err) {
-      setError("Erro ao iniciar sessão com Google.");
+      setError(t("error") + ": Google sign in failed.");
     }
   };
 
@@ -64,7 +66,7 @@ export default function Login() {
           <h1 data-source-location="pages/Login:63:10" data-dynamic-content="false" className="text-2xl font-bold text-foreground">
             <span data-source-location="pages/Login:64:12" data-dynamic-content="false" className="bg-gradient-to-r from-[#E87A5A] to-[#D4694A] bg-clip-text text-transparent">Focus</span>Grid
           </h1>
-          <p data-source-location="pages/Login:66:10" data-dynamic-content="false" className="text-muted-foreground mt-1.5 text-sm">Produtividade com ritmo</p>
+          <p data-source-location="pages/Login:66:10" data-dynamic-content="false" className="text-muted-foreground mt-1.5 text-sm">{t("auth.welcome_sub")}</p>
         </div>
 
         {/* Google login */}
@@ -79,7 +81,7 @@ export default function Login() {
             <path data-source-location="pages/Login:78:12" data-dynamic-content="false" fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
             <path data-source-location="pages/Login:79:12" data-dynamic-content="false" fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
           </svg>
-          Continuar com Google
+          Continue with Google
         </Button>
 
         <div data-source-location="pages/Login:84:8" data-dynamic-content="false" className="flex items-center gap-3 my-6">
@@ -135,7 +137,7 @@ export default function Login() {
 
           <div data-source-location="pages/Login:135:10" data-dynamic-content="false" className="flex justify-end">
             <Link data-source-location="pages/Login:136:12" data-dynamic-content="false" to="/forgot-password" className="text-xs text-[#E87A5A] hover:underline font-medium">
-              Esqueceste a password?
+              {t("auth.forgot")}
             </Link>
           </div>
 
@@ -156,18 +158,15 @@ export default function Login() {
             
             {loading ?
             <div data-source-location="pages/Login:157:14" data-dynamic-content="false" className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> :
-
-            <>
-                Entrar <ArrowRight data-source-location="pages/Login:160:23" data-dynamic-content="false" className="w-4 h-4" />
-              </>
+            <>{t("auth.sign_in")} <ArrowRight className="w-4 h-4" /></>
             }
           </Button>
         </form>
 
         <p data-source-location="pages/Login:166:8" data-dynamic-content="false" className="text-center text-sm text-muted-foreground mt-6">
-          Não tens conta?{" "}
-          <Link data-source-location="pages/Login:168:10" data-dynamic-content="false" to="/register" className="text-[#E87A5A] font-semibold hover:underline">
-            Criar conta
+          {t("auth.no_account")}{" "}
+          <Link to="/register" className="text-[#E87A5A] font-semibold hover:underline">
+            {t("auth.sign_up")}
           </Link>
         </p>
 

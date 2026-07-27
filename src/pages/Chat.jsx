@@ -5,18 +5,12 @@ import { ArrowLeft, Send, Loader2, Trash2, Bot, User } from "lucide-react";
 import { InvokeLLMChat } from "@/api/integrations";
 import { format } from "date-fns";
 import { pt } from "date-fns/locale";
+import { useLang } from "@/context/LangContext";
 
-const SYSTEM_PROMPT = `És o assistente de produtividade do FocusGrid — uma app de foco, hábitos e gestão de tarefas.
-Ajuda o utilizador a ser mais produtivo, organizar tarefas, manter hábitos saudáveis, e gerir o tempo com o método Pomodoro.
-Responde sempre em português de Portugal. Sê conciso, prático e motivador. Usa emojis com moderação.
-Conheces bem técnicas como: método Pomodoro, GTD (Getting Things Done), time-blocking, habit stacking, deep work, e regra dos 2 minutos.`;
-
-const SUGGESTIONS = [
-  "Como posso ser mais produtivo hoje?",
-  "Dá-me dicas para criar hábitos saudáveis",
-  "Como usar o método Pomodoro eficazmente?",
-  "Ajuda-me a priorizar as minhas tarefas",
-];
+const SYSTEM_PROMPT = `You are the FocusGrid productivity assistant — an app for focus, habits and task management.
+Help the user be more productive, organize tasks, maintain healthy habits, and manage time with the Pomodoro method.
+Respond in the user's language. Be concise, practical and motivating. Use emojis sparingly.
+You know techniques like: Pomodoro method, GTD (Getting Things Done), time-blocking, habit stacking, deep work, and the 2-minute rule.`;
 
 function MessageBubble({ msg }) {
   const isUser = msg.role === "user";
@@ -47,6 +41,7 @@ function MessageBubble({ msg }) {
 
 export default function Chat() {
   const navigate = useNavigate();
+  const { t } = useLang();
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -70,12 +65,13 @@ export default function Chat() {
       const history = [...messages, userMsg].map(({ role, content }) => ({ role, content }));
       const reply = await InvokeLLMChat({ messages: history, system: SYSTEM_PROMPT });
       setMessages((prev) => [...prev, { role: "assistant", content: reply, ts: Date.now() }]);
-    } catch {
-      setMessages((prev) => [...prev, {
-        role: "assistant",
-        content: "Desculpa, ocorreu um erro ao responder. Tenta novamente.",
-        ts: Date.now()
-      }]);
+    } catch (err) {
+      console.error("Chat error:", err);
+      const isKeyMissing = err?.message?.includes("VITE_GROQ_API_KEY");
+      const errMsg = isKeyMissing
+        ? "VITE_GROQ_API_KEY not set. Add it to .env and restart Vite."
+        : `Error: ${err?.message || "Unknown error. Check console."}`;
+      setMessages((prev) => [...prev, { role: "assistant", content: errMsg, ts: Date.now() }]);
     }
     setLoading(false);
     setTimeout(() => inputRef.current?.focus(), 100);
@@ -93,9 +89,9 @@ export default function Chat() {
             <span className="w-7 h-7 rounded-xl bg-[#E87A5A]/15 flex items-center justify-center">
               <Bot className="w-4 h-4 text-[#E87A5A]" />
             </span>
-            Assistente FocusGrid
+            {t("chat.title")}
           </h1>
-          <p className="text-[10px] text-muted-foreground">Powered by Groq · Llama 3.3</p>
+          <p className="text-[10px] text-muted-foreground">{t("chat.powered")}</p>
         </div>
         {messages.length > 0 && (
           <button onClick={() => setMessages([])} className="w-9 h-9 rounded-xl flex items-center justify-center text-muted-foreground hover:text-rose-500 transition-all">
@@ -111,10 +107,10 @@ export default function Chat() {
             <div className="w-16 h-16 rounded-3xl bg-[#E87A5A]/10 flex items-center justify-center mb-4 border border-[#E87A5A]/20">
               <Bot className="w-8 h-8 text-[#E87A5A]" />
             </div>
-            <h2 className="font-bold text-foreground mb-1">Olá! Como posso ajudar?</h2>
-            <p className="text-sm text-muted-foreground mb-6">Sou o teu assistente de produtividade.</p>
+            <h2 className="font-bold text-foreground mb-1">{t("chat.greeting")}</h2>
+            <p className="text-sm text-muted-foreground mb-6">{t("chat.greeting_sub")}</p>
             <div className="grid grid-cols-1 gap-2 w-full max-w-sm">
-              {SUGGESTIONS.map((s, i) => (
+              {[t("chat.s1"), t("chat.s2"), t("chat.s3"), t("chat.s4")].map((s, i) => (
                 <button key={i} onClick={() => sendMessage(s)}
                   className="text-left px-4 py-3 rounded-2xl bg-white border border-border text-sm text-foreground hover:border-[#E87A5A]/40 hover:bg-[#E87A5A]/5 transition-all shadow-sm">
                   {s}
@@ -154,7 +150,7 @@ export default function Chat() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && (e.preventDefault(), sendMessage())}
-            placeholder="Escreve uma mensagem..."
+            placeholder={t("chat.placeholder")}
             className="flex-1 px-3 py-2 text-sm outline-none bg-transparent text-foreground placeholder:text-muted-foreground/50"
             disabled={loading}
           />

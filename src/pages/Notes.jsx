@@ -9,6 +9,7 @@ import { Note } from "@/api/entities";
 import { supabase } from "@/api/supabaseClient";
 import { format, isToday, isYesterday } from "date-fns";
 import { pt } from "date-fns/locale";
+import { useLang } from "@/context/LangContext";
 
 export const NOTE_COLORS = [
   { key: "default", bg: "#ffffff", border: "#e5e7eb", dark: "#f9fafb" },
@@ -37,14 +38,15 @@ function stripHtml(html) {
   return d.textContent || "";
 }
 
-function dateLabel(ts) {
+function dateLabel(ts, t) {
   const d = new Date(ts);
-  if (isToday(d)) return "Hoje";
-  if (isYesterday(d)) return "Ontem";
+  if (isToday(d)) return t ? t("today") : "Today";
+  if (isYesterday(d)) return t ? t("yesterday") : "Yesterday";
   return format(d, "d 'de' MMMM", { locale: pt });
 }
 
 function NoteCardKeep({ note, onClick, onDelete }) {
+  const { t } = useLang();
   const col = colorOf(note.color);
   const hasContent = !!stripHtml(note.content);
   return (
@@ -82,7 +84,7 @@ function NoteCardKeep({ note, onClick, onDelete }) {
             dangerouslySetInnerHTML={{ __html: note.content }}
           />
         ) : !note.title ? (
-          <p className="text-xs text-muted-foreground/40 italic">Nota vazia</p>
+          <p className="text-xs text-muted-foreground/40 italic">{t("notes.empty_note")}</p>
         ) : null}
       </div>
       <button
@@ -96,6 +98,7 @@ function NoteCardKeep({ note, onClick, onDelete }) {
 }
 
 function NoteRowApple({ note, onClick, onDelete }) {
+  const { t } = useLang();
   const text = stripHtml(note.content);
   const col = colorOf(note.color);
   return (
@@ -113,10 +116,10 @@ function NoteRowApple({ note, onClick, onDelete }) {
           {note.pinned && <Pin className="w-3 h-3 text-muted-foreground/60 flex-shrink-0" />}
           {note.locked && <Lock className="w-3 h-3 text-muted-foreground/60 flex-shrink-0" />}
           <p className="text-sm font-semibold text-foreground truncate">
-            {note.title || <span className="font-normal text-muted-foreground">Sem título</span>}
+            {note.title || <span className="font-normal text-muted-foreground">{t("notes.no_title")}</span>}
           </p>
         </div>
-        <p className="text-xs text-muted-foreground line-clamp-1">{text || "Nota vazia"}</p>
+        <p className="text-xs text-muted-foreground line-clamp-1">{text || t("notes.empty_note")}</p>
       </div>
       <div className="flex items-center gap-1.5 flex-shrink-0">
         <span className="text-[10px] text-muted-foreground/60">{format(new Date(note.updated_at), "HH:mm")}</span>
@@ -133,6 +136,7 @@ function NoteRowApple({ note, onClick, onDelete }) {
 
 export default function Notes() {
   const navigate = useNavigate();
+  const { t } = useLang();
   const [notes, setNotes] = useState([]);
   const [view, setView] = useState("keep"); // keep | apple
   const [search, setSearch] = useState("");
@@ -174,7 +178,7 @@ export default function Notes() {
   // Group for Apple view
   const grouped = {};
   rest.forEach((n) => {
-    const label = dateLabel(n.updated_at);
+    const label = dateLabel(n.updated_at, t);
     if (!grouped[label]) grouped[label] = [];
     grouped[label].push(n);
   });
@@ -185,7 +189,7 @@ export default function Notes() {
   const handleSwipeEnd = (e) => {
     if (swipeStartX.current === null) return;
     const dx = (e.changedTouches?.[0] ?? e).clientX - swipeStartX.current;
-    if (dx < -80) navigate("/");
+    if (dx > 80) navigate("/");
     swipeStartX.current = null;
   };
 
@@ -220,8 +224,8 @@ export default function Notes() {
           </button>
           {/* Title */}
           <div className="flex-1 min-w-0">
-            <h1 className="text-lg font-bold text-foreground leading-tight">Notas</h1>
-            <p className="text-[11px] text-muted-foreground">{notes.length} nota{notes.length !== 1 ? "s" : ""}</p>
+            <h1 className="text-lg font-bold text-foreground leading-tight">{t("notes.title")}</h1>
+            <p className="text-[11px] text-muted-foreground">{notes.length} {notes.length !== 1 ? t("notes.notes_count_other") : t("notes.notes_count_one")}</p>
           </div>
           {/* Search — ~45% width, inline */}
           <div className="flex items-center gap-1.5 bg-white border border-border rounded-2xl px-3 py-2 shadow-sm focus-within:border-[#E87A5A]/50 transition-all w-[44%] flex-shrink-0">
@@ -230,7 +234,7 @@ export default function Notes() {
               ref={searchRef}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Pesquisar..."
+              placeholder={t("notes.search_placeholder")}
               className="flex-1 text-sm outline-none bg-transparent text-foreground placeholder:text-muted-foreground/50 min-w-0"
             />
             {search && (
@@ -260,7 +264,7 @@ export default function Notes() {
             <div className="w-16 h-16 rounded-3xl bg-white border border-border flex items-center justify-center shadow-sm">
               <span className="text-3xl">📝</span>
             </div>
-            <p className="text-sm text-muted-foreground">{search ? "Nenhuma nota encontrada" : "Sem notas ainda"}</p>
+            <p className="text-sm text-muted-foreground">{search ? t("notes.empty_search") : t("notes.empty")}</p>
           </div>
         )}
 
@@ -268,7 +272,7 @@ export default function Notes() {
           <div className="p-4">
             {pinned.length > 0 && (
               <div className="mb-4">
-                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-2 px-1">Afixadas</p>
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-2 px-1">{t("notes.pinned")}</p>
                 <div className="columns-2 sm:columns-3 gap-3">
                   {pinned.map((n) => (
                     <NoteCardKeep key={n.id} note={n} onClick={() => navigate(`/notes/${n.id}`)} onDelete={setDeleting} />
@@ -278,7 +282,7 @@ export default function Notes() {
             )}
             {rest.length > 0 && (
               <div>
-                {pinned.length > 0 && <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-2 px-1">Outras</p>}
+                {pinned.length > 0 && <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-2 px-1">{t("notes.others")}</p>}
                 <div className="columns-2 sm:columns-3 gap-3">
                   {rest.map((n) => (
                     <NoteCardKeep key={n.id} note={n} onClick={() => navigate(`/notes/${n.id}`)} onDelete={setDeleting} />
@@ -336,13 +340,13 @@ export default function Notes() {
             <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
               className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-sm p-5 shadow-xl"
               onClick={(e) => e.stopPropagation()}>
-              <h3 className="font-bold text-foreground mb-1">Apagar nota</h3>
+              <h3 className="font-bold text-foreground mb-1">{t("notes.delete_title")}</h3>
               <p className="text-sm text-muted-foreground mb-4">
-                "{deleting.title || "Sem título"}" será apagada permanentemente.
+                "{deleting.title || t("notes.no_title")}" {t("notes.delete_body")}
               </p>
               <div className="flex gap-2">
-                <button onClick={() => setDeleting(null)} className="flex-1 py-2.5 rounded-xl bg-secondary text-sm font-medium hover:bg-border transition-all">Cancelar</button>
-                <button onClick={confirmDelete} className="flex-1 py-2.5 rounded-xl bg-rose-500 text-white text-sm font-semibold hover:bg-rose-600 transition-all">Apagar</button>
+                <button onClick={() => setDeleting(null)} className="flex-1 py-2.5 rounded-xl bg-secondary text-sm font-medium hover:bg-border transition-all">{t("cancel")}</button>
+                <button onClick={confirmDelete} className="flex-1 py-2.5 rounded-xl bg-rose-500 text-white text-sm font-semibold hover:bg-rose-600 transition-all">{t("delete")}</button>
               </div>
             </motion.div>
           </motion.div>

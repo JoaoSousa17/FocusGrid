@@ -8,6 +8,7 @@ import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 import ScrollToTop from './components/ScrollToTop';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { FocusTimerProvider } from '@/context/FocusTimerContext';
+import { LangProvider } from '@/context/LangContext';
 // Add page imports here
 import Login from '@/pages/Login';
 import Register from '@/pages/Register';
@@ -93,6 +94,7 @@ const AuthenticatedApp = () => {
 
 function App() {
   return (
+    <LangProvider>
     <AuthProvider data-source-location="App:86:4" data-dynamic-content="true">
       <QueryClientProvider data-source-location="App:87:6" data-dynamic-content="true" client={queryClientInstance}>
         <Router data-source-location="App:88:8" data-dynamic-content="false">
@@ -101,7 +103,8 @@ function App() {
         </Router>
         <Toaster data-source-location="App:92:8" data-dynamic-content="false" />
       </QueryClientProvider>
-    </AuthProvider>);
+    </AuthProvider>
+    </LangProvider>);
 
 }
 

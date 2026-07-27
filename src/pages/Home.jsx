@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { ArrowLeft, ArrowRight, ArrowUp, ArrowDown, ListTodo, Heart, Timer, LayoutGrid, MessageCircle, UserCircle2, PenLine } from "lucide-react";
 import { auth } from "@/api/auth";
 import { useEdgeSwipeNav } from "@/hooks/useEdgeSwipeNav";
+import { useLang } from "@/context/LangContext";
 
 function FloatingOrbs() {
   return (
@@ -69,10 +70,11 @@ function DirectionalArrow({ direction, label, onClick, icon: Icon, color, "data-
 
 export default function Home() {
   const navigate = useNavigate();
+  const { t } = useLang();
   const [swipeHint, setSwipeHint] = useState(null);
   const [user, setUser] = useState(null);
   const { swipeHandlers, dragStyle } = useEdgeSwipeNav({ left: "/habits", right: "/tasks", up: "/focus", down: "/coming-soon" });
-  const diagRef = useRef({ startX: 0, startY: 0, armed: false });
+  const diagRef = useRef({ startX: 0, startY: 0, type: null });
 
   useEffect(() => {
     auth.me().then(setUser).catch(() => {});
@@ -81,17 +83,19 @@ export default function Home() {
   const handleDiagStart = (e) => {
     const t = e.touches?.[0] || e;
     const w = window.innerWidth, h = window.innerHeight;
-    diagRef.current = {
-      startX: t.clientX, startY: t.clientY,
-      armed: t.clientX > w * 0.65 && t.clientY > h * 0.65
-    };
+    let type = null;
+    if (t.clientX > w * 0.65 && t.clientY > h * 0.65) type = "notes";    // bottom-right → /notes
+    else if (t.clientX > w * 0.65 && t.clientY < h * 0.35) type = "profile"; // top-right → /profile
+    diagRef.current = { startX: t.clientX, startY: t.clientY, type };
   };
   const handleDiagEnd = (e) => {
-    if (!diagRef.current.armed) return;
+    const { type, startX, startY } = diagRef.current;
+    if (!type) return;
     const t = e.changedTouches?.[0] || e;
-    if (t.clientX - diagRef.current.startX < -60 && t.clientY - diagRef.current.startY < -60) {
-      navigate("/notes");
-    }
+    const dx = t.clientX - startX;
+    const dy = t.clientY - startY;
+    if (type === "notes"   && dx < -60 && dy < -60) navigate("/notes");
+    if (type === "profile" && dx < -60 && dy >  60) navigate("/profile");
   };
 
   return (
@@ -107,23 +111,16 @@ export default function Home() {
       <FloatingOrbs data-source-location="pages/Home:148:6" data-dynamic-content="false" />
 
       {/* Directional arrows */}
-      <DirectionalArrow data-source-location="pages/Home:151:6" data-dynamic-content="true"
-        direction="up" label="Explorar" icon={LayoutGrid}
+      <DirectionalArrow direction="up" label={t("home.label.explore")} icon={LayoutGrid}
         onClick={() => navigate("/coming-soon")}
         color="bg-[#F87171] text-white hover:bg-[#F25C5C] shadow-[#F87171]/30" />
-        
-      <DirectionalArrow data-source-location="pages/Home:156:6" data-dynamic-content="true"
-        direction="down" label="FocusPomo" icon={Timer}
+      <DirectionalArrow direction="down" label={t("home.label.focus")} icon={Timer}
         onClick={() => navigate("/focus")}
         color="bg-[#E87A5A] text-white hover:bg-[#D4694A] shadow-[#E87A5A]/30" />
-        
-      <DirectionalArrow data-source-location="pages/Home:161:6" data-dynamic-content="true"
-        direction="left" label="Tarefas" icon={ListTodo}
+      <DirectionalArrow direction="left" label={t("home.label.tasks")} icon={ListTodo}
         onClick={() => navigate("/tasks")}
         color="bg-[#3B82F6] text-white hover:bg-[#2F6FD8] shadow-[#3B82F6]/30" />
-
-      <DirectionalArrow data-source-location="pages/Home:166:6" data-dynamic-content="true"
-        direction="right" label="Hábitos" icon={Heart}
+      <DirectionalArrow direction="right" label={t("home.label.habits")} icon={Heart}
         onClick={() => navigate("/habits")}
         color="bg-[#8B5CF6] text-white hover:bg-[#7A4CE0] shadow-[#8B5CF6]/30" />
         
@@ -161,7 +158,7 @@ export default function Home() {
           transition={{ delay: 0.8, duration: 0.5 }}
           className="text-sm text-muted-foreground mt-1.5">
             
-          Produtividade com ritmo
+          {t("home.tagline")}
         </motion.p>
         <motion.button
           initial={{ opacity: 0, scale: 0.8 }}
@@ -170,7 +167,7 @@ export default function Home() {
           onClick={() => navigate("/chat")}
           className="mt-4 flex items-center gap-2 px-4 py-2 rounded-2xl bg-white border border-border shadow-sm text-sm font-medium text-foreground hover:border-[#E87A5A]/40 hover:bg-[#E87A5A]/5 transition-all">
           <MessageCircle className="w-4 h-4 text-[#E87A5A]" />
-          Assistente IA
+          {t("home.ai_btn")}
         </motion.button>
       </motion.div>
 
@@ -180,7 +177,7 @@ export default function Home() {
           animate={{ y: [0, 5, 0] }}
           transition={{ repeat: Infinity, duration: 2.5, ease: "easeInOut" }}
           className="text-xs font-semibold text-foreground/70 whitespace-nowrap hidden sm:block">
-          Notas
+          {t("home.label.notes")}
         </motion.span>
         <motion.button
           initial={{ opacity: 0, scale: 0.8 }}
@@ -200,7 +197,7 @@ export default function Home() {
           animate={{ x: [0, 5, 0] }}
           transition={{ repeat: Infinity, duration: 2.5, ease: "easeInOut" }}
           className="text-xs font-semibold text-foreground/70 whitespace-nowrap hidden sm:block">
-          Perfil
+          {t("home.label.profile")}
         </motion.span>
         <motion.button
           initial={{ opacity: 0, scale: 0.8 }}
@@ -221,21 +218,21 @@ export default function Home() {
           transition={{ repeat: Infinity, duration: 3 }}
           className="text-[10px] text-muted-foreground/60 hidden sm:block">
             
-          ← Tarefas
+          ← {t("home.label.tasks")}
         </motion.span>
         <motion.span data-source-location="pages/Home:224:8" data-dynamic-content="true"
           animate={{ opacity: [0.4, 1, 0.4] }}
           transition={{ repeat: Infinity, duration: 3, delay: 0.5 }}
           className="text-[10px] text-muted-foreground/60">
-            
-          Desliza para navegar
+
+          {t("home.swipe_hint")}
         </motion.span>
         <motion.span data-source-location="pages/Home:231:8" data-dynamic-content="true"
           animate={{ opacity: [0.4, 1, 0.4] }}
           transition={{ repeat: Infinity, duration: 3, delay: 1 }}
           className="text-[10px] text-muted-foreground/60 hidden sm:block">
             
-          Hábitos →
+          {t("home.label.habits")} →
         </motion.span>
       </div>
       </div>
