@@ -429,17 +429,19 @@ function NotificationsTab() {
 function GeneralTab() {
   const { lang, setLang, t } = useLang();
   const [weekStartsOn, setWeekStartsOn] = useState(1);
+  const [icsExport, setIcsExport] = useState(false);
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
     auth.me().then((u) => {
       const m = u?.user_metadata || {};
       if (m.week_starts_on !== undefined) setWeekStartsOn(m.week_starts_on);
+      if (m.ics_export_enabled !== undefined) setIcsExport(m.ics_export_enabled);
     }).catch(() => {});
   }, []);
 
   const save = async () => {
-    await supabase.auth.updateUser({ data: { week_starts_on: weekStartsOn } });
+    await supabase.auth.updateUser({ data: { week_starts_on: weekStartsOn, ics_export_enabled: icsExport } });
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   };
@@ -477,6 +479,12 @@ function GeneralTab() {
               </button>
             ))}
           </div>
+        </div>
+      </Section>
+      <Section title={t("profile.ics_export")}>
+        <div className="px-4 py-3 flex items-center justify-between gap-3">
+          <p className="text-xs text-muted-foreground flex-1">{t("profile.ics_export_sub")}</p>
+          <Toggle on={icsExport} onChange={setIcsExport} />
         </div>
       </Section>
       <button onClick={save}

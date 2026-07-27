@@ -89,6 +89,7 @@ export default function FocusCalendar() {
   const [events, setEvents] = useState([]);
   const [selectedDay, setSelectedDay] = useState(null);
   const [weekStartsOn, setWeekStartsOn] = useState(1);
+  const [icsExportEnabled, setIcsExportEnabled] = useState(false);
   const { swipeHandlers, dragStyle } = useEdgeSwipeNav({ right: "/focus" });
 
   // Drag-to-create state
@@ -121,6 +122,7 @@ export default function FocusCalendar() {
     auth.me().then((u) => {
       const meta = u?.user_metadata || {};
       if (meta.week_starts_on !== undefined) setWeekStartsOn(meta.week_starts_on);
+      if (meta.ics_export_enabled !== undefined) setIcsExportEnabled(meta.ics_export_enabled);
     }).catch(() => {});
     loadData();
   }, [loadData]);
@@ -269,9 +271,11 @@ export default function FocusCalendar() {
             </div>
             {/* ICS buttons */}
             <div className="flex gap-1.5">
-              <button onClick={exportICS} className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-secondary text-xs font-medium text-muted-foreground hover:bg-border transition-all">
-                <Download className="w-3.5 h-3.5" /> .ics
-              </button>
+              {icsExportEnabled && (
+                <button onClick={exportICS} className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-secondary text-xs font-medium text-muted-foreground hover:bg-border transition-all">
+                  <Download className="w-3.5 h-3.5" /> .ics
+                </button>
+              )}
               <button onClick={() => icsInputRef.current?.click()} className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-secondary text-xs font-medium text-muted-foreground hover:bg-border transition-all">
                 <Upload className="w-3.5 h-3.5" /> {t("cal.import")}
               </button>

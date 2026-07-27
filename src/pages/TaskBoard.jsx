@@ -738,7 +738,7 @@ export default function TaskBoard() {
     const dayOfMonth = dayInfo ? format(dayInfo, "d") : key === "none" ? "" : "";
 
     return (
-      <div data-source-location="pages/TaskBoard:362:6" data-dynamic-content="true" className="flex-shrink-0 w-[200px] flex flex-col" data-collection-item-id={key?.["data-collection-item-id"]}>
+      <div key={key} data-source-location="pages/TaskBoard:362:6" data-dynamic-content="true" className="flex-shrink-0 w-[200px] flex flex-col" data-collection-item-id={key?.["data-collection-item-id"]}>
         <div data-source-location="pages/TaskBoard:363:8" data-dynamic-content="true" className={`rounded-2xl px-3 py-2.5 mb-3 font-semibold text-xs flex items-center justify-between ${key === "none" ? "bg-slate-100 text-slate-600" : DAY_COLORS[dayIdx]}`}>
           <span data-source-location="pages/TaskBoard:364:10" data-dynamic-content="true" data-collection-item-field="label">{label}</span>
           <span data-source-location="pages/TaskBoard:365:10" data-dynamic-content="true" className="flex items-center gap-1.5">

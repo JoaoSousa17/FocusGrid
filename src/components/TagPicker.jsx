@@ -22,6 +22,23 @@ const TAG_COLORS_MAP = {
   indigo: "bg-indigo-100 text-indigo-700", pink: "bg-pink-100 text-pink-700"
 };
 
+// Find the preset key whose hex is closest to the given hex string (RGB distance).
+function nearestPreset(hex) {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  let best = PRESET_COLORS[0];
+  let bestDist = Infinity;
+  for (const p of PRESET_COLORS) {
+    const pr = parseInt(p.hex.slice(1, 3), 16);
+    const pg = parseInt(p.hex.slice(3, 5), 16);
+    const pb = parseInt(p.hex.slice(5, 7), 16);
+    const d = (r - pr) ** 2 + (g - pg) ** 2 + (b - pb) ** 2;
+    if (d < bestDist) { bestDist = d; best = p; }
+  }
+  return best.key;
+}
+
 export default function TagPicker({ open, onClose, selectedTag, onSelect, multiSelect = false, selectedTags = [], onMultiSelect }) {
   const { t } = useLang();
   const [tags, setTags] = useState([]);
@@ -29,6 +46,7 @@ export default function TagPicker({ open, onClose, selectedTag, onSelect, multiS
   const [newColor, setNewColor] = useState("blue");
   const [newHex, setNewHex] = useState("");
   const [showCreate, setShowCreate] = useState(false);
+  const [createError, setCreateError] = useState("");
 
   useEffect(() => {
     if (open) Tag.list().then(setTags).catch(() => setTags([]));
@@ -45,13 +63,31 @@ export default function TagPicker({ open, onClose, selectedTag, onSelect, multiS
 
   const createTag = async () => {
     if (!newName.trim()) return;
+    setCreateError("");
     let color = newColor || "blue";
     const rawHex = newHex.trim();
     const hexNorm = rawHex.startsWith("#") ? rawHex : rawHex ? `#${rawHex}` : "";
-    if (hexNorm && /^#[0-9A-Fa-f]{6}$/.test(hexNorm)) {
-      color = hexNorm;
+    const isValidHex = hexNorm && /^#[0-9A-Fa-f]{6}$/.test(hexNorm);
+    if (isValidHex) color = hexNorm;
+
+    let created;
+    try {
+      created = await Tag.create({ name: newName.trim(), color });
+    } catch {
+      // DB likely has a CHECK constraint blocking hex values — fall back to nearest preset.
+      if (isValidHex) {
+        try {
+          created = await Tag.create({ name: newName.trim(), color: nearestPreset(hexNorm) });
+        } catch (e2) {
+          setCreateError(t("tags.create_error", "Failed to create tag. Please try again."));
+          return;
+        }
+      } else {
+        setCreateError(t("tags.create_error", "Failed to create tag. Please try again."));
+        return;
+      }
     }
-    const created = await Tag.create({ name: newName.trim(), color });
+
     setTags((prev) => [...prev, created]);
     setNewName("");setNewHex("");setNewColor("blue");setShowCreate(false);
     if (onMultiSelect) {
@@ -190,8 +226,9 @@ export default function TagPicker({ open, onClose, selectedTag, onSelect, multiS
               <div data-source-location="components/TagPicker:170:20" data-dynamic-content="true" className="w-9 h-9 rounded-full border-2 border-[#E87A5A] shadow-md" style={{ backgroundColor: newHex }} />
               }
                 </div>
+                {createError && <p className="text-xs text-rose-500 px-1">{createError}</p>}
                 <div data-source-location="components/TagPicker:173:16" data-dynamic-content="true" className="flex gap-2">
-                  <button data-source-location="components/TagPicker:174:18" data-dynamic-content="true" onClick={() => setShowCreate(false)} className="flex-1 py-2.5 rounded-2xl border border-border text-sm text-muted-foreground hover:bg-secondary transition-all">
+                  <button data-source-location="components/TagPicker:174:18" data-dynamic-content="true" onClick={() => { setShowCreate(false); setCreateError(""); }} className="flex-1 py-2.5 rounded-2xl border border-border text-sm text-muted-foreground hover:bg-secondary transition-all">
                     {t("cancel")}
                   </button>
                   <button data-source-location="components/TagPicker:177:18" data-dynamic-content="true" onClick={createTag} disabled={!newName.trim()} className="flex-1 py-2.5 rounded-2xl bg-[#E87A5A] text-white text-sm font-semibold hover:bg-[#D4694A] transition-all disabled:opacity-50 flex items-center justify-center gap-1">
