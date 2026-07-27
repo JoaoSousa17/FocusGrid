@@ -10,6 +10,7 @@ import { Core, InvokeLLM } from "@/api/integrations";
 import { format, addDays } from "date-fns";
 import { pt } from "date-fns/locale";
 import { useEdgeSwipeNav } from "@/hooks/useEdgeSwipeNav";
+import { useLang } from "@/context/LangContext";
 
 function MindMapNode({ node, depth = 0 }) {
   const colors = ["#E87A5A", "#8B5CF6", "#3B82F6", "#10B981", "#F59E0B"];
@@ -44,6 +45,7 @@ function formatDuration(seconds) {
 }
 
 function RecordingCard({ rec, events, onDelete }) {
+  const { t } = useLang();
   const [expanded, setExpanded] = useState(false);
   const [linking, setLinking] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState(rec.event_id || "");
@@ -119,11 +121,11 @@ function RecordingCard({ rec, events, onDelete }) {
         <AnimatePresence>
           {linking && (
             <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="mt-3 overflow-hidden">
-              <p className="text-[11px] text-muted-foreground mb-2 font-medium">Associar a evento:</p>
+              <p className="text-[11px] text-muted-foreground mb-2 font-medium">{t("meeting.link_event")}</p>
               <div className="flex flex-wrap gap-1.5">
                 <button onClick={() => linkEvent("")}
                   className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all ${!selectedEvent ? "bg-secondary text-foreground" : "bg-secondary/50 text-muted-foreground hover:bg-secondary"}`}>
-                  Nenhum
+                  {t("meeting.none_event")}
                 </button>
                 {events.map((ev) => (
                   <button key={ev.id} onClick={() => linkEvent(ev.id)}
@@ -143,7 +145,7 @@ function RecordingCard({ rec, events, onDelete }) {
             <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="mt-3 overflow-hidden space-y-2">
               {actionItems.length > 0 && (
                 <div className="bg-secondary/50 rounded-xl p-3">
-                  <p className="text-[10px] font-bold uppercase text-muted-foreground/60 mb-2">Ações</p>
+                  <p className="text-[10px] font-bold uppercase text-muted-foreground/60 mb-2">{t("meeting.actions")}</p>
                   {actionItems.map((a, i) => (
                     <div key={i} className="flex items-start gap-2 text-xs text-foreground mb-1.5">
                       <span className="w-4 h-4 rounded bg-[#E87A5A]/10 text-[#E87A5A] flex items-center justify-center text-[9px] font-black flex-shrink-0 mt-0.5">{i + 1}</span>
@@ -159,13 +161,13 @@ function RecordingCard({ rec, events, onDelete }) {
               )}
               {rec.transcript && (
                 <div className="bg-secondary/50 rounded-xl p-3">
-                  <p className="text-[10px] font-bold uppercase text-muted-foreground/60 mb-1">Transcrição</p>
+                  <p className="text-[10px] font-bold uppercase text-muted-foreground/60 mb-1">{t("meeting.transcript")}</p>
                   <p className="text-xs text-muted-foreground leading-relaxed max-h-28 overflow-y-auto">{rec.transcript}</p>
                 </div>
               )}
               {mindMap && mindMap.label && (
                 <div className="bg-secondary/50 rounded-xl p-3">
-                  <p className="text-[10px] font-bold uppercase text-muted-foreground/60 mb-2">Mapa Mental</p>
+                  <p className="text-[10px] font-bold uppercase text-muted-foreground/60 mb-2">{t("meeting.mind_map")}</p>
                   <MindMapNode node={mindMap} />
                 </div>
               )}
@@ -179,6 +181,7 @@ function RecordingCard({ rec, events, onDelete }) {
 
 export default function MeetingAI() {
   const navigate = useNavigate();
+  const { t } = useLang();
   const [recording, setRecording] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [processingStep, setProcessingStep] = useState("");
@@ -373,7 +376,7 @@ Responde em português de Portugal.`,
               <ArrowLeft className="w-5 h-5" />
             </button>
             <div>
-              <h1 className="text-xl font-bold text-foreground">Reuniões IA</h1>
+              <h1 className="text-xl font-bold text-foreground">{t("meeting.title")}</h1>
               <p className="text-xs text-muted-foreground">Groq · Whisper + Llama 3.3</p>
             </div>
           </div>
@@ -390,11 +393,11 @@ Responde em português de Portugal.`,
           <div className="flex bg-white rounded-2xl p-1.5 border border-border shadow-sm gap-1">
             <button onClick={() => setActiveSection("record")}
               className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition-all ${activeSection === "record" ? "bg-[#E87A5A] text-white shadow-md" : "text-muted-foreground hover:text-foreground"}`}>
-              <Mic className="w-4 h-4" /> Gravar
+              <Mic className="w-4 h-4" /> {t("meeting.tab_record")}
             </button>
             <button onClick={() => setActiveSection("recordings")}
               className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition-all ${activeSection === "recordings" ? "bg-[#E87A5A] text-white shadow-md" : "text-muted-foreground hover:text-foreground"}`}>
-              <FileText className="w-4 h-4" /> Gravações
+              <FileText className="w-4 h-4" /> {t("meeting.tab_recordings")}
               {recordings.length > 0 && <span className="bg-white/20 rounded-full px-1.5 text-xs">{recordings.length}</span>}
             </button>
           </div>
@@ -423,12 +426,12 @@ Responde em português de Portugal.`,
                         ))}
                       </div>
                       <span className="text-foreground text-sm font-mono font-bold">{formatTime(elapsed)}</span>
-                      <p className="text-xs text-muted-foreground">Toca para parar e analisar</p>
+                      <p className="text-xs text-muted-foreground">{t("meeting.tap_stop")}</p>
                     </motion.div>
                   ) : (
                     <div className="text-center">
-                      <p className="text-sm font-semibold text-foreground">Toca para gravar</p>
-                      <p className="text-xs text-muted-foreground mt-1">ou usa o 📎 para carregar ficheiro (áudio ou vídeo)</p>
+                      <p className="text-sm font-semibold text-foreground">{t("meeting.tap_record")}</p>
+                      <p className="text-xs text-muted-foreground mt-1">{t("meeting.tap_upload")}</p>
                     </div>
                   )}
                 </div>
@@ -439,8 +442,8 @@ Responde em português de Portugal.`,
                   <div className="w-20 h-20 rounded-[28px] bg-[#E87A5A]/10 flex items-center justify-center">
                     <Loader2 className="w-10 h-10 text-[#E87A5A] animate-spin" />
                   </div>
-                  <p className="text-sm font-semibold text-foreground">A analisar com IA...</p>
-                  <p className="text-xs text-muted-foreground">{processingStep || "A extrair ações, prazos e mapa mental"}</p>
+                  <p className="text-sm font-semibold text-foreground">{t("meeting.analyzing")}</p>
+                  <p className="text-xs text-muted-foreground">{processingStep || t("meeting.analyzing_sub")}</p>
                 </div>
               )}
 
@@ -448,7 +451,7 @@ Responde em português de Portugal.`,
                 <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-3 pt-2">
                   <div className="flex items-center justify-between mb-1">
                     <h2 className="text-base font-black text-foreground flex items-center gap-2">
-                      <Sparkles className="w-4 h-4 text-[#E87A5A]" /> Análise Completa
+                      <Sparkles className="w-4 h-4 text-[#E87A5A]" /> {t("meeting.complete")}
                     </h2>
                     <button onClick={() => setResult(null)}
                       className="w-8 h-8 rounded-xl bg-secondary flex items-center justify-center text-muted-foreground hover:text-rose-500 transition-all">
@@ -458,7 +461,7 @@ Responde em português de Portugal.`,
 
                   {/* Summary */}
                   <div className="bg-white rounded-2xl p-4 border border-border shadow-sm">
-                    <p className="text-[11px] font-bold text-[#E87A5A] uppercase tracking-wide mb-2">Resumo</p>
+                    <p className="text-[11px] font-bold text-[#E87A5A] uppercase tracking-wide mb-2">{t("meeting.summary")}</p>
                     <p className="text-sm text-foreground leading-relaxed">{result.summary}</p>
                   </div>
 
@@ -466,8 +469,8 @@ Responde em português de Portugal.`,
                   {result.action_items?.length > 0 && (
                     <div className="bg-white rounded-2xl p-4 border border-border shadow-sm">
                       <p className="text-[11px] font-bold text-foreground uppercase tracking-wide mb-3 flex items-center gap-1.5">
-                        <SquareCheckBig className="w-3.5 h-3.5 text-emerald-500" /> Ações
-                        <span className="text-[10px] text-muted-foreground font-normal normal-case ml-1">· toca + para criar tarefa</span>
+                        <SquareCheckBig className="w-3.5 h-3.5 text-emerald-500" /> {t("meeting.actions")}
+                        <span className="text-[10px] text-muted-foreground font-normal normal-case ml-1">{t("meeting.actions_hint")}</span>
                       </p>
                       <div className="space-y-2">
                         {result.action_items.map((item, i) => (
@@ -490,8 +493,8 @@ Responde em português de Portugal.`,
                   {result.deadlines?.length > 0 && (
                     <div className="bg-white rounded-2xl p-4 border border-border shadow-sm">
                       <p className="text-[11px] font-bold text-foreground uppercase tracking-wide mb-3 flex items-center gap-1.5">
-                        <Clock className="w-3.5 h-3.5 text-amber-500" /> Prazos Mencionados
-                        <span className="text-[10px] text-muted-foreground font-normal normal-case ml-1">· toca + para criar prazo (7 dias)</span>
+                        <Clock className="w-3.5 h-3.5 text-amber-500" /> {t("meeting.deadlines")}
+                        <span className="text-[10px] text-muted-foreground font-normal normal-case ml-1">{t("meeting.deadlines_hint")}</span>
                       </p>
                       <div className="space-y-2">
                         {result.deadlines.map((d, i) => (
@@ -511,7 +514,7 @@ Responde em português de Portugal.`,
                   {result.mind_map?.label && (
                     <div className="bg-white rounded-2xl p-4 border border-border shadow-sm">
                       <p className="text-[11px] font-bold text-foreground uppercase tracking-wide mb-3 flex items-center gap-1.5">
-                        <Brain className="w-3.5 h-3.5 text-[#E87A5A]" /> Mapa Mental
+                        <Brain className="w-3.5 h-3.5 text-[#E87A5A]" /> {t("meeting.mind_map")}
                       </p>
                       <div className="overflow-auto">
                         <MindMapNode node={result.mind_map} />
@@ -521,19 +524,19 @@ Responde em português de Portugal.`,
 
                   {/* Save */}
                   <div className="bg-white rounded-2xl p-4 border border-[#E87A5A]/20 shadow-sm">
-                    <p className="text-[11px] font-bold text-[#E87A5A] uppercase tracking-wide mb-3">Guardar Gravação</p>
+                    <p className="text-[11px] font-bold text-[#E87A5A] uppercase tracking-wide mb-3">{t("meeting.save")}</p>
                     <input value={savingTitle} onChange={(e) => setSavingTitle(e.target.value)}
                       placeholder="Título da reunião..."
                       className="w-full px-3 py-2.5 rounded-xl bg-secondary/60 text-sm font-medium outline-none focus:bg-white transition-all mb-3" />
                     <button onClick={saveRecording}
                       className="w-full py-3 rounded-2xl bg-[#E87A5A] text-white text-sm font-bold hover:bg-[#D4694A] shadow-lg shadow-[#E87A5A]/25 transition-all flex items-center justify-center gap-2">
-                      <FileText className="w-4 h-4" /> Guardar + Gerar PDF
+                      <FileText className="w-4 h-4" /> {t("meeting.save_pdf")}
                     </button>
                   </div>
 
                   <button onClick={() => setResult(null)}
                     className="w-full py-3 rounded-2xl bg-secondary text-muted-foreground text-sm font-medium hover:bg-border transition-all flex items-center justify-center gap-2">
-                    <X className="w-4 h-4" /> Descartar
+                    <X className="w-4 h-4" /> {t("meeting.discard")}
                   </button>
                 </motion.div>
               )}
@@ -545,8 +548,8 @@ Responde em português de Portugal.`,
               {recordings.length === 0 ? (
                 <div className="text-center py-20">
                   <FileText className="w-12 h-12 mx-auto mb-3 text-muted-foreground/20" />
-                  <p className="text-muted-foreground text-sm font-medium">Sem gravações guardadas</p>
-                  <p className="text-muted-foreground/50 text-xs mt-1">Grava uma reunião para começar</p>
+                  <p className="text-muted-foreground text-sm font-medium">{t("meeting.no_recordings")}</p>
+                  <p className="text-muted-foreground/50 text-xs mt-1">{t("meeting.no_recordings_sub")}</p>
                 </div>
               ) : (
                 recordings.map((rec) => <RecordingCard key={rec.id} rec={rec} events={events} onDelete={deleteRecording} />)

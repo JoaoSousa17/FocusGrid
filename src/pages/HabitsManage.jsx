@@ -5,6 +5,7 @@ import { ArrowDown, ArrowUp, Plus, X, Save, Palette, Sparkles, Send, Trash2, Bot
 import { Habit } from "@/api/entities";
 import { InvokeLLM } from "@/api/integrations";
 import { useEdgeSwipeNav } from "@/hooks/useEdgeSwipeNav";
+import { useLang } from "@/context/LangContext";
 
 const PRESET_COLORS = [
 { key: "blue", hex: "#3B82F6", label: "Azul" }, { key: "purple", hex: "#8B5CF6", label: "Roxo" },
@@ -22,6 +23,7 @@ function getNextColor(usedColors) {
 
 export default function HabitsManage() {
   const navigate = useNavigate();
+  const { t } = useLang();
   const [habits, setHabits] = useState([]);
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState({ name: "", description: "", score: 10, color: "blue", goal_type: "boolean", goal_target: 1, goal_unit: "", goal_direction: "at_least" });
@@ -141,8 +143,8 @@ Máximo 5 hábitos. Sê criativo e útil. Usa português de Portugal.`,
             <ArrowDown data-source-location="pages/HabitsManage:151:12" data-dynamic-content="false" className="w-5 h-5" />
           </button>
           <div data-source-location="pages/HabitsManage:153:10" data-dynamic-content="false" className="flex-1">
-            <h1 data-source-location="pages/HabitsManage:154:12" data-dynamic-content="false" className="text-xl font-bold text-foreground">Gerir Hábitos</h1>
-            <p data-source-location="pages/HabitsManage:155:12" data-dynamic-content="false" className="text-[10px] text-muted-foreground flex items-center gap-1">Swipe para cima <ArrowUp data-source-location="pages/HabitsManage:155:99" data-dynamic-content="false" className="w-3 h-3" /> voltar</p>
+            <h1 data-source-location="pages/HabitsManage:154:12" data-dynamic-content="false" className="text-xl font-bold text-foreground">{t("habits.manage_title")}</h1>
+            <p data-source-location="pages/HabitsManage:155:12" data-dynamic-content="false" className="text-[10px] text-muted-foreground flex items-center gap-1">{t("habits.manage_sub")} <ArrowUp data-source-location="pages/HabitsManage:155:99" data-dynamic-content="false" className="w-3 h-3" /></p>
           </div>
           <button data-source-location="pages/HabitsManage:157:10" data-dynamic-content="true" onClick={() => setShowAI(true)} className="px-4 py-2.5 rounded-2xl bg-gradient-to-r from-purple-500 to-indigo-500 text-white text-xs font-semibold flex items-center gap-1.5 shadow-md hover:shadow-lg transition-all">
             <Bot data-source-location="pages/HabitsManage:158:12" data-dynamic-content="false" className="w-4 h-4" /> IA
@@ -161,13 +163,13 @@ Máximo 5 hábitos. Sê criativo e útil. Usa português de Portugal.`,
               style={{ backgroundColor: `${PRESET_COLORS.find((c) => c.key === form.color)?.hex || "#E87A5A"}20` }}>
                 <Plus data-source-location="pages/HabitsManage:172:16" data-dynamic-content="true" className="w-5 h-5" style={{ color: PRESET_COLORS.find((c) => c.key === form.color)?.hex || "#E87A5A" }} />
               </div>
-              <h2 data-source-location="pages/HabitsManage:174:14" data-dynamic-content="true" className="text-sm font-bold text-foreground">{editingId ? "Editar hábito" : "Novo hábito"}</h2>
+              <h2 data-source-location="pages/HabitsManage:174:14" data-dynamic-content="true" className="text-sm font-bold text-foreground">{editingId ? t("habits.edit_habit") : t("habits.new_habit")}</h2>
             </div>
 
             <div data-source-location="pages/HabitsManage:177:12" data-dynamic-content="true" className="p-5 space-y-4">
               {/* Name input */}
               <div data-source-location="pages/HabitsManage:179:14" data-dynamic-content="true">
-                <label data-source-location="pages/HabitsManage:180:16" data-dynamic-content="false" className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Nome</label>
+                <label data-source-location="pages/HabitsManage:180:16" data-dynamic-content="false" className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">{t("habits.habit_name")}</label>
                 <input data-source-location="pages/HabitsManage:181:16" data-dynamic-content="true"
                 value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}
                 placeholder="Ex: Meditar 10 minutos"
@@ -176,7 +178,7 @@ Máximo 5 hábitos. Sê criativo e útil. Usa português de Portugal.`,
 
               {/* Description input */}
               <div data-source-location="pages/HabitsManage:188:14" data-dynamic-content="true">
-                <label data-source-location="pages/HabitsManage:189:16" data-dynamic-content="false" className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Descrição <span data-source-location="pages/HabitsManage:189:117" data-dynamic-content="false" className="normal-case font-normal">(opcional)</span></label>
+                <label data-source-location="pages/HabitsManage:189:16" data-dynamic-content="false" className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">{t("habits.habit_desc")} <span data-source-location="pages/HabitsManage:189:117" data-dynamic-content="false" className="normal-case font-normal">(optional)</span></label>
                 <input data-source-location="pages/HabitsManage:190:16" data-dynamic-content="true"
                 value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })}
                 placeholder="Adiciona uma nota..."
@@ -187,7 +189,7 @@ Máximo 5 hábitos. Sê criativo e útil. Usa português de Portugal.`,
               <div data-source-location="pages/HabitsManage:197:14" data-dynamic-content="true" className="flex gap-4 items-start">
                 {/* Score */}
                 <div data-source-location="pages/HabitsManage:199:16" data-dynamic-content="true" className="flex-1">
-                  <label data-source-location="pages/HabitsManage:200:18" data-dynamic-content="false" className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Pontuação</label>
+                  <label data-source-location="pages/HabitsManage:200:18" data-dynamic-content="false" className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">{t("habits.habit_score")}</label>
                   <div data-source-location="pages/HabitsManage:201:18" data-dynamic-content="true" className="mt-1.5 bg-secondary/50 rounded-2xl px-4 py-3 flex items-center gap-3">
                     <input data-source-location="pages/HabitsManage:202:20" data-dynamic-content="true" type="range" min={1} max={50} value={form.score}
                     onChange={(e) => setForm({ ...form, score: Number(e.target.value) })}
@@ -201,7 +203,7 @@ Máximo 5 hábitos. Sê criativo e útil. Usa português de Portugal.`,
 
                 {/* Color picker */}
                 <div data-source-location="pages/HabitsManage:213:16" data-dynamic-content="true" className="relative">
-                  <label data-source-location="pages/HabitsManage:214:18" data-dynamic-content="false" className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Cor</label>
+                  <label data-source-location="pages/HabitsManage:214:18" data-dynamic-content="false" className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">{t("habits.habit_color")}</label>
                   <button data-source-location="pages/HabitsManage:215:18" data-dynamic-content="true"
                   onClick={() => setShowColorPicker(!showColorPicker)}
                   className="mt-1.5 w-[52px] h-[52px] rounded-2xl border-4 border-white shadow-md transition-all hover:scale-105 active:scale-95"
@@ -229,15 +231,15 @@ Máximo 5 hábitos. Sê criativo e útil. Usa português de Portugal.`,
 
               {/* Goal type */}
               <div>
-                <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Tipo de meta</label>
+                <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">{t("habits.habit_goal_type")}</label>
                 <div className="mt-1.5 flex gap-2">
                   <button type="button" onClick={() => setForm({ ...form, goal_type: "boolean" })}
                   className={`flex-1 py-2.5 rounded-xl text-xs font-semibold transition-all ${form.goal_type === "boolean" ? "bg-[#E87A5A] text-white" : "bg-secondary/50 text-muted-foreground hover:bg-secondary"}`}>
-                    Sim / Não
+                    {t("habits.habit_goal_bool")}
                   </button>
                   <button type="button" onClick={() => setForm({ ...form, goal_type: "numeric" })}
                   className={`flex-1 py-2.5 rounded-xl text-xs font-semibold transition-all ${form.goal_type === "numeric" ? "bg-[#E87A5A] text-white" : "bg-secondary/50 text-muted-foreground hover:bg-secondary"}`}>
-                    Numérico (%)
+                    {t("habits.habit_goal_num")}
                   </button>
                 </div>
               </div>
@@ -246,28 +248,28 @@ Máximo 5 hábitos. Sê criativo e útil. Usa português de Portugal.`,
               <div className="bg-secondary/30 rounded-2xl p-3.5 space-y-3">
                 <div className="flex gap-3">
                   <div className="flex-1">
-                    <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Meta</label>
+                    <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">{t("habits.habit_goal")}</label>
                     <input type="number" min={0} step="any" value={form.goal_target}
                     onChange={(e) => setForm({ ...form, goal_target: Number(e.target.value) })}
                     className="mt-1 w-full px-3 py-2 rounded-xl bg-white border border-border text-sm outline-none focus:border-[#E87A5A]/40 transition-all" />
                   </div>
                   <div className="flex-1">
-                    <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Unidade</label>
+                    <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">{t("habits.habit_unit")}</label>
                     <input value={form.goal_unit} onChange={(e) => setForm({ ...form, goal_unit: e.target.value })}
                     placeholder="ex: L, cigarros, min"
                     className="mt-1 w-full px-3 py-2 rounded-xl bg-white border border-border text-sm outline-none focus:border-[#E87A5A]/40 transition-all" />
                   </div>
                 </div>
                 <div>
-                  <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Direção</label>
+                  <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">{t("habits.habit_direction")}</label>
                   <div className="mt-1 flex gap-2">
                     <button type="button" onClick={() => setForm({ ...form, goal_direction: "at_least" })}
                     className={`flex-1 py-2 rounded-xl text-[11px] font-medium transition-all ${form.goal_direction === "at_least" ? "bg-emerald-500 text-white" : "bg-white text-muted-foreground border border-border"}`}>
-                      Atingir pelo menos
+                      {t("habits.at_least_label")}
                     </button>
                     <button type="button" onClick={() => setForm({ ...form, goal_direction: "at_most" })}
                     className={`flex-1 py-2 rounded-xl text-[11px] font-medium transition-all ${form.goal_direction === "at_most" ? "bg-rose-500 text-white" : "bg-white text-muted-foreground border border-border"}`}>
-                      Não ultrapassar
+                      {t("habits.at_most_label")}
                     </button>
                   </div>
                   <p className="text-[9px] text-muted-foreground mt-1.5">
@@ -290,7 +292,7 @@ Máximo 5 hábitos. Sê criativo e útil. Usa português de Portugal.`,
                 <button data-source-location="pages/HabitsManage:248:16" data-dynamic-content="true" onClick={saveHabit} disabled={!form.name.trim()}
                 className="flex-1 py-3 rounded-2xl text-white text-sm font-bold shadow-lg transition-all hover:opacity-90 active:scale-[0.98] disabled:opacity-40 flex items-center justify-center gap-2"
                 style={{ backgroundColor: PRESET_COLORS.find((c) => c.key === form.color)?.hex || "#E87A5A" }}>
-                  {editingId ? <><Save data-source-location="pages/HabitsManage:251:33" data-dynamic-content="false" className="w-4 h-4" /> Guardar</> : <><Plus data-source-location="pages/HabitsManage:251:77" data-dynamic-content="false" className="w-4 h-4" /> Adicionar</>}
+                  {editingId ? <><Save data-source-location="pages/HabitsManage:251:33" data-dynamic-content="false" className="w-4 h-4" /> {t("save")}</> : <><Plus data-source-location="pages/HabitsManage:251:77" data-dynamic-content="false" className="w-4 h-4" /> {t("add")}</>}
                 </button>
               </div>
             </div>
@@ -346,8 +348,8 @@ Máximo 5 hábitos. Sê criativo e útil. Usa português de Portugal.`,
                   <Bot data-source-location="pages/HabitsManage:302:18" data-dynamic-content="false" className="w-5 h-5 text-white" />
                 </div>
                 <div data-source-location="pages/HabitsManage:304:16" data-dynamic-content="false">
-                  <h3 data-source-location="pages/HabitsManage:305:18" data-dynamic-content="false" className="font-bold text-foreground">Sugestões IA</h3>
-                  <p data-source-location="pages/HabitsManage:306:18" data-dynamic-content="false" className="text-[10px] text-muted-foreground">Hábitos e pontuações personalizadas</p>
+                  <h3 data-source-location="pages/HabitsManage:305:18" data-dynamic-content="false" className="font-bold text-foreground">{t("habits.ai_title")}</h3>
+                  <p data-source-location="pages/HabitsManage:306:18" data-dynamic-content="false" className="text-[10px] text-muted-foreground">{t("habits.ai_sub")}</p>
                 </div>
               </div>
 
@@ -355,7 +357,7 @@ Máximo 5 hábitos. Sê criativo e útil. Usa português de Portugal.`,
                 <input data-source-location="pages/HabitsManage:311:16" data-dynamic-content="true"
               value={aiPrompt} onChange={(e) => setAiPrompt(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleAISuggest()}
-              placeholder="Ex: quero dormir melhor e fazer mais exercício..."
+              placeholder={t("habits.ai_placeholder")}
               className="flex-1 px-3 py-2.5 rounded-xl border border-border text-sm outline-none focus:border-purple-400 transition-all" />
                 <button data-source-location="pages/HabitsManage:316:16" data-dynamic-content="true" onClick={handleAISuggest} disabled={aiLoading || !aiPrompt.trim()}
               className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-purple-500 to-indigo-500 text-white disabled:opacity-50 transition-all">
@@ -367,7 +369,7 @@ Máximo 5 hábitos. Sê criativo e útil. Usa português de Portugal.`,
 
               {aiResponse && aiResponse.length > 0 &&
             <div data-source-location="pages/HabitsManage:325:16" data-dynamic-content="true" className="space-y-2">
-                  <p data-source-location="pages/HabitsManage:326:18" data-dynamic-content="false" className="text-xs text-muted-foreground">Clique para adicionar:</p>
+                  <p data-source-location="pages/HabitsManage:326:18" data-dynamic-content="false" className="text-xs text-muted-foreground">{t("habits.ai_click_add")}</p>
                   {aiResponse.map((h, i) => {
                 const colorHex = PRESET_COLORS.find((c) => c.key === h.color)?.hex || "#3B82F6";
                 return (
@@ -386,7 +388,7 @@ Máximo 5 hábitos. Sê criativo e útil. Usa português de Portugal.`,
             }
 
               <button data-source-location="pages/HabitsManage:344:14" data-dynamic-content="true" onClick={() => setShowAI(false)} className="w-full mt-4 py-2.5 rounded-xl bg-secondary text-sm font-medium hover:bg-border transition-all">
-                Fechar
+                {t("close")}
               </button>
             </motion.div>
           </motion.div>

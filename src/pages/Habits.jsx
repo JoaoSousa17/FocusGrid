@@ -7,6 +7,7 @@ import { Habit, HabitEntry } from "@/api/entities";
 import { format, startOfWeek, isToday as isTodayFn } from "date-fns";
 import { pt } from "date-fns/locale";
 import { useEdgeSwipeNav } from "@/hooks/useEdgeSwipeNav";
+import { useLang } from "@/context/LangContext";
 
 const PRESET_COLORS = [
 { key: "blue", hex: "#3B82F6" }, { key: "purple", hex: "#8B5CF6" },
@@ -19,6 +20,7 @@ const PRESET_COLORS = [
 
 export default function Habits() {
   const navigate = useNavigate();
+  const { t } = useLang();
   const [habits, setHabits] = useState([]);
   const [entries, setEntries] = useState([]);
   const { swipeHandlers, dragStyle } = useEdgeSwipeNav({ left: "/habits/analytics", right: "/", down: "/habits/manage", up: "/habits/rewards" });
@@ -109,7 +111,7 @@ export default function Habits() {
               <button data-source-location="pages/Habits:103:14" data-dynamic-content="true" onClick={() => navigate("/")} className="w-10 h-10 rounded-2xl bg-white border border-border flex items-center justify-center text-muted-foreground hover:text-foreground transition-all">
                 <ArrowLeft data-source-location="pages/Habits:104:16" data-dynamic-content="false" className="w-5 h-5" />
               </button>
-              <h1 data-source-location="pages/Habits:106:14" data-dynamic-content="false" className="text-xl font-bold text-foreground">Hábitos</h1>
+              <h1 data-source-location="pages/Habits:106:14" data-dynamic-content="false" className="text-xl font-bold text-foreground">{t("habits.title")}</h1>
             </div>
             <motion.div data-source-location="pages/Habits:108:12" data-dynamic-content="true"
             key={todayScore}
@@ -119,7 +121,7 @@ export default function Habits() {
               
               <Trophy data-source-location="pages/Habits:114:14" data-dynamic-content="false" className="w-5 h-5 text-amber-500" />
               <div data-source-location="pages/Habits:115:14" data-dynamic-content="true">
-                <p data-source-location="pages/Habits:116:16" data-dynamic-content="false" className="text-[10px] text-amber-600 font-medium">Hoje</p>
+                <p data-source-location="pages/Habits:116:16" data-dynamic-content="false" className="text-[10px] text-amber-600 font-medium">{t("habits.today")}</p>
                 <p data-source-location="pages/Habits:117:16" data-dynamic-content="true" className="text-lg font-bold text-amber-700" data-collection-item-field="todayScore">{todayScore} pts</p>
               </div>
             </motion.div>
@@ -128,13 +130,13 @@ export default function Habits() {
           {/* Navigation arrows */}
           <div data-source-location="pages/Habits:123:10" data-dynamic-content="false" className="flex justify-between items-center px-2">
             <span data-source-location="pages/Habits:124:12" data-dynamic-content="false" className="text-[10px] text-muted-foreground/50 flex items-center gap-1">
-              <ArrowUp data-source-location="pages/Habits:125:14" data-dynamic-content="false" className="w-3 h-3" /> Conquistas
+              <ArrowUp data-source-location="pages/Habits:125:14" data-dynamic-content="false" className="w-3 h-3" /> {t("habits.rewards")}
             </span>
             <span data-source-location="pages/Habits:127:12" data-dynamic-content="false" className="text-[10px] text-muted-foreground/50 flex items-center gap-1">
-              <ArrowDown data-source-location="pages/Habits:128:14" data-dynamic-content="false" className="w-3 h-3" /> Gerir
+              <ArrowDown data-source-location="pages/Habits:128:14" data-dynamic-content="false" className="w-3 h-3" /> {t("habits.manage")}
             </span>
             <span data-source-location="pages/Habits:130:12" data-dynamic-content="false" className="text-[10px] text-muted-foreground/50 flex items-center gap-1">
-              <ArrowLeft data-source-location="pages/Habits:131:14" data-dynamic-content="false" className="w-3 h-3" /> Analytics
+              <ArrowLeft data-source-location="pages/Habits:131:14" data-dynamic-content="false" className="w-3 h-3" /> {t("habits.analytics")}
             </span>
             <span data-source-location="pages/Habits:133:12" data-dynamic-content="false" className="text-[10px] text-muted-foreground/50 flex items-center gap-1">
               Home <ArrowRight data-source-location="pages/Habits:134:19" data-dynamic-content="false" className="w-3 h-3" />
@@ -147,15 +149,15 @@ export default function Habits() {
           {pendingHabits.length === 0 && doneHabits.length === 0 &&
           <div data-source-location="pages/Habits:142:12" data-dynamic-content="false" className="text-center py-16 text-muted-foreground text-sm">
               <Sparkles data-source-location="pages/Habits:143:14" data-dynamic-content="false" className="w-8 h-8 mx-auto mb-2 opacity-30" />
-              <p data-source-location="pages/Habits:144:14" data-dynamic-content="false">Sem hábitos ainda</p>
-              <p data-source-location="pages/Habits:145:14" data-dynamic-content="false" className="text-[10px] mt-1">Swipe baixo para gerir</p>
+              <p data-source-location="pages/Habits:144:14" data-dynamic-content="false">{t("habits.empty")}</p>
+              <p data-source-location="pages/Habits:145:14" data-dynamic-content="false" className="text-[10px] mt-1">{t("habits.empty_sub")}</p>
             </div>
           }
 
           {pendingHabits.length === 0 && doneHabits.length > 0 &&
           <div data-source-location="pages/Habits:150:12" data-dynamic-content="false" className="text-center py-6 text-muted-foreground text-sm mb-4">
               <Sparkles data-source-location="pages/Habits:151:14" data-dynamic-content="false" className="w-8 h-8 mx-auto mb-2 text-[#E87A5A] opacity-60" />
-              <p data-source-location="pages/Habits:152:14" data-dynamic-content="false" className="font-semibold text-foreground">Tudo feito hoje! 🎉</p>
+              <p data-source-location="pages/Habits:152:14" data-dynamic-content="false" className="font-semibold text-foreground">{t("habits.all_done")}</p>
             </div>
           }
 
@@ -181,20 +183,20 @@ export default function Habits() {
           onClick={(e) => e.stopPropagation()}>
             <h3 className="font-bold text-foreground mb-1">{numericPopup.name}</h3>
             <p className="text-xs text-muted-foreground mb-4">
-              Meta: {numericPopup.goal_direction === "at_most" ? "não ultrapassar " : "pelo menos "}
+              {t("habits.goal_target_label")} {numericPopup.goal_direction === "at_most" ? t("habits.goal_at_most") : t("habits.goal_at_least")}{" "}
               {numericPopup.goal_target}{numericPopup.goal_unit ? ` ${numericPopup.goal_unit}` : ""}
             </p>
             <div className="flex gap-2 items-center">
               <input autoFocus type="number" min={0} step="any" value={numericValue}
               onChange={(e) => setNumericValue(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && confirmNumericHabit()}
-              placeholder="Quanto fizeste hoje?"
+              placeholder={t("habits.numeric_placeholder")}
               className="flex-1 px-3 py-2.5 rounded-xl border border-border text-sm outline-none focus:border-[#E87A5A]/50 transition-all" />
               {numericPopup.goal_unit && <span className="text-xs text-muted-foreground">{numericPopup.goal_unit}</span>}
             </div>
             <div className="flex gap-2 mt-4">
-              <button onClick={() => setNumericPopup(null)} className="flex-1 py-2.5 rounded-xl bg-secondary text-sm font-medium text-muted-foreground hover:bg-border transition-all">Cancelar</button>
-              <button onClick={confirmNumericHabit} disabled={numericValue === ""} className="flex-1 py-2.5 rounded-xl bg-[#E87A5A] text-white text-sm font-medium hover:bg-[#D4694A] disabled:opacity-40 transition-all">Registar</button>
+              <button onClick={() => setNumericPopup(null)} className="flex-1 py-2.5 rounded-xl bg-secondary text-sm font-medium text-muted-foreground hover:bg-border transition-all">{t("cancel")}</button>
+              <button onClick={confirmNumericHabit} disabled={numericValue === ""} className="flex-1 py-2.5 rounded-xl bg-[#E87A5A] text-white text-sm font-medium hover:bg-[#D4694A] disabled:opacity-40 transition-all">{t("habits.log_btn")}</button>
             </div>
           </motion.div>
         </motion.div>

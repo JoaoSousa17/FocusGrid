@@ -10,6 +10,7 @@ import { Core } from "@/api/integrations";
 import { format, differenceInDays, differenceInMinutes, isPast, isToday, addDays, addWeeks, addMonths, addYears } from "date-fns";
 import { pt } from "date-fns/locale";
 import { useEdgeSwipeNav } from "@/hooks/useEdgeSwipeNav";
+import { useLang } from "@/context/LangContext";
 
 const PRESET_COLORS = [
   { key: "blue", hex: "#3B82F6" }, { key: "purple", hex: "#8B5CF6" },
@@ -19,23 +20,23 @@ const PRESET_COLORS = [
   { key: "orange", hex: "#F97316" }, { key: "lime", hex: "#84CC16" },
 ];
 
-const RECURRENCE_OPTIONS = [
-  { key: "none", label: "Sem repetição" },
-  { key: "daily", label: "Diariamente" },
-  { key: "weekly", label: "Semanalmente" },
-  { key: "monthly", label: "Mensalmente" },
-  { key: "yearly", label: "Anualmente" },
+const RECURRENCE_KEYS = ["none", "daily", "weekly", "monthly", "yearly"];
+const NOTIFY_OPTIONS_DATA = [
+  { value: 0, tKey: "deadlines.notify.on_time" },
+  { value: 1, tKey: "deadlines.notify.1h" },
+  { value: 6, tKey: "deadlines.notify.6h" },
+  { value: 24, tKey: "deadlines.notify.1d" },
+  { value: 48, tKey: "deadlines.notify.2d" },
+  { value: 72, tKey: "deadlines.notify.3d" },
+  { value: 168, tKey: "deadlines.notify.1w" },
 ];
 
-const NOTIFY_OPTIONS = [
-  { value: 0, label: "Na hora" },
-  { value: 1, label: "1 hora antes" },
-  { value: 6, label: "6 horas antes" },
-  { value: 24, label: "1 dia antes" },
-  { value: 48, label: "2 dias antes" },
-  { value: 72, label: "3 dias antes" },
-  { value: 168, label: "1 semana antes" },
-];
+function useDeadlineT() {
+  const { t } = useLang();
+  const RECURRENCE_OPTIONS = RECURRENCE_KEYS.map((k) => ({ key: k, label: t(`deadlines.rec.${k}`) }));
+  const NOTIFY_OPTIONS = NOTIFY_OPTIONS_DATA.map((o) => ({ ...o, label: t(o.tKey) }));
+  return { t, RECURRENCE_OPTIONS, NOTIFY_OPTIONS };
+}
 
 // Given a stored deadline date and recurrence type, compute the next occurrence >= now.
 // For 'none', returns the original date unchanged.
@@ -62,15 +63,15 @@ function resolveDeadline(dl) {
   return { ...dl, _resolved_date: nextDate.toISOString() };
 }
 
-function urgencyInfo(dateStr) {
+function urgencyInfo(dateStr, t) {
   const d = new Date(dateStr);
-  if (isPast(d) && !isToday(d)) return { label: "Expirado", color: "#9CA3AF" };
+  if (isPast(d) && !isToday(d)) return { label: t ? t("deadlines.urgency.expired") : "Expired", color: "#9CA3AF" };
   const days = differenceInDays(d, new Date());
-  if (days === 0) return { label: "Hoje!", color: "#EF4444" };
-  if (days === 1) return { label: "Amanhã", color: "#F97316" };
-  if (days <= 3) return { label: `${days} dias`, color: "#F59E0B" };
-  if (days <= 7) return { label: `${days} dias`, color: "#10B981" };
-  return { label: `${days} dias`, color: "#6B7280" };
+  if (days === 0) return { label: t ? t("deadlines.urgency.today") : "Today!", color: "#EF4444" };
+  if (days === 1) return { label: t ? t("deadlines.urgency.tomorrow") : "Tomorrow", color: "#F97316" };
+  if (days <= 3) return { label: `${days} days`, color: "#F59E0B" };
+  if (days <= 7) return { label: `${days} days`, color: "#10B981" };
+  return { label: `${days} days`, color: "#6B7280" };
 }
 
 function formatDateTime(dateStr) {
@@ -95,17 +96,15 @@ function eventDuration(start, end) {
   return rem > 0 ? `${hours}h ${rem}min` : `${hours}h`;
 }
 
-function recurrenceLabel(key) {
-  return RECURRENCE_OPTIONS.find((o) => o.key === key)?.label || "";
-}
-
 function DeadlineCard({ item, onDelete, index }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const { t, RECURRENCE_OPTIONS, NOTIFY_OPTIONS } = useDeadlineT();
   const colorHex = PRESET_COLORS.find((c) => c.key === item.color)?.hex || item.color || "#E87A5A";
   const displayDate = item._resolved_date || item.deadline;
-  const urgency = urgencyInfo(displayDate);
+  const urgency = urgencyInfo(displayDate, t);
   const notifyLabel = NOTIFY_OPTIONS.find((o) => o.value === item.notify_before_hours)?.label;
   const isRecurring = item.recurrence && item.recurrence !== "none";
+  const recurrenceLabel = (key) => RECURRENCE_OPTIONS.find((o) => o.key === key)?.label || "";
 
   return (
     <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.05 }}
@@ -143,7 +142,7 @@ function DeadlineCard({ item, onDelete, index }) {
           </div>
           {isRecurring && item._resolved_date && item._resolved_date !== item.deadline && (
             <div className="flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-medium" style={{ backgroundColor: colorHex + "18", color: colorHex }}>
-              <Repeat className="w-3 h-3" /> próxima ocorrência
+              <Repeat className="w-3 h-3" /> {t("deadlines.next_occurrence")}
             </div>
           )}
           {notifyLabel && (
@@ -180,16 +179,16 @@ function DeadlineCard({ item, onDelete, index }) {
             <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}
               className="mt-3 overflow-hidden">
               <div className="bg-rose-50 border border-rose-100 rounded-2xl p-3">
-                <p className="text-xs font-semibold text-rose-700 mb-2">Cancelar prazo recorrente?</p>
-                <p className="text-[11px] text-rose-600 mb-3">Este prazo repete-se {recurrenceLabel(item.recurrence).toLowerCase()}. Cancelar irá eliminar todas as ocorrências futuras.</p>
+                <p className="text-xs font-semibold text-rose-700 mb-2">{t("deadlines.cancel_recurring")}</p>
+                <p className="text-[11px] text-rose-600 mb-3">{t("deadlines.cancel_recurring_body")}</p>
                 <div className="flex gap-2">
                   <button onClick={() => setConfirmDelete(false)}
                     className="flex-1 py-1.5 rounded-xl bg-white border border-border text-xs font-medium text-muted-foreground">
-                    Manter
+                    {t("deadlines.keep")}
                   </button>
                   <button onClick={() => { setConfirmDelete(false); onDelete(item.id); }}
                     className="flex-1 py-1.5 rounded-xl bg-rose-500 text-white text-xs font-semibold">
-                    Cancelar tudo
+                    {t("deadlines.cancel_all")}
                   </button>
                 </div>
               </div>
@@ -202,9 +201,10 @@ function DeadlineCard({ item, onDelete, index }) {
 }
 
 function EventCard({ item, onDelete, index }) {
+  const { t } = useDeadlineT();
   const colorHex = PRESET_COLORS.find((c) => c.key === item.color)?.hex || item.color || "#8B5CF6";
   const duration = eventDuration(item.start_datetime, item.end_datetime);
-  const startUrgency = urgencyInfo(item.start_datetime);
+  const startUrgency = urgencyInfo(item.start_datetime, t);
 
   return (
     <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.05 }}
@@ -265,6 +265,7 @@ function EventCard({ item, onDelete, index }) {
 }
 
 function AddDeadlineForm({ onSave, onCancel }) {
+  const { t, RECURRENCE_OPTIONS, NOTIFY_OPTIONS } = useDeadlineT();
   const [form, setForm] = useState({
     name: "", color: "orange", location: "", website: "",
     deadline: "", recurrence: "none", notify_before_hours: 24,
@@ -292,7 +293,7 @@ function AddDeadlineForm({ onSave, onCancel }) {
       <div className="h-1" style={{ background: colorHex }} />
       <div className="p-4 space-y-3">
         <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}
-          placeholder="Nome do prazo"
+          placeholder={t("deadlines.deadline_name")}
           className="w-full px-4 py-3 rounded-2xl bg-secondary/60 text-sm font-semibold outline-none focus:bg-white transition-all" />
 
         <div className="grid grid-cols-2 gap-2">
@@ -305,21 +306,21 @@ function AddDeadlineForm({ onSave, onCancel }) {
         </div>
 
         <div>
-          <label className="text-[11px] text-muted-foreground mb-1 block">Data e hora limite</label>
+          <label className="text-[11px] text-muted-foreground mb-1 block">{t("deadlines.deadline_time")}</label>
           <input type="datetime-local" value={form.deadline} onChange={(e) => setForm({ ...form, deadline: e.target.value })}
             className="w-full px-4 py-2.5 rounded-2xl bg-secondary/60 text-sm outline-none focus:bg-white transition-all" />
         </div>
 
         <div className="grid grid-cols-2 gap-2">
           <div>
-            <label className="text-[11px] text-muted-foreground mb-1 block flex items-center gap-1"><Repeat className="w-3 h-3" /> Repetição</label>
+            <label className="text-[11px] text-muted-foreground mb-1 block flex items-center gap-1"><Repeat className="w-3 h-3" /> {t("deadlines.recurrence")}</label>
             <select value={form.recurrence} onChange={(e) => setForm({ ...form, recurrence: e.target.value })}
               className="w-full px-3 py-2.5 rounded-2xl bg-secondary/60 text-sm outline-none focus:bg-white transition-all">
               {RECURRENCE_OPTIONS.map((o) => <option key={o.key} value={o.key}>{o.label}</option>)}
             </select>
           </div>
           <div>
-            <label className="text-[11px] text-muted-foreground mb-1 block flex items-center gap-1"><Bell className="w-3 h-3" /> Notificação</label>
+            <label className="text-[11px] text-muted-foreground mb-1 block flex items-center gap-1"><Bell className="w-3 h-3" /> {t("deadlines.notification")}</label>
             <select value={form.notify_before_hours} onChange={(e) => setForm({ ...form, notify_before_hours: Number(e.target.value) })}
               className="w-full px-3 py-2.5 rounded-2xl bg-secondary/60 text-sm outline-none focus:bg-white transition-all">
               {NOTIFY_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
@@ -329,7 +330,7 @@ function AddDeadlineForm({ onSave, onCancel }) {
 
         {/* Attachment */}
         <div>
-          <label className="text-[11px] text-muted-foreground mb-1 block flex items-center gap-1"><Paperclip className="w-3 h-3" /> Anexo</label>
+          <label className="text-[11px] text-muted-foreground mb-1 block flex items-center gap-1"><Paperclip className="w-3 h-3" /> {t("deadlines.attachment")}</label>
           {form.attachment_url ? (
             <div className="flex items-center gap-2 px-3 py-2 rounded-2xl bg-secondary/60 text-sm">
               <Paperclip className="w-3.5 h-3.5 text-muted-foreground" />
@@ -341,14 +342,14 @@ function AddDeadlineForm({ onSave, onCancel }) {
             <button onClick={() => fileRef.current?.click()} disabled={uploading}
               className="w-full px-3 py-2.5 rounded-2xl bg-secondary/60 text-sm text-muted-foreground flex items-center gap-2 hover:bg-border transition-all disabled:opacity-50">
               {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Paperclip className="w-4 h-4" />}
-              {uploading ? "A carregar..." : "Anexar ficheiro"}
+              {uploading ? t("deadlines.uploading") : t("deadlines.attach_file")}
             </button>
           )}
           <input ref={fileRef} type="file" className="hidden" onChange={handleFile} />
         </div>
 
         <div>
-          <p className="text-[11px] text-muted-foreground mb-2">Cor</p>
+          <p className="text-[11px] text-muted-foreground mb-2">{t("deadlines.color")}</p>
           <div className="flex gap-2 flex-wrap">
             {PRESET_COLORS.map((c) => (
               <button key={c.key} onClick={() => setForm({ ...form, color: c.key })}
@@ -361,13 +362,13 @@ function AddDeadlineForm({ onSave, onCancel }) {
         <div className="flex gap-2 pt-1">
           <button onClick={onCancel}
             className="flex-1 py-2.5 rounded-2xl bg-secondary text-muted-foreground text-sm font-semibold hover:bg-border transition-all">
-            Cancelar
+            {t("cancel")}
           </button>
           <button onClick={() => form.name.trim() && form.deadline && onSave(form)}
             disabled={!form.name.trim() || !form.deadline}
             className="flex-1 py-2.5 rounded-2xl text-white text-sm font-bold transition-all hover:opacity-90 active:scale-[0.98] disabled:opacity-40 flex items-center justify-center gap-1.5"
             style={{ backgroundColor: colorHex }}>
-            <Check className="w-4 h-4" /> Adicionar
+            <Check className="w-4 h-4" /> {t("add")}
           </button>
         </div>
       </div>
@@ -376,6 +377,7 @@ function AddDeadlineForm({ onSave, onCancel }) {
 }
 
 function AddEventForm({ onSave, onCancel }) {
+  const { t } = useDeadlineT();
   const [form, setForm] = useState({
     name: "", color: "purple", location: "", website: "", description: "",
     start_datetime: "", end_datetime: ""
@@ -389,10 +391,10 @@ function AddEventForm({ onSave, onCancel }) {
       <div className="h-1" style={{ background: `linear-gradient(to right, ${colorHex}, ${colorHex}88)` }} />
       <div className="p-4 space-y-3">
         <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}
-          placeholder="Nome do evento"
+          placeholder={t("deadlines.event_name")}
           className="w-full px-4 py-3 rounded-2xl bg-secondary/60 text-sm font-semibold outline-none focus:bg-white transition-all" />
         <input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })}
-          placeholder="Descrição (opcional)"
+          placeholder={t("deadlines.description_opt")}
           className="w-full px-4 py-2.5 rounded-2xl bg-secondary/60 text-sm outline-none focus:bg-white transition-all" />
         <div className="grid grid-cols-2 gap-2">
           <input value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })}
@@ -404,23 +406,23 @@ function AddEventForm({ onSave, onCancel }) {
         </div>
         <div className="space-y-2">
           <div>
-            <label className="text-[11px] text-muted-foreground mb-1 block">▶ Início</label>
+            <label className="text-[11px] text-muted-foreground mb-1 block">▶ {t("deadlines.start")}</label>
             <input type="datetime-local" value={form.start_datetime} onChange={(e) => setForm({ ...form, start_datetime: e.target.value })}
               className="w-full px-4 py-2.5 rounded-2xl bg-secondary/60 text-sm outline-none focus:bg-white transition-all" />
           </div>
           <div>
-            <label className="text-[11px] text-muted-foreground mb-1 block">■ Fim</label>
+            <label className="text-[11px] text-muted-foreground mb-1 block">■ {t("deadlines.end")}</label>
             <input type="datetime-local" value={form.end_datetime} onChange={(e) => setForm({ ...form, end_datetime: e.target.value })}
               className="w-full px-4 py-2.5 rounded-2xl bg-secondary/60 text-sm outline-none focus:bg-white transition-all" />
           </div>
           {duration && (
             <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-white" style={{ backgroundColor: colorHex }}>
-              <Timer className="w-3.5 h-3.5" /> Duração: {duration}
+              <Timer className="w-3.5 h-3.5" /> {t("deadlines.duration")}: {duration}
             </div>
           )}
         </div>
         <div>
-          <p className="text-[11px] text-muted-foreground mb-2">Cor</p>
+          <p className="text-[11px] text-muted-foreground mb-2">{t("deadlines.color")}</p>
           <div className="flex gap-2 flex-wrap">
             {PRESET_COLORS.map((c) => (
               <button key={c.key} onClick={() => setForm({ ...form, color: c.key })}
@@ -432,13 +434,13 @@ function AddEventForm({ onSave, onCancel }) {
         <div className="flex gap-2 pt-1">
           <button onClick={onCancel}
             className="flex-1 py-2.5 rounded-2xl bg-secondary text-muted-foreground text-sm font-semibold hover:bg-border transition-all">
-            Cancelar
+            {t("cancel")}
           </button>
           <button onClick={() => form.name.trim() && form.start_datetime && form.end_datetime && onSave(form)}
             disabled={!form.name.trim() || !form.start_datetime || !form.end_datetime}
             className="flex-1 py-2.5 rounded-2xl text-white text-sm font-bold transition-all hover:opacity-90 active:scale-[0.98] disabled:opacity-40 flex items-center justify-center gap-1.5"
             style={{ backgroundColor: colorHex }}>
-            <Check className="w-4 h-4" /> Adicionar
+            <Check className="w-4 h-4" /> {t("add")}
           </button>
         </div>
       </div>
@@ -463,6 +465,7 @@ function scheduleNotification(deadline) {
 
 export default function Deadlines() {
   const navigate = useNavigate();
+  const { t } = useDeadlineT();
   const [deadlines, setDeadlines] = useState([]);
   const [events, setEvents] = useState([]);
   const [activeTab, setActiveTab] = useState("prazos");
@@ -539,11 +542,11 @@ export default function Deadlines() {
               <ArrowRight className="w-5 h-5" />
             </button>
             <div>
-              <h1 className="text-xl font-bold text-foreground">Controlo de Datas</h1>
+              <h1 className="text-xl font-bold text-foreground">{t("deadlines.title")}</h1>
               <p className="text-xs text-muted-foreground">
                 {activeTab === "prazos"
-                  ? `${upcomingDeadlines.length} prazo${upcomingDeadlines.length !== 1 ? "s" : ""}`
-                  : `${upcomingEvents.length} evento${upcomingEvents.length !== 1 ? "s" : ""}`}
+                  ? `${upcomingDeadlines.length} ${upcomingDeadlines.length !== 1 ? t("deadlines.count_deadlines") : t("deadlines.count_deadline")}`
+                  : `${upcomingEvents.length} ${upcomingEvents.length !== 1 ? t("deadlines.count_events") : t("deadlines.count_event")}`}
               </p>
             </div>
           </div>
@@ -558,11 +561,11 @@ export default function Deadlines() {
           <div className="flex bg-white rounded-2xl p-1.5 border border-border shadow-sm gap-1">
             <button onClick={() => { setActiveTab("prazos"); setShowForm(false); }}
               className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition-all ${activeTab === "prazos" ? "bg-[#E87A5A] text-white shadow-md" : "text-muted-foreground hover:text-foreground"}`}>
-              <CalendarClock className="w-4 h-4" /> Prazos
+              <CalendarClock className="w-4 h-4" /> {t("deadlines.tab_deadlines")}
             </button>
             <button onClick={() => { setActiveTab("eventos"); setShowForm(false); }}
               className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition-all ${activeTab === "eventos" ? "bg-[#8B5CF6] text-white shadow-md" : "text-muted-foreground hover:text-foreground"}`}>
-              <CalendarRange className="w-4 h-4" /> Eventos
+              <CalendarRange className="w-4 h-4" /> {t("deadlines.tab_events")}
             </button>
           </div>
         </div>
@@ -580,9 +583,9 @@ export default function Deadlines() {
                 ? <CalendarClock className="w-12 h-12 mx-auto mb-3 text-muted-foreground/20" />
                 : <CalendarRange className="w-12 h-12 mx-auto mb-3 text-muted-foreground/20" />}
               <p className="text-muted-foreground text-sm font-medium">
-                {activeTab === "prazos" ? "Sem prazos" : "Sem eventos"}
+                {activeTab === "prazos" ? t("deadlines.empty_deadlines") : t("deadlines.empty_events")}
               </p>
-              <p className="text-muted-foreground/50 text-xs mt-1">Toca no + para adicionar</p>
+              <p className="text-muted-foreground/50 text-xs mt-1">{t("deadlines.tap_add")}</p>
             </div>
           )}
 
@@ -591,7 +594,7 @@ export default function Deadlines() {
               {upcomingDeadlines.map((item, i) => <DeadlineCard key={item.id} item={item} onDelete={deleteDeadline} index={i} />)}
               {expiredDeadlines.length > 0 && (
                 <div className="mt-4">
-                  <p className="text-[11px] font-bold text-muted-foreground/40 uppercase tracking-wider mb-2 px-1">Expirados</p>
+                  <p className="text-[11px] font-bold text-muted-foreground/40 uppercase tracking-wider mb-2 px-1">{t("deadlines.expired")}</p>
                   {expiredDeadlines.map((item, i) => (
                     <div key={item.id} className="opacity-40 mb-2">
                       <DeadlineCard item={item} onDelete={deleteDeadline} index={i} />
@@ -607,7 +610,7 @@ export default function Deadlines() {
               {upcomingEvents.map((item, i) => <EventCard key={item.id} item={item} onDelete={deleteEvent} index={i} />)}
               {pastEvents.length > 0 && (
                 <div className="mt-4">
-                  <p className="text-[11px] font-bold text-muted-foreground/40 uppercase tracking-wider mb-2 px-1">Passados</p>
+                  <p className="text-[11px] font-bold text-muted-foreground/40 uppercase tracking-wider mb-2 px-1">{t("deadlines.past")}</p>
                   {pastEvents.map((item, i) => (
                     <div key={item.id} className="opacity-40 mb-2">
                       <EventCard item={item} onDelete={deleteEvent} index={i} />
