@@ -134,9 +134,14 @@ export default function Notes() {
   useEffect(() => { if (showSearch) searchRef.current?.focus(); }, [showSearch]);
 
   const createNote = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    const n = await Note.create({ title: "", content: "", color: "default", pinned: false, locked: false, user_id: user.id });
-    navigate(`/notes/${n.id}`);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      const n = await Note.create({ title: "", content: "", color: "default", pinned: false, locked: false, user_id: user.id });
+      navigate(`/notes/${n.id}`);
+    } catch (err) {
+      console.error("createNote error:", err);
+      alert("Erro ao criar nota: " + (err?.message || "Tenta novamente"));
+    }
   };
 
   const confirmDelete = async () => {
