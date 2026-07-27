@@ -8,7 +8,7 @@ import {
   startOfWeek, endOfWeek, startOfMonth, endOfMonth, addWeeks, subWeeks,
   addMonths, subMonths, format, isWithinInterval, parseISO, eachDayOfInterval, isSameMonth
 } from "date-fns";
-import { pt } from "date-fns/locale";
+import { pt, enUS } from "date-fns/locale";
 import { useEdgeSwipeNav } from "@/hooks/useEdgeSwipeNav";
 import { useLang } from "@/context/LangContext";
 
@@ -78,6 +78,7 @@ function parseICS(text) {
 export default function FocusCalendar() {
   const navigate = useNavigate();
   const { t, lang } = useLang();
+  const dateFnsLocale = lang === "pt" ? pt : enUS;
   const scrollRef = useRef(null);
   const gridRef = useRef(null);
   const icsInputRef = useRef(null);
@@ -242,8 +243,8 @@ export default function FocusCalendar() {
               </button>
               <h1 className="text-base font-bold text-foreground whitespace-nowrap">
                 {viewMode === "week"
-                  ? `${format(weekStart, "d MMM", { locale: pt })} – ${format(weekEnd, "d MMM yyyy", { locale: pt })}`
-                  : format(currentDate, "MMMM yyyy", { locale: pt })}
+                  ? `${format(weekStart, "d MMM", { locale: dateFnsLocale })} – ${format(weekEnd, "d MMM yyyy", { locale: dateFnsLocale })}`
+                  : format(currentDate, "MMMM yyyy", { locale: dateFnsLocale })}
               </h1>
               <button onClick={nextPeriod} className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center hover:bg-border transition-all">
                 <ChevronRight className="w-4 h-4" />
@@ -431,7 +432,7 @@ export default function FocusCalendar() {
           <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
             className="bg-white border-t border-border rounded-t-2xl p-5 max-h-[220px] overflow-y-auto shadow-xl">
             <div className="flex items-center justify-between mb-3">
-              <h3 className="font-semibold text-sm">{format(parseISO(selectedDay), "EEEE, d 'de' MMMM", { locale: pt })}</h3>
+              <h3 className="font-semibold text-sm">{format(parseISO(selectedDay), lang === "pt" ? "EEEE, d 'de' MMMM" : "EEEE, MMMM d", { locale: dateFnsLocale })}</h3>
               <button onClick={() => setSelectedDay(null)} className="text-muted-foreground hover:text-foreground"><X className="w-4 h-4" /></button>
             </div>
             {(() => {
@@ -489,7 +490,7 @@ export default function FocusCalendar() {
               onClick={(e) => e.stopPropagation()}>
               <h3 className="font-bold text-foreground mb-1">{t("cal.new_event")}</h3>
               <p className="text-xs text-muted-foreground mb-4">
-                {format(parseISO(createModal.dayKey), "EEEE d MMM", { locale: pt })} · {createModal.startHour}h–{createModal.endHour}h
+                {format(parseISO(createModal.dayKey), "EEEE d MMM", { locale: dateFnsLocale })} · {createModal.startHour}h–{createModal.endHour}h
               </p>
               <input autoFocus value={newEventName} onChange={(e) => setNewEventName(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && confirmCreateEvent()}
