@@ -1,6 +1,8 @@
 import { motion } from "framer-motion";
+import { useLang } from "@/context/LangContext";
 
 export default function FocusTimer({ totalSeconds, remainingSeconds, isRunning, mode, "data-collection-item-id": __dataCollectionItemId }) {
+  const { t } = useLang();
   const radius = 120;
   const circumference = 2 * Math.PI * radius;
   const progress = totalSeconds > 0 ? remainingSeconds / totalSeconds : 0;
@@ -42,7 +44,7 @@ export default function FocusTimer({ totalSeconds, remainingSeconds, isRunning, 
           {display}
         </motion.span>
         <span data-source-location="components/FocusTimer:44:8" data-dynamic-content="true" className="text-xs text-muted-foreground mt-1.5 tracking-widest uppercase">
-          {isRunning ? isPause ? "Pausa..." : "Foco..." : "Pronto"}
+          {isRunning ? isPause ? t("focus.status_break") : t("focus.status_focus") : t("focus.status_ready")}
         </span>
       </div>
     </div>);

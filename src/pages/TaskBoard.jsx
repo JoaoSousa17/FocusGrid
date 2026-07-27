@@ -804,7 +804,7 @@ export default function TaskBoard() {
           </div>
           <div data-source-location="pages/TaskBoard:431:10" data-dynamic-content="true" className="flex items-center gap-2 flex-wrap">
             <button data-source-location="pages/TaskBoard:432:12" data-dynamic-content="true" onClick={() => setShowSearch(true)} className="py-2 px-3 rounded-xl bg-secondary text-xs font-medium text-muted-foreground flex items-center gap-1 hover:bg-border transition-all">
-              <Search data-source-location="pages/TaskBoard:433:14" data-dynamic-content="false" className="w-3.5 h-3.5" /> Pesquisar
+              <Search data-source-location="pages/TaskBoard:433:14" data-dynamic-content="false" className="w-3.5 h-3.5" /> {t("search")}
             </button>
             <button data-source-location="pages/TaskBoard:435:12" data-dynamic-content="true" onClick={() => setFilterPeriod(filterPeriod ? null : "morning")} className={`py-2 px-3 rounded-xl text-xs font-medium flex items-center gap-1 transition-all ${filterPeriod ? "bg-[#E87A5A] text-white" : "bg-secondary text-muted-foreground hover:bg-border"}`}>
               <Filter data-source-location="pages/TaskBoard:436:14" data-dynamic-content="false" className="w-3.5 h-3.5" /> {filterPeriod ? PERIOD_CONFIG_T[filterPeriod]?.emoji : t("tasks.period")}
@@ -826,10 +826,10 @@ export default function TaskBoard() {
             <button
               onClick={() => incompleteThisWeek.length > 0 && setRolloverConfirm(true)}
               disabled={incompleteThisWeek.length === 0}
-              title="Passar tarefas por fazer para a semana seguinte"
+              title={t("tasks.rollover_title")}
               className="py-2 px-3 rounded-xl bg-amber-50 text-amber-600 text-xs font-medium flex items-center gap-1 hover:bg-amber-100 transition-all disabled:opacity-40 disabled:cursor-not-allowed">
               <ChevronsRight className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Passar</span>
+              <span className="hidden sm:inline">{t("tasks.rollover_pass")}</span>
               {incompleteThisWeek.length > 0 && (
                 <span className="bg-amber-200 text-amber-700 rounded-full px-1.5 py-0.5 text-[10px] font-bold leading-none">{incompleteThisWeek.length}</span>
               )}

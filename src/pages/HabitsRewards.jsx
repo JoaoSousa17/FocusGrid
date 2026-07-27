@@ -6,17 +6,19 @@ import { HabitEntry } from "@/api/entities";
 import { format, eachDayOfInterval, startOfWeek, endOfWeek, subDays } from "date-fns";
 import { pt } from "date-fns/locale";
 import { useEdgeSwipeNav } from "@/hooks/useEdgeSwipeNav";
+import { useLang } from "@/context/LangContext";
 
-const ACHIEVEMENTS = [
-{ key: "first", icon: Star, label: "Primeiro Passo", desc: "Completar o primeiro hábito", threshold: 1, color: "text-amber-500", bg: "bg-amber-50" },
-{ key: "streak_3", icon: Flame, label: "Em Chamas", desc: "3 dias seguidos com hábitos", threshold: 3, color: "text-orange-500", bg: "bg-orange-50" },
-{ key: "streak_7", icon: Zap, label: "Foco Total", desc: "7 dias seguidos com hábitos", threshold: 7, color: "text-indigo-500", bg: "bg-indigo-50" },
-{ key: "streak_14", icon: Crown, label: "Disciplina Real", desc: "14 dias seguidos", threshold: 14, color: "text-purple-500", bg: "bg-purple-50" },
-{ key: "streak_30", icon: Trophy, label: "Lenda da Rotina", desc: "30 dias seguidos", threshold: 30, color: "text-rose-500", bg: "bg-rose-50" }];
+const ACHIEVEMENT_DEFS = [
+{ key: "first", icon: Star, tLabel: "rewards.a.first.label", tDesc: "rewards.a.first.desc", threshold: 1, color: "text-amber-500", bg: "bg-amber-50" },
+{ key: "streak_3", icon: Flame, tLabel: "rewards.a.streak3.label", tDesc: "rewards.a.streak3.desc", threshold: 3, color: "text-orange-500", bg: "bg-orange-50" },
+{ key: "streak_7", icon: Zap, tLabel: "rewards.a.streak7.label", tDesc: "rewards.a.streak7.desc", threshold: 7, color: "text-indigo-500", bg: "bg-indigo-50" },
+{ key: "streak_14", icon: Crown, tLabel: "rewards.a.streak14.label", tDesc: "rewards.a.streak14.desc", threshold: 14, color: "text-purple-500", bg: "bg-purple-50" },
+{ key: "streak_30", icon: Trophy, tLabel: "rewards.a.streak30.label", tDesc: "rewards.a.streak30.desc", threshold: 30, color: "text-rose-500", bg: "bg-rose-50" }];
 
 
 export default function HabitsRewards() {
   const navigate = useNavigate();
+  const { t } = useLang();
   const [entries, setEntries] = useState([]);
   const { swipeHandlers, dragStyle } = useEdgeSwipeNav({ down: "/habits" });
 
@@ -83,9 +85,9 @@ export default function HabitsRewards() {
             <ArrowUp data-source-location="pages/HabitsRewards:100:12" data-dynamic-content="false" className="w-5 h-5" />
           </button>
           <div data-source-location="pages/HabitsRewards:102:10" data-dynamic-content="false">
-            <h1 data-source-location="pages/HabitsRewards:103:12" data-dynamic-content="false" className="text-xl font-bold text-foreground">Conquistas</h1>
+            <h1 data-source-location="pages/HabitsRewards:103:12" data-dynamic-content="false" className="text-xl font-bold text-foreground">{t("rewards.title")}</h1>
             <p data-source-location="pages/HabitsRewards:104:12" data-dynamic-content="false" className="text-[10px] text-muted-foreground flex items-center gap-1">
-              Swipe baixo <ArrowDown data-source-location="pages/HabitsRewards:105:26" data-dynamic-content="false" className="w-3 h-3" /> voltar
+              {t("rewards.swipe_back")} <ArrowDown data-source-location="pages/HabitsRewards:105:26" data-dynamic-content="false" className="w-3 h-3" /> {t("rewards.back_hint")}
             </p>
           </div>
         </div>
@@ -98,9 +100,9 @@ export default function HabitsRewards() {
               <div data-source-location="pages/HabitsRewards:115:14" data-dynamic-content="true" className="flex items-center gap-3 mb-3">
                 <div data-source-location="pages/HabitsRewards:116:16" data-dynamic-content="false" className="w-14 h-14 rounded-2xl bg-white flex items-center justify-center text-3xl shadow-sm">🔥</div>
                 <div data-source-location="pages/HabitsRewards:117:16" data-dynamic-content="true">
-                  <p data-source-location="pages/HabitsRewards:118:18" data-dynamic-content="false" className="text-sm font-bold text-amber-800">Sequência atual</p>
+                  <p data-source-location="pages/HabitsRewards:118:18" data-dynamic-content="false" className="text-sm font-bold text-amber-800">{t("rewards.current_streak")}</p>
                   <p data-source-location="pages/HabitsRewards:119:18" data-dynamic-content="true" className="text-3xl font-black text-amber-600" data-collection-item-field="currentStreak">{currentStreak}</p>
-                  <p data-source-location="pages/HabitsRewards:120:18" data-dynamic-content="true" className="text-xs text-amber-600/70">dia{currentStreak !== 1 ? "s" : ""} consecutivo{currentStreak !== 1 ? "s" : ""}</p>
+                  <p data-source-location="pages/HabitsRewards:120:18" data-dynamic-content="true" className="text-xs text-amber-600/70">{t("habits.streak")}</p>
                 </div>
               </div>
               {/* Week dots */}
@@ -127,8 +129,8 @@ export default function HabitsRewards() {
           {/* Stats */}
           <div data-source-location="pages/HabitsRewards:145:10" data-dynamic-content="true" className="grid grid-cols-2 gap-3">
             {[
-            { icon: Trophy, label: "Recorde", value: `${longestStreak} dias`, color: "text-amber-600", bg: "bg-amber-50" },
-            { icon: Star, label: "Total ações", value: totalEntries, color: "text-emerald-600", bg: "bg-emerald-50" }].
+            { icon: Trophy, label: t("rewards.record"), value: `${longestStreak}`, color: "text-amber-600", bg: "bg-amber-50" },
+            { icon: Star, label: t("rewards.total_actions"), value: totalEntries, color: "text-emerald-600", bg: "bg-emerald-50" }].
             map((c, i) =>
             <div data-source-location="pages/HabitsRewards:150:14" data-dynamic-content="true" key={i} className={`${c.bg} rounded-2xl p-4 border border-border/50`}>
                 <c.icon data-source-location="pages/HabitsRewards:151:16" data-dynamic-content="true" className={`w-5 h-5 ${c.color} mb-1`} />
@@ -141,10 +143,10 @@ export default function HabitsRewards() {
           {/* Achievements */}
           <div data-source-location="pages/HabitsRewards:159:10" data-dynamic-content="true">
             <h3 data-source-location="pages/HabitsRewards:160:12" data-dynamic-content="false" className="text-sm font-bold text-foreground mb-3 flex items-center gap-2">
-              <Crown data-source-location="pages/HabitsRewards:161:14" data-dynamic-content="false" className="w-4 h-4 text-amber-500" /> Conquistas
+              <Crown data-source-location="pages/HabitsRewards:161:14" data-dynamic-content="false" className="w-4 h-4 text-amber-500" /> {t("rewards.achievements")}
             </h3>
             <div data-source-location="pages/HabitsRewards:163:12" data-dynamic-content="true" className="space-y-2">
-              {ACHIEVEMENTS.map((a, __arrIdx__) => {
+              {ACHIEVEMENT_DEFS.map((a, __arrIdx__) => {
                 const unlocked = currentStreak >= a.threshold || longestStreak >= a.threshold;
                 const Icon = a.icon;
                 return (
@@ -154,8 +156,8 @@ export default function HabitsRewards() {
                         <Icon data-source-location="pages/HabitsRewards:171:24" data-dynamic-content="true" className={`w-5 h-5 ${unlocked ? a.color : "text-slate-400"}`} data-arr-index={__arrIdx__} data-arr-variable-name="ACHIEVEMENTS" />
                       </div>
                       <div data-source-location="pages/HabitsRewards:173:22" data-dynamic-content="true" data-arr-index={__arrIdx__} data-arr-variable-name="ACHIEVEMENTS">
-                        <p data-source-location="pages/HabitsRewards:174:24" data-dynamic-content="true" className={`text-sm font-bold ${unlocked ? "text-foreground" : "text-slate-500"}`} data-arr-index={__arrIdx__} data-arr-variable-name="ACHIEVEMENTS" data-arr-field="label">{a.label}</p>
-                        <p data-source-location="pages/HabitsRewards:175:24" data-dynamic-content="true" className="text-[10px] text-muted-foreground" data-arr-index={__arrIdx__} data-arr-variable-name="ACHIEVEMENTS" data-arr-field="desc">{a.desc}</p>
+                        <p data-source-location="pages/HabitsRewards:174:24" data-dynamic-content="true" className={`text-sm font-bold ${unlocked ? "text-foreground" : "text-slate-500"}`}>{t(a.tLabel)}</p>
+                        <p data-source-location="pages/HabitsRewards:175:24" data-dynamic-content="true" className="text-[10px] text-muted-foreground">{t(a.tDesc)}</p>
                       </div>
                       <div data-source-location="pages/HabitsRewards:177:22" data-dynamic-content="true" className="ml-auto" data-arr-index={__arrIdx__} data-arr-variable-name="ACHIEVEMENTS">
                         {unlocked ?

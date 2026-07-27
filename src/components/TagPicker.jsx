@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Plus, Check } from "lucide-react";
+import { X, Plus, Check, Trash2 } from "lucide-react";
 import { Tag } from "@/api/entities";
 import { useLang } from "@/context/LangContext";
 
@@ -34,11 +34,22 @@ export default function TagPicker({ open, onClose, selectedTag, onSelect, multiS
     if (open) Tag.list().then(setTags).catch(() => setTags([]));
   }, [open]);
 
+  const deleteTag = async (tag, e) => {
+    e.stopPropagation();
+    if (!window.confirm(t("tags.delete_confirm", `Delete tag "${tag.name}"?`))) return;
+    await Tag.delete(tag.id);
+    setTags((prev) => prev.filter((t) => t.id !== tag.id));
+    if (onMultiSelect) onMultiSelect(selectedTags.filter((t) => t.id !== tag.id));
+    if (selectedTag?.id === tag.id && onSelect) onSelect(null);
+  };
+
   const createTag = async () => {
     if (!newName.trim()) return;
-    let color = newColor;
-    if (newHex.trim() && /^#[0-9A-Fa-f]{6}$/.test(newHex.trim())) {
-      color = newHex.trim();
+    let color = newColor || "blue";
+    const rawHex = newHex.trim();
+    const hexNorm = rawHex.startsWith("#") ? rawHex : rawHex ? `#${rawHex}` : "";
+    if (hexNorm && /^#[0-9A-Fa-f]{6}$/.test(hexNorm)) {
+      color = hexNorm;
     }
     const created = await Tag.create({ name: newName.trim(), color });
     setTags((prev) => [...prev, created]);
@@ -121,18 +132,22 @@ export default function TagPicker({ open, onClose, selectedTag, onSelect, multiS
               selectedTags.some((t) => t.id === tag.id) :
               selectedTag?.id === tag.id;
               return (
-                <button data-source-location="components/TagPicker:119:18" data-dynamic-content="true"
-                key={tag.id}
+                <div key={tag.id} className="relative group flex items-center">
+                  <button data-source-location="components/TagPicker:119:18" data-dynamic-content="true"
                 onClick={() => multiSelect ? toggleMultiTag(tag) : (onSelect(tag), onClose())}
-                className={`px-4 py-2.5 rounded-2xl text-sm font-medium border transition-all ${
+                className={`pl-3 pr-7 py-2.5 rounded-2xl text-sm font-medium border transition-all ${
                 isSelected ?
                 "border-[#E87A5A] bg-[#E87A5A]/5 text-[#E87A5A] ring-2 ring-[#E87A5A]/20" :
                 `${TAG_COLORS_MAP[tag.color] || "bg-slate-100 text-slate-700"} border-transparent`}`
                 } data-collection-item-id={tag?.id} data-collection-item-field="name">
-                  
+
                     <span data-source-location="components/TagPicker:128:20" data-dynamic-content="true" className="inline-block w-2.5 h-2.5 rounded-full mr-1.5" style={{ backgroundColor: dotBg(tag.color) }} />
                     {tag.name}
-                  </button>);
+                  </button>
+                  <button onClick={(e) => deleteTag(tag, e)} className="absolute right-1.5 w-5 h-5 rounded-full bg-rose-100 text-rose-500 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-all hover:bg-rose-200">
+                    <Trash2 className="w-3 h-3" />
+                  </button>
+                </div>);
 
             })}
             </div>
@@ -167,7 +182,7 @@ export default function TagPicker({ open, onClose, selectedTag, onSelect, multiS
                 <div data-source-location="components/TagPicker:162:16" data-dynamic-content="true" className="flex items-center gap-2">
                   <span data-source-location="components/TagPicker:163:18" data-dynamic-content="false" className="text-xs text-muted-foreground">{t("tags.or")}</span>
                   <input data-source-location="components/TagPicker:164:18" data-dynamic-content="true"
-              value={newHex} onChange={(e) => {setNewHex(e.target.value);if (e.target.value) setNewColor("");}}
+              value={newHex} onChange={(e) => { const v = e.target.value; const normalized = v && !v.startsWith("#") && v.length <= 6 ? `#${v}` : v; setNewHex(normalized); if (normalized) setNewColor(""); }}
               placeholder={t("tags.hex_placeholder")} maxLength={7}
               className="flex-1 px-3 py-2 rounded-xl border border-border text-xs font-mono focus:outline-none focus:border-[#E87A5A] transition-all" />
               

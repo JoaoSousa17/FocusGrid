@@ -80,13 +80,29 @@ export function useEdgeSwipeNav(directions = {}, { ignoreTarget, edgeGated } = {
     }
   }, [navigate, directions.left, directions.right, directions.up, directions.down]);
 
+  const wheelCooldown = useRef(false);
+
+  const handleWheel = useCallback((e) => {
+    if (wheelCooldown.current) return;
+    // Only act on trackpad two-finger horizontal swipes (deltaX dominant, deltaMode pixel)
+    if (e.deltaMode !== 0) return;
+    const absDx = Math.abs(e.deltaX);
+    const absDy = Math.abs(e.deltaY);
+    if (absDx < 30 || absDy > absDx) return; // require clear horizontal intent
+    wheelCooldown.current = true;
+    setTimeout(() => { wheelCooldown.current = false; }, 800);
+    if (e.deltaX > 0 && directions.left) navigate(directions.left);
+    else if (e.deltaX < 0 && directions.right) navigate(directions.right);
+  }, [navigate, directions.left, directions.right]);
+
   const swipeHandlers = {
     onTouchStart: (e) => handlePointerStart(e.touches[0].clientX, e.touches[0].clientY, e.target),
     onTouchMove: (e) => handlePointerMove(e.touches[0].clientX, e.touches[0].clientY),
     onTouchEnd: (e) => handlePointerEnd(e.changedTouches[0]?.clientX ?? touchStart.current.x, e.changedTouches[0]?.clientY ?? touchStart.current.y),
     onMouseDown: (e) => handlePointerStart(e.clientX, e.clientY, e.target),
     onMouseMove: (e) => { if (e.buttons === 1) handlePointerMove(e.clientX, e.clientY); },
-    onMouseUp: (e) => handlePointerEnd(e.clientX, e.clientY)
+    onMouseUp: (e) => handlePointerEnd(e.clientX, e.clientY),
+    onWheel: handleWheel
   };
 
   return { swipeHandlers, dragStyle };

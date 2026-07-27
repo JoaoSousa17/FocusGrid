@@ -2,9 +2,11 @@ import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { CalendarClock, Mic } from "lucide-react";
 import { useEdgeSwipeNav } from "@/hooks/useEdgeSwipeNav";
+import { useLang } from "@/context/LangContext";
 
 export default function ComingSoon() {
   const navigate = useNavigate();
+  const { t } = useLang();
   const { swipeHandlers, dragStyle } = useEdgeSwipeNav({ right: "/deadlines", left: "/meeting-ai", up: "/", down: "/" });
 
   return (
@@ -31,15 +33,15 @@ export default function ComingSoon() {
               <CalendarClock data-source-location="pages/ComingSoon:62:14" data-dynamic-content="false" className="w-8 h-8 text-[#E87A5A]" />
             </motion.div>
             <div data-source-location="pages/ComingSoon:64:12" data-dynamic-content="false">
-              <p data-source-location="pages/ComingSoon:65:14" data-dynamic-content="false" className="text-foreground font-black text-base leading-tight">Controlo de</p>
-              <p data-source-location="pages/ComingSoon:66:14" data-dynamic-content="false" className="text-[#E87A5A] font-black text-base leading-tight">Datas</p>
+              <p data-source-location="pages/ComingSoon:65:14" data-dynamic-content="false" className="text-foreground font-black text-base leading-tight">{t("explore.dates_title")}</p>
+              <p data-source-location="pages/ComingSoon:66:14" data-dynamic-content="false" className="text-[#E87A5A] font-black text-base leading-tight">{t("explore.dates_sub")}</p>
             </div>
             <motion.p data-source-location="pages/ComingSoon:68:12" data-dynamic-content="true"
             animate={{ opacity: [0.4, 1, 0.4] }}
             transition={{ repeat: Infinity, duration: 2.5 }}
             className="text-muted-foreground/50 text-[11px]">
               
-              desliza →
+              {t("explore.swipe_right")}
             </motion.p>
           </div>
         </motion.div>
@@ -73,15 +75,15 @@ export default function ComingSoon() {
               <Mic data-source-location="pages/ComingSoon:104:14" data-dynamic-content="false" className="w-8 h-8 text-[#E87A5A]" />
             </motion.div>
             <div data-source-location="pages/ComingSoon:106:12" data-dynamic-content="false">
-              <p data-source-location="pages/ComingSoon:107:14" data-dynamic-content="false" className="text-foreground font-black text-base leading-tight">Resumo de</p>
-              <p data-source-location="pages/ComingSoon:108:14" data-dynamic-content="false" className="text-[#E87A5A] font-black text-base leading-tight">Reuniões IA</p>
+              <p data-source-location="pages/ComingSoon:107:14" data-dynamic-content="false" className="text-foreground font-black text-base leading-tight">{t("explore.meetings_title")}</p>
+              <p data-source-location="pages/ComingSoon:108:14" data-dynamic-content="false" className="text-[#E87A5A] font-black text-base leading-tight">{t("explore.meetings_sub")}</p>
             </div>
             <motion.p data-source-location="pages/ComingSoon:110:12" data-dynamic-content="true"
             animate={{ opacity: [0.4, 1, 0.4] }}
             transition={{ repeat: Infinity, duration: 2.5, delay: 0.5 }}
             className="text-muted-foreground/50 text-[11px]">
               
-              ← desliza
+              {t("explore.swipe_left")}
             </motion.p>
           </div>
         </motion.div>
@@ -94,7 +96,7 @@ export default function ComingSoon() {
         transition={{ repeat: Infinity, duration: 3 }}
         className="text-muted-foreground/40 text-[10px] text-center">
           
-          ↑↓ home
+          {t("explore.hint")}
         </motion.p>
       </div>
     </div>);
