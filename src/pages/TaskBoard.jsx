@@ -9,6 +9,7 @@ import { pt } from "date-fns/locale";
 import TagPicker from "@/components/TagPicker";
 import { useEdgeSwipeNav } from "@/hooks/useEdgeSwipeNav";
 import { useFocusTimer } from "@/context/FocusTimerContext";
+import { useLang } from "@/context/LangContext";
 
 const DAY_LABELS = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"];
 const DAY_KEYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
@@ -165,7 +166,28 @@ function FormSection({ icon: Icon, label, badge, open, onToggle, children }) {
 
 export default function TaskBoard() {
   const navigate = useNavigate();
+  const { t } = useLang();
   const { handlePlayPause, isRunning } = useFocusTimer();
+
+  const DAY_LABELS_T = [
+    t("tasks.day.monday"), t("tasks.day.tuesday"), t("tasks.day.wednesday"),
+    t("tasks.day.thursday"), t("tasks.day.friday"), t("tasks.day.saturday"), t("tasks.day.sunday"),
+  ];
+  const PERIOD_CONFIG_T = {
+    morning: { label: t("tasks.period.morning"), emoji: "🌅" },
+    afternoon: { label: t("tasks.period.afternoon"), emoji: "☀️" },
+    evening: { label: t("tasks.period.evening"), emoji: "🌙" },
+  };
+  const PRIORITY_CONFIG_T = {
+    low: { label: t("tasks.low"), color: "#10B981" },
+    medium: { label: t("tasks.medium"), color: "#F59E0B" },
+    high: { label: t("tasks.high"), color: "#F43F5E" },
+  };
+  const RECURRENCE_CONFIG_T = {
+    none: { label: t("tasks.rec.none") }, daily: { label: t("tasks.rec.daily") },
+    weekly: { label: t("tasks.rec.weekly") }, biweekly: { label: t("tasks.rec.biweekly") },
+    monthly: { label: t("tasks.rec.monthly") }, yearly: { label: t("tasks.rec.yearly") },
+  };
   const [tasks, setTasks] = useState([]);
   const [allTags, setAllTags] = useState([]);
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -618,11 +640,11 @@ export default function TaskBoard() {
         placeholder="Nova tarefa..." className="w-full text-sm bg-slate-50 rounded-lg px-2.5 py-2 outline-none focus:ring-1 focus:ring-[#E87A5A]/40 transition-all" />
 
         <FormSection icon={Flag} label="Detalhes" open={!!formOpenSections.details} onToggle={() => toggleSection("details")}
-        badge={[current.period && PERIOD_CONFIG[current.period]?.emoji, PRIORITY_CONFIG[current.priority || "medium"]?.label].filter(Boolean).join(" · ")}>
+        badge={[current.period && PERIOD_CONFIG_T[current.period]?.emoji, PRIORITY_CONFIG_T[current.priority || "medium"]?.label].filter(Boolean).join(" · ")}>
           <div>
-            <p className="text-[10px] font-medium text-muted-foreground mb-1">Período</p>
+            <p className="text-[10px] font-medium text-muted-foreground mb-1">{t("tasks.period")}</p>
             <div className="flex gap-1">
-              {Object.entries(PERIOD_CONFIG).map(([p, cfg]) =>
+              {Object.entries(PERIOD_CONFIG_T).map(([p, cfg]) =>
               <button key={p} type="button" onClick={() => setNewTaskField(key, "period", current.period === p ? null : p)}
               className={`flex-1 py-1.5 rounded-lg text-[10px] font-medium transition-all ${current.period === p ? "bg-[#E87A5A] text-white" : "bg-slate-100 text-slate-400 hover:bg-slate-200"}`}>
                 {cfg.emoji} {cfg.label}
@@ -631,9 +653,9 @@ export default function TaskBoard() {
             </div>
           </div>
           <div>
-            <p className="text-[10px] font-medium text-muted-foreground mb-1">Prioridade</p>
+            <p className="text-[10px] font-medium text-muted-foreground mb-1">{t("tasks.priority")}</p>
             <div className="flex gap-1">
-              {Object.entries(PRIORITY_CONFIG).map(([p, cfg]) =>
+              {Object.entries(PRIORITY_CONFIG_T).map(([p, cfg]) =>
               <button key={p} type="button" onClick={() => setNewTaskField(key, "priority", p)}
               className={`flex-1 py-1.5 rounded-lg text-[10px] font-medium transition-all ${(current.priority || "medium") === p ? "text-white" : "bg-slate-100 text-slate-400 hover:bg-slate-200"}`}
               style={(current.priority || "medium") === p ? { backgroundColor: cfg.color } : {}}>
@@ -645,10 +667,10 @@ export default function TaskBoard() {
         </FormSection>
 
         <FormSection icon={Repeat} label="Repetição" open={!!formOpenSections.recurrence} onToggle={() => toggleSection("recurrence")}
-        badge={(current.recurrence || "none") !== "none" ? RECURRENCE_CONFIG[current.recurrence]?.label : null}>
+        badge={(current.recurrence || "none") !== "none" ? RECURRENCE_CONFIG_T[current.recurrence]?.label : null}>
           <select value={current.recurrence || "none"} onChange={(e) => setNewTaskField(key, "recurrence", e.target.value)}
           className="w-full text-xs bg-slate-100 rounded-lg px-2.5 py-2 outline-none text-slate-600">
-            {Object.entries(RECURRENCE_CONFIG).map(([r, cfg]) => <option key={r} value={r}>{cfg.label}</option>)}
+            {Object.entries(RECURRENCE_CONFIG_T).map(([r, cfg]) => <option key={r} value={r}>{cfg.label}</option>)}
           </select>
         </FormSection>
 
@@ -702,7 +724,7 @@ export default function TaskBoard() {
         </FormSection>
 
         <div className="flex gap-2 pt-1">
-          <button onClick={() => addTask(key)} className="flex-1 py-2 rounded-lg bg-[#E87A5A] text-white text-xs font-medium hover:bg-[#D4694A] transition-all">Adicionar</button>
+          <button onClick={() => addTask(key)} className="flex-1 py-2 rounded-lg bg-[#E87A5A] text-white text-xs font-medium hover:bg-[#D4694A] transition-all">{t("tasks.add")}</button>
           <button onClick={() => setAddingTo(null)} className="px-3 py-2 rounded-lg bg-secondary text-muted-foreground text-xs"><X className="w-3 h-3" /></button>
         </div>
       </div>);
@@ -740,7 +762,7 @@ export default function TaskBoard() {
               setNewTasks({ ...newTasks, [key]: { title: "", period: null, tags: [], priority: "medium", recurrence: "none", subtasks: [] } });
               setAddingTo(key);
             }} className="w-full flex items-center justify-center gap-1 py-3 rounded-xl border-2 border-dashed border-border text-muted-foreground/60 hover:text-[#E87A5A] hover:border-[#E87A5A]/30 transition-all text-xs">
-                  <Plus data-source-location="pages/TaskBoard:386:18" data-dynamic-content="false" className="w-3 h-3" /> Nova tarefa
+                  <Plus data-source-location="pages/TaskBoard:386:18" data-dynamic-content="false" className="w-3 h-3" /> {t("tasks.new_task").replace("...", "")}
                 </button>
             }
             </div>
@@ -764,7 +786,7 @@ export default function TaskBoard() {
                 <ArrowRight data-source-location="pages/TaskBoard:412:16" data-dynamic-content="false" className="w-5 h-5" />
               </button>
               <div data-source-location="pages/TaskBoard:414:14" data-dynamic-content="true">
-                <h1 data-source-location="pages/TaskBoard:415:16" data-dynamic-content="false" className="text-lg font-bold text-foreground">Tarefas</h1>
+                <h1 data-source-location="pages/TaskBoard:415:16" data-dynamic-content="false" className="text-lg font-bold text-foreground">{t("tasks.title")}</h1>
                 <p data-source-location="pages/TaskBoard:416:16" data-dynamic-content="true" className="text-[11px] text-muted-foreground">
                   {format(weekStart, "d", { locale: pt })} - {format(weekEnd, "d 'de' MMM", { locale: pt })}
                 </p>
@@ -785,15 +807,15 @@ export default function TaskBoard() {
               <Search data-source-location="pages/TaskBoard:433:14" data-dynamic-content="false" className="w-3.5 h-3.5" /> Pesquisar
             </button>
             <button data-source-location="pages/TaskBoard:435:12" data-dynamic-content="true" onClick={() => setFilterPeriod(filterPeriod ? null : "morning")} className={`py-2 px-3 rounded-xl text-xs font-medium flex items-center gap-1 transition-all ${filterPeriod ? "bg-[#E87A5A] text-white" : "bg-secondary text-muted-foreground hover:bg-border"}`}>
-              <Filter data-source-location="pages/TaskBoard:436:14" data-dynamic-content="false" className="w-3.5 h-3.5" /> {filterPeriod ? PERIOD_CONFIG[filterPeriod]?.emoji : "Período"}
+              <Filter data-source-location="pages/TaskBoard:436:14" data-dynamic-content="false" className="w-3.5 h-3.5" /> {filterPeriod ? PERIOD_CONFIG_T[filterPeriod]?.emoji : t("tasks.period")}
             </button>
             <button data-source-location="pages/TaskBoard:438:12" data-dynamic-content="true" onClick={() => setFilterCompleted(filterCompleted === null ? false : filterCompleted === false ? true : null)}
             className={`py-2 px-3 rounded-xl text-xs font-medium flex items-center gap-1 transition-all ${filterCompleted !== null ? "bg-[#E87A5A] text-white" : "bg-secondary text-muted-foreground hover:bg-border"}`}>
               <Check data-source-location="pages/TaskBoard:440:14" data-dynamic-content="false" className="w-3.5 h-3.5" />
-              {filterCompleted === null ? "Todas" : filterCompleted ? "Concluídas" : "Por fazer"}
+              {filterCompleted === null ? t("tasks.filter.all") : filterCompleted ? t("tasks.filter.done") : t("tasks.filter.todo")}
             </button>
             <button onClick={() => setFilterHasSubtasks((v) => !v)} className={`py-2 px-3 rounded-xl text-xs font-medium flex items-center gap-1 transition-all ${filterHasSubtasks ? "bg-[#E87A5A] text-white" : "bg-secondary text-muted-foreground hover:bg-border"}`}>
-              <ListChecks className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Com subtarefas</span>
+              <ListChecks className="w-3.5 h-3.5" /> <span className="hidden sm:inline">{t("tasks.filter.subtasks")}</span>
             </button>
             <button data-source-location="pages/TaskBoard:443:12" data-dynamic-content="true" onClick={() => setShowTagManager(true)} className="py-2 px-3 rounded-xl bg-secondary text-xs font-medium text-muted-foreground flex items-center gap-1 hover:bg-border transition-all">
               <Tags data-source-location="pages/TaskBoard:444:14" data-dynamic-content="false" className="w-3.5 h-3.5" /> <span data-source-location="pages/TaskBoard:444:47" data-dynamic-content="false" className="hidden sm:inline">Tags</span>
@@ -837,16 +859,16 @@ export default function TaskBoard() {
           onClick={() => setShowSearch(false)}>
               <motion.div data-source-location="pages/TaskBoard:472:14" data-dynamic-content="true" initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
             className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-sm p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
-                <h3 data-source-location="pages/TaskBoard:474:16" data-dynamic-content="false" className="font-bold text-foreground mb-3">Pesquisar Tarefas</h3>
-                <input data-source-location="pages/TaskBoard:475:16" data-dynamic-content="true" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Escreve para pesquisar..." autoFocus
+                <h3 data-source-location="pages/TaskBoard:474:16" data-dynamic-content="false" className="font-bold text-foreground mb-3">{t("tasks.search_title")}</h3>
+                <input data-source-location="pages/TaskBoard:475:16" data-dynamic-content="true" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder={t("tasks.search_placeholder2")} autoFocus
               className="w-full px-4 py-3 rounded-xl border border-border text-sm outline-none focus:border-[#E87A5A]/50 transition-all" />
                 <div data-source-location="pages/TaskBoard:477:16" data-dynamic-content="true" className="flex gap-2 mt-3 flex-wrap">
-                  <button data-source-location="pages/TaskBoard:478:18" data-dynamic-content="true" onClick={() => {setFilterPeriod(null);setFilterCompleted(null);}} className={`py-1.5 px-3 rounded-lg text-xs font-medium ${filterPeriod === null && filterCompleted === null ? "bg-[#E87A5A] text-white" : "bg-secondary"}`}>Todos</button>
-                  {Object.entries(PERIOD_CONFIG).map(([p, cfg]) =>
+                  <button data-source-location="pages/TaskBoard:478:18" data-dynamic-content="true" onClick={() => {setFilterPeriod(null);setFilterCompleted(null);}} className={`py-1.5 px-3 rounded-lg text-xs font-medium ${filterPeriod === null && filterCompleted === null ? "bg-[#E87A5A] text-white" : "bg-secondary"}`}>{t("tasks.filter.all")}</button>
+                  {Object.entries(PERIOD_CONFIG_T).map(([p, cfg]) =>
                 <button data-source-location="pages/TaskBoard:480:20" data-dynamic-content="true" key={p} onClick={() => setFilterPeriod(p === filterPeriod ? null : p)} className={`py-1.5 px-3 rounded-lg text-xs font-medium ${filterPeriod === p ? "bg-[#E87A5A] text-white" : "bg-secondary"}`} data-collection-item-field="emoji" data-collection-item-id={cfg?.id || cfg?._id}>{cfg.emoji} {cfg.label}</button>
                 )}
-                  <button data-source-location="pages/TaskBoard:482:18" data-dynamic-content="true" onClick={() => setFilterCompleted(filterCompleted === null ? false : null)} className={`py-1.5 px-3 rounded-lg text-xs font-medium ${filterCompleted === false ? "bg-[#E87A5A] text-white" : "bg-secondary"}`}>Por fazer</button>
-                  <button data-source-location="pages/TaskBoard:483:18" data-dynamic-content="true" onClick={() => setFilterCompleted(filterCompleted === null ? true : null)} className={`py-1.5 px-3 rounded-lg text-xs font-medium ${filterCompleted === true ? "bg-[#E87A5A] text-white" : "bg-secondary"}`}>Concluídas</button>
+                  <button data-source-location="pages/TaskBoard:482:18" data-dynamic-content="true" onClick={() => setFilterCompleted(filterCompleted === null ? false : null)} className={`py-1.5 px-3 rounded-lg text-xs font-medium ${filterCompleted === false ? "bg-[#E87A5A] text-white" : "bg-secondary"}`}>{t("tasks.filter.todo")}</button>
+                  <button data-source-location="pages/TaskBoard:483:18" data-dynamic-content="true" onClick={() => setFilterCompleted(filterCompleted === null ? true : null)} className={`py-1.5 px-3 rounded-lg text-xs font-medium ${filterCompleted === true ? "bg-[#E87A5A] text-white" : "bg-secondary"}`}>{t("tasks.filter.done")}</button>
                 </div>
                 {searchQuery &&
               <div data-source-location="pages/TaskBoard:486:18" data-dynamic-content="true" className="mt-3 space-y-1 max-h-[200px] overflow-y-auto">
@@ -855,7 +877,7 @@ export default function TaskBoard() {
                 )}
                   </div>
               }
-                <button data-source-location="pages/TaskBoard:492:16" data-dynamic-content="true" onClick={() => setShowSearch(false)} className="w-full mt-4 py-2.5 rounded-xl bg-secondary text-sm font-medium hover:bg-border transition-all">Fechar</button>
+                <button data-source-location="pages/TaskBoard:492:16" data-dynamic-content="true" onClick={() => setShowSearch(false)} className="w-full mt-4 py-2.5 rounded-xl bg-secondary text-sm font-medium hover:bg-border transition-all">{t("close")}</button>
               </motion.div>
             </motion.div>
           }
@@ -866,9 +888,9 @@ export default function TaskBoard() {
           <div data-source-location="pages/TaskBoard:500:10" data-dynamic-content="true" className="flex-1 overflow-auto">
             <div data-source-location="pages/TaskBoard:501:12" data-dynamic-content="true" className="flex gap-3 p-4 min-h-full" style={{ minWidth: `${(DAY_KEYS.length + 1) * 225}px` }}>
               {/* Monday to Sunday */}
-              {DAY_KEYS.map((key, idx) => renderColumn(key, DAY_LABELS[idx].substring(0, 3), idx))}
-              {/* "Sem dia" after Sunday */}
-              {renderColumn("none", "Sem dia", 0)}
+              {DAY_KEYS.map((key, idx) => renderColumn(key, DAY_LABELS_T[idx].substring(0, 3), idx))}
+              {/* No-day column */}
+              {renderColumn("none", t("tasks.day.none"), 0)}
             </div>
           </div>
         </DragDropContext>
@@ -906,16 +928,16 @@ export default function TaskBoard() {
           transition={{ type: "spring", damping: 25 }}
           className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md p-5 max-h-[80vh] overflow-y-auto shadow-xl"
           onClick={(e) => e.stopPropagation()}>
-              <h3 data-source-location="pages/TaskBoard:543:14" data-dynamic-content="false" className="font-bold text-foreground mb-4">Editar Tarefa</h3>
+              <h3 data-source-location="pages/TaskBoard:543:14" data-dynamic-content="false" className="font-bold text-foreground mb-4">{t("tasks.edit_title")}</h3>
               <div data-source-location="pages/TaskBoard:544:14" data-dynamic-content="true" className="space-y-3">
                 <div data-source-location="pages/TaskBoard:545:16" data-dynamic-content="true">
-                  <label data-source-location="pages/TaskBoard:546:18" data-dynamic-content="false" className="text-xs font-medium text-muted-foreground">Nome</label>
+                  <label data-source-location="pages/TaskBoard:546:18" data-dynamic-content="false" className="text-xs font-medium text-muted-foreground">{t("tasks.task_name")}</label>
                   <p data-source-location="pages/TaskBoard:547:18" data-dynamic-content="true" className="text-sm font-semibold text-foreground mt-0.5" data-collection-item-field="title" data-collection-item-id={editingTask?.id || editingTask?._id}>{editingTask.title}</p>
                 </div>
                 <div data-source-location="pages/TaskBoard:549:16" data-dynamic-content="true">
-                  <label data-source-location="pages/TaskBoard:550:18" data-dynamic-content="false" className="text-xs font-medium text-muted-foreground">Período do dia</label>
+                  <label data-source-location="pages/TaskBoard:550:18" data-dynamic-content="false" className="text-xs font-medium text-muted-foreground">{t("tasks.day_label")}</label>
                   <div data-source-location="pages/TaskBoard:551:18" data-dynamic-content="true" className="flex gap-2 mt-1">
-                    {Object.entries(PERIOD_CONFIG).map(([p, cfg]) =>
+                    {Object.entries(PERIOD_CONFIG_T).map(([p, cfg]) =>
                   <button data-source-location="pages/TaskBoard:553:22" data-dynamic-content="true" key={p} onClick={() => setEditingTask({ ...editingTask, _period: editingTask._period === p ? null : p })}
                   className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-all ${
                   (editingTask._period ?? editingTask.period) === p ?
@@ -928,9 +950,9 @@ export default function TaskBoard() {
                   </div>
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-muted-foreground">Prioridade</label>
+                  <label className="text-xs font-medium text-muted-foreground">{t("tasks.priority")}</label>
                   <div className="flex gap-2 mt-1">
-                    {Object.entries(PRIORITY_CONFIG).map(([p, cfg]) =>
+                    {Object.entries(PRIORITY_CONFIG_T).map(([p, cfg]) =>
                     <button key={p} type="button" onClick={() => setEditingTask({ ...editingTask, _priority: p })}
                     className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-all ${
                     (editingTask._priority ?? editingTask.priority ?? "medium") === p ? "text-white shadow-md" : "bg-secondary text-muted-foreground hover:bg-border"}`}
@@ -941,15 +963,15 @@ export default function TaskBoard() {
                   </div>
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-muted-foreground">Repetição</label>
+                  <label className="text-xs font-medium text-muted-foreground">{t("tasks.recurrence")}</label>
                   <select value={editingTask._recurrence ?? editingTask.recurrence ?? "none"}
                   onChange={(e) => setEditingTask({ ...editingTask, _recurrence: e.target.value })}
                   className="w-full mt-1 px-3 py-2 rounded-xl border border-border bg-secondary/50 text-sm outline-none focus:border-[#E87A5A]/50 transition-all">
-                    {Object.entries(RECURRENCE_CONFIG).map(([r, cfg]) => <option key={r} value={r}>{cfg.label}</option>)}
+                    {Object.entries(RECURRENCE_CONFIG_T).map(([r, cfg]) => <option key={r} value={r}>{cfg.label}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-muted-foreground">Subtarefas</label>
+                  <label className="text-xs font-medium text-muted-foreground">{t("tasks.subtasks")}</label>
                   <div className="space-y-1.5 mt-1">
                     {(editingTask._subtasks || []).map((s) =>
                     <div key={s.id} className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-secondary/50">
