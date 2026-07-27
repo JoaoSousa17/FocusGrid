@@ -6,6 +6,7 @@ import {
   Trash2, MoreHorizontal
 } from "lucide-react";
 import { Note } from "@/api/entities";
+import { supabase } from "@/api/supabaseClient";
 import { format, isToday, isYesterday } from "date-fns";
 import { pt } from "date-fns/locale";
 
@@ -133,7 +134,8 @@ export default function Notes() {
   useEffect(() => { if (showSearch) searchRef.current?.focus(); }, [showSearch]);
 
   const createNote = async () => {
-    const n = await Note.create({ title: "", content: "", color: "default", pinned: false, locked: false });
+    const { data: { user } } = await supabase.auth.getUser();
+    const n = await Note.create({ title: "", content: "", color: "default", pinned: false, locked: false, user_id: user.id });
     navigate(`/notes/${n.id}`);
   };
 

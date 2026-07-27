@@ -98,8 +98,10 @@ export default function Home() {
     <div data-source-location="pages/Home:138:4" data-dynamic-content="true"
     className="h-screen w-screen flex items-center justify-center bg-cream overflow-hidden relative select-none"
     {...swipeHandlers}
-    onTouchStart={handleDiagStart} onTouchEnd={handleDiagEnd}
-    onMouseDown={handleDiagStart} onMouseUp={handleDiagEnd}>
+    onTouchStart={(e) => { swipeHandlers.onTouchStart?.(e); handleDiagStart(e); }}
+    onTouchEnd={(e) => { swipeHandlers.onTouchEnd?.(e); handleDiagEnd(e); }}
+    onMouseDown={(e) => { swipeHandlers.onMouseDown?.(e); handleDiagStart(e); }}
+    onMouseUp={(e) => { swipeHandlers.onMouseUp?.(e); handleDiagEnd(e); }}>
       
       <div data-source-location="pages/Home:147:6" data-dynamic-content="true" style={dragStyle} className="flex-1 flex items-center justify-center w-full h-full">
       <FloatingOrbs data-source-location="pages/Home:148:6" data-dynamic-content="false" />
@@ -173,22 +175,24 @@ export default function Home() {
       </motion.div>
 
       {/* Notes button — bottom-right, diagonal swipe target */}
-      <motion.button
-        initial={{ opacity: 0, scale: 0.8 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ delay: 0.6 }}
-        onClick={() => navigate("/notes")}
-        className="absolute bottom-6 right-6 z-20 w-12 h-12 rounded-2xl bg-white border border-border shadow-md flex items-center justify-center hover:border-[#E87A5A]/40 hover:bg-[#E87A5A]/5 transition-all">
-        <PenLine className="w-5 h-5 text-muted-foreground" />
-      </motion.button>
-      {/* Diagonal swipe hint */}
-      <motion.span
-        initial={{ opacity: 0 }}
-        animate={{ opacity: [0, 0.5, 0] }}
-        transition={{ delay: 2, duration: 3, repeat: Infinity }}
-        className="absolute bottom-20 right-6 text-[9px] text-muted-foreground/50 rotate-45 z-10 hidden sm:block pointer-events-none">
-        ↗ Notas
-      </motion.span>
+      <div className="absolute bottom-6 right-6 z-20 flex flex-col items-center gap-2">
+        <motion.span
+          animate={{ opacity: [0.4, 1, 0.4] }}
+          transition={{ repeat: Infinity, duration: 3, delay: 1.5 }}
+          className="text-[10px] text-muted-foreground/60 hidden sm:block">
+          Notas
+        </motion.span>
+        <motion.button
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.6 }}
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.95 }}
+          onClick={() => navigate("/notes")}
+          className="w-12 h-12 rounded-2xl bg-[#14B8A6] text-white shadow-lg shadow-[#14B8A6]/30 flex items-center justify-center hover:bg-[#0D9488] transition-all">
+          <PenLine className="w-5 h-5" />
+        </motion.button>
+      </div>
 
       {/* Profile button */}
       <motion.button
