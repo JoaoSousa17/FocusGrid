@@ -67,9 +67,9 @@ export default function Chat() {
       setMessages((prev) => [...prev, { role: "assistant", content: reply, ts: Date.now() }]);
     } catch (err) {
       console.error("Chat error:", err);
-      const isKeyMissing = err?.message?.includes("VITE_GROQ_API_KEY");
+      const isKeyMissing = err?.message?.includes("not set in .env");
       const errMsg = isKeyMissing
-        ? "VITE_GROQ_API_KEY not set. Add it to .env and restart Vite."
+        ? "API key not found. Add VITE_GROQ_API_KEY (or VITE_GROK_API_KEY) to .env and restart Vite."
         : `Error: ${err?.message || "Unknown error. Check console."}`;
       setMessages((prev) => [...prev, { role: "assistant", content: errMsg, ts: Date.now() }]);
     }

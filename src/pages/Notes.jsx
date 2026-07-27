@@ -138,6 +138,7 @@ export default function Notes() {
   const navigate = useNavigate();
   const { t } = useLang();
   const [notes, setNotes] = useState([]);
+  const [exitX, setExitX] = useState(0);
   const [view, setView] = useState("keep"); // keep | apple
   const [search, setSearch] = useState("");
   const [deleting, setDeleting] = useState(null);
@@ -189,13 +190,18 @@ export default function Notes() {
   const handleSwipeEnd = (e) => {
     if (swipeStartX.current === null) return;
     const dx = (e.changedTouches?.[0] ?? e).clientX - swipeStartX.current;
-    if (dx > 80) navigate("/");
+    if (dx > 80) {
+      setExitX("100%");
+      setTimeout(() => navigate("/"), 240);
+    }
     swipeStartX.current = null;
   };
 
   return (
-    <div
+    <motion.div
       className="min-h-screen bg-cream flex flex-col"
+      animate={exitX ? { x: exitX, opacity: 0 } : { x: 0, opacity: 1 }}
+      transition={{ duration: 0.22, ease: [0.4, 0, 0.2, 1] }}
       onTouchStart={handleSwipeStart}
       onTouchEnd={handleSwipeEnd}
       onMouseDown={handleSwipeStart}
@@ -352,6 +358,6 @@ export default function Notes() {
           </motion.div>
         )}
       </AnimatePresence>
-    </div>
+    </motion.div>
   );
 }

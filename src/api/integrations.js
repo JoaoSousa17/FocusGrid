@@ -58,8 +58,8 @@ export const Core = {
 
 // Análise/geração de texto estruturado via Groq (chamada direta do browser, CORS suportado).
 export async function InvokeLLM({ prompt, response_json_schema, model = "llama-3.3-70b-versatile" }) {
-  const apiKey = import.meta.env.VITE_GROQ_API_KEY;
-  if (!apiKey) throw new Error("VITE_GROQ_API_KEY não definido no .env");
+  const apiKey = import.meta.env.VITE_GROQ_API_KEY || import.meta.env.VITE_GROK_API_KEY;
+  if (!apiKey) throw new Error("VITE_GROQ_API_KEY not set in .env");
   let finalPrompt = prompt;
   if (response_json_schema) {
     finalPrompt += `\n\nResponde APENAS com JSON válido correspondente a este schema (sem texto adicional):\n${JSON.stringify(response_json_schema)}`;
@@ -112,8 +112,8 @@ export async function clearPomodoroNotification() {
 
 // Chat multi-turn via Groq — chama a API diretamente do browser (CORS suportado)
 export async function InvokeLLMChat({ messages, system, model = "llama-3.3-70b-versatile" }) {
-  const apiKey = import.meta.env.VITE_GROQ_API_KEY;
-  if (!apiKey) throw new Error("VITE_GROQ_API_KEY não definido no .env");
+  const apiKey = import.meta.env.VITE_GROQ_API_KEY || import.meta.env.VITE_GROK_API_KEY;
+  if (!apiKey) throw new Error("VITE_GROQ_API_KEY not set in .env");
   const finalMessages = system
     ? [{ role: "system", content: system }, ...messages.filter((m) => m.role !== "system")]
     : messages;

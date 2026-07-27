@@ -73,6 +73,7 @@ export default function Home() {
   const { t } = useLang();
   const [swipeHint, setSwipeHint] = useState(null);
   const [user, setUser] = useState(null);
+  const [diagExit, setDiagExit] = useState(null); // { x, y } fractions for exit anim
   const { swipeHandlers, dragStyle } = useEdgeSwipeNav({ left: "/habits", right: "/tasks", up: "/focus", down: "/coming-soon" });
   const diagRef = useRef({ startX: 0, startY: 0, type: null });
 
@@ -94,8 +95,14 @@ export default function Home() {
     const t = e.changedTouches?.[0] || e;
     const dx = t.clientX - startX;
     const dy = t.clientY - startY;
-    if (type === "notes"   && dx < -60 && dy < -60) navigate("/notes");
-    if (type === "profile" && dx < -60 && dy >  60) navigate("/profile");
+    if (type === "notes" && dx < -60 && dy < -60) {
+      setDiagExit({ x: "-60%", y: "-60%" });
+      setTimeout(() => navigate("/notes"), 230);
+    }
+    if (type === "profile" && dx < -60 && dy > 60) {
+      setDiagExit({ x: "-60%", y: "60%" });
+      setTimeout(() => navigate("/profile"), 230);
+    }
   };
 
   return (
@@ -107,7 +114,13 @@ export default function Home() {
     onMouseDown={(e) => { swipeHandlers.onMouseDown?.(e); handleDiagStart(e); }}
     onMouseUp={(e) => { swipeHandlers.onMouseUp?.(e); handleDiagEnd(e); }}>
       
-      <div data-source-location="pages/Home:147:6" data-dynamic-content="true" style={dragStyle} className="flex-1 flex items-center justify-center w-full h-full">
+      <motion.div
+        data-source-location="pages/Home:147:6"
+        style={dragStyle}
+        className="flex-1 flex items-center justify-center w-full h-full"
+        animate={diagExit ? { x: diagExit.x, y: diagExit.y, opacity: 0, scale: 0.92 } : { x: 0, y: 0, opacity: 1, scale: 1 }}
+        transition={{ duration: 0.23, ease: [0.4, 0, 0.2, 1] }}
+      >
       <FloatingOrbs data-source-location="pages/Home:148:6" data-dynamic-content="false" />
 
       {/* Directional arrows */}
@@ -235,7 +248,7 @@ export default function Home() {
           {t("home.label.habits")} →
         </motion.span>
       </div>
-      </div>
+      </motion.div>
     </div>);
 
 }

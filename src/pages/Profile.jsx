@@ -491,6 +491,8 @@ export default function Profile() {
   const [tab, setTab] = useState("account");
   const [user, setUser] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [exitX, setExitX] = useState(0);
+  const swipeStartX = useRef(null);
 
   const TABS = [
     { key: "account", icon: User, label: t("profile.tab.account") },
@@ -504,6 +506,19 @@ export default function Profile() {
     auth.me().then(setUser).catch(() => {});
   }, []);
 
+  const handleSwipeStart = (e) => {
+    swipeStartX.current = (e.touches?.[0] ?? e).clientX;
+  };
+  const handleSwipeEnd = (e) => {
+    if (swipeStartX.current === null) return;
+    const dx = (e.changedTouches?.[0] ?? e).clientX - swipeStartX.current;
+    if (dx > 80) {
+      setExitX("100%");
+      setTimeout(() => navigate("/"), 240);
+    }
+    swipeStartX.current = null;
+  };
+
   const handleLogout = async () => {
     await supabase.auth.signOut();
     navigate("/login");
@@ -512,7 +527,15 @@ export default function Profile() {
   const currentTab = TABS.find((t) => t.key === tab);
 
   return (
-    <div className="min-h-screen bg-cream flex flex-col">
+    <motion.div
+      className="min-h-screen bg-cream flex flex-col"
+      animate={exitX ? { x: exitX, opacity: 0 } : { x: 0, opacity: 1 }}
+      transition={{ duration: 0.22, ease: [0.4, 0, 0.2, 1] }}
+      onTouchStart={handleSwipeStart}
+      onTouchEnd={handleSwipeEnd}
+      onMouseDown={handleSwipeStart}
+      onMouseUp={handleSwipeEnd}
+    >
       {/* Header */}
       <div className="flex items-center gap-3 px-4 py-4 bg-cream sticky top-0 z-20 border-b border-border/50">
         <button onClick={() => navigate("/")}
@@ -583,6 +606,6 @@ export default function Profile() {
           </AnimatePresence>
         </main>
       </div>
-    </div>
+    </motion.div>
   );
 }
