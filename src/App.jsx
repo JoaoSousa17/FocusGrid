@@ -28,6 +28,8 @@ import Deadlines from '@/pages/Deadlines';
 import MeetingAI from '@/pages/MeetingAI';
 import Chat from '@/pages/Chat';
 import Profile from '@/pages/Profile';
+import Notes from '@/pages/Notes';
+import NoteEditor from '@/pages/NoteEditor';
 import Terms from '@/pages/Terms';
 import Privacy from '@/pages/Privacy';
 
@@ -80,6 +82,8 @@ const AuthenticatedApp = () => {
         <Route data-source-location="App:75:8" data-dynamic-content="true" path="/meeting-ai" element={<MeetingAI data-source-location="App:75:43" data-dynamic-content="false" />} />
         <Route path="/chat" element={<Chat />} />
         <Route path="/profile" element={<Profile />} />
+        <Route path="/notes" element={<Notes />} />
+        <Route path="/notes/:id" element={<NoteEditor />} />
       </Route>
       <Route data-source-location="App:78:6" data-dynamic-content="true" path="*" element={<PageNotFound data-source-location="App:78:31" data-dynamic-content="false" />} />
     </Routes>

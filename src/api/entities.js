@@ -116,3 +116,4 @@ export const HabitEntry = createEntityClient("habit_entries");
 export const Deadline = createEntityClient("deadlines");
 export const Event = createEntityClient("events");
 export const MeetingRecording = createEntityClient("meeting_recordings");
+export const Note = createEntityClient("notes");

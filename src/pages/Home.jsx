@@ -1,7 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowLeft, ArrowRight, ArrowUp, ArrowDown, ListTodo, Heart, Timer, LayoutGrid, MessageCircle, UserCircle2 } from "lucide-react";
+import { ArrowLeft, ArrowRight, ArrowUp, ArrowDown, ListTodo, Heart, Timer, LayoutGrid, MessageCircle, UserCircle2, PenLine } from "lucide-react";
 import { auth } from "@/api/auth";
 import { useEdgeSwipeNav } from "@/hooks/useEdgeSwipeNav";
 
@@ -72,15 +72,34 @@ export default function Home() {
   const [swipeHint, setSwipeHint] = useState(null);
   const [user, setUser] = useState(null);
   const { swipeHandlers, dragStyle } = useEdgeSwipeNav({ left: "/habits", right: "/tasks", up: "/focus", down: "/coming-soon" });
+  const diagRef = useRef({ startX: 0, startY: 0, armed: false });
 
   useEffect(() => {
     auth.me().then(setUser).catch(() => {});
   }, []);
 
+  const handleDiagStart = (e) => {
+    const t = e.touches?.[0] || e;
+    const w = window.innerWidth, h = window.innerHeight;
+    diagRef.current = {
+      startX: t.clientX, startY: t.clientY,
+      armed: t.clientX > w * 0.65 && t.clientY > h * 0.65
+    };
+  };
+  const handleDiagEnd = (e) => {
+    if (!diagRef.current.armed) return;
+    const t = e.changedTouches?.[0] || e;
+    if (t.clientX - diagRef.current.startX < -60 && t.clientY - diagRef.current.startY < -60) {
+      navigate("/notes");
+    }
+  };
+
   return (
     <div data-source-location="pages/Home:138:4" data-dynamic-content="true"
     className="h-screen w-screen flex items-center justify-center bg-cream overflow-hidden relative select-none"
-    {...swipeHandlers}>
+    {...swipeHandlers}
+    onTouchStart={handleDiagStart} onTouchEnd={handleDiagEnd}
+    onMouseDown={handleDiagStart} onMouseUp={handleDiagEnd}>
       
       <div data-source-location="pages/Home:147:6" data-dynamic-content="true" style={dragStyle} className="flex-1 flex items-center justify-center w-full h-full">
       <FloatingOrbs data-source-location="pages/Home:148:6" data-dynamic-content="false" />
@@ -152,6 +171,24 @@ export default function Home() {
           Assistente IA
         </motion.button>
       </motion.div>
+
+      {/* Notes button — bottom-right, diagonal swipe target */}
+      <motion.button
+        initial={{ opacity: 0, scale: 0.8 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ delay: 0.6 }}
+        onClick={() => navigate("/notes")}
+        className="absolute bottom-6 right-6 z-20 w-12 h-12 rounded-2xl bg-white border border-border shadow-md flex items-center justify-center hover:border-[#E87A5A]/40 hover:bg-[#E87A5A]/5 transition-all">
+        <PenLine className="w-5 h-5 text-muted-foreground" />
+      </motion.button>
+      {/* Diagonal swipe hint */}
+      <motion.span
+        initial={{ opacity: 0 }}
+        animate={{ opacity: [0, 0.5, 0] }}
+        transition={{ delay: 2, duration: 3, repeat: Infinity }}
+        className="absolute bottom-20 right-6 text-[9px] text-muted-foreground/50 rotate-45 z-10 hidden sm:block pointer-events-none">
+        ↗ Notas
+      </motion.span>
 
       {/* Profile button */}
       <motion.button
