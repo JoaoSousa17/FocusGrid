@@ -175,11 +175,11 @@ export default function Home() {
       </motion.div>
 
       {/* Notes button — bottom-right, diagonal swipe target */}
-      <div className="absolute bottom-6 right-6 z-20 flex flex-col items-center gap-2">
+      <div className="absolute bottom-6 right-6 z-20 flex flex-col items-center gap-3">
         <motion.span
-          animate={{ opacity: [0.4, 1, 0.4] }}
-          transition={{ repeat: Infinity, duration: 3, delay: 1.5 }}
-          className="text-[10px] text-muted-foreground/60 hidden sm:block">
+          animate={{ y: [0, 5, 0] }}
+          transition={{ repeat: Infinity, duration: 2.5, ease: "easeInOut" }}
+          className="text-xs font-semibold text-foreground/70 whitespace-nowrap hidden sm:block">
           Notas
         </motion.span>
         <motion.button
@@ -195,11 +195,11 @@ export default function Home() {
       </div>
 
       {/* Profile button */}
-      <div className="absolute top-4 right-4 z-20 flex items-center gap-2">
+      <div className="absolute top-4 right-4 z-20 flex items-center gap-3">
         <motion.span
-          animate={{ opacity: [0.4, 1, 0.4] }}
-          transition={{ repeat: Infinity, duration: 3, delay: 2 }}
-          className="text-[10px] text-muted-foreground/60 hidden sm:block">
+          animate={{ x: [0, 5, 0] }}
+          transition={{ repeat: Infinity, duration: 2.5, ease: "easeInOut" }}
+          className="text-xs font-semibold text-foreground/70 whitespace-nowrap hidden sm:block">
           Perfil
         </motion.span>
         <motion.button

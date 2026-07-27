@@ -655,18 +655,31 @@ export default function TaskBoard() {
         <FormSection icon={Tags} label="Tags" open={!!formOpenSections.tags} onToggle={() => toggleSection("tags")}
         badge={current.tags.length > 0 ? `${current.tags.length}` : null}>
           <div className="flex flex-wrap gap-1">
-            {current.tags.map((tag, i) =>
-            <span key={i} className={`px-2 py-0.5 rounded-full text-[9px] font-medium flex items-center gap-0.5 ${tagClass(tag.color)}`}>
-                {tag.name}
-                <button type="button" onClick={() => {const u = current.tags.filter((_, j) => j !== i);setNewTaskField(key, "tags", u);}}>
-                  <X className="w-2.5 h-2.5" />
+            {allTags.map((tag) => {
+              const selected = current.tags.some((t) => t.id === tag.id);
+              return (
+                <button key={tag.id} type="button"
+                  onClick={() => {
+                    if (selected) {
+                      setNewTaskField(key, "tags", current.tags.filter((t) => t.id !== tag.id));
+                    } else if (current.tags.length < 3) {
+                      setNewTaskField(key, "tags", [...current.tags, { id: tag.id, name: tag.name, color: tag.color }]);
+                    }
+                  }}
+                  className={`px-2 py-0.5 rounded-full text-[9px] font-medium flex items-center gap-0.5 transition-all border ${
+                    selected
+                      ? `${tagClass(tag.color)} border-transparent ring-1 ring-[#E87A5A]/40`
+                      : "bg-secondary text-muted-foreground border-border hover:border-[#E87A5A]/40 hover:text-foreground"
+                  }`}>
+                  {selected && <Check className="w-2.5 h-2.5" />}
+                  {tag.name}
                 </button>
-              </span>
-            )}
+              );
+            })}
             {current.tags.length < 3 &&
             <button type="button" onClick={() => setShowTagPickerFor(key)}
             className="px-2 py-0.5 rounded-full text-[9px] text-muted-foreground border border-dashed border-border hover:border-[#E87A5A]/50 hover:text-[#E87A5A] transition-all">
-                + tag
+                + nova
               </button>
             }
           </div>
@@ -961,25 +974,37 @@ export default function TaskBoard() {
                 placeholder="Adiciona uma nota..."
                 className="w-full mt-1 px-3 py-2 rounded-xl border border-border bg-secondary/50 text-sm resize-none h-20 outline-none focus:border-[#E87A5A]/50 transition-all" />
                 </div>
-                <div data-source-location="pages/TaskBoard:571:16" data-dynamic-content="true">
-                  <label data-source-location="pages/TaskBoard:572:18" data-dynamic-content="false" className="text-xs font-medium text-muted-foreground">Tags (até 3)</label>
-                  <div data-source-location="pages/TaskBoard:573:18" data-dynamic-content="true" className="flex flex-wrap gap-1.5 mt-1">
-                    {(editingTask._tags || []).map((tag, i) =>
-                  <span data-source-location="pages/TaskBoard:575:22" data-dynamic-content="true" key={i} className={`px-2.5 py-1 rounded-full text-xs font-medium flex items-center gap-1 ${tagClass(tag.color)}`} data-collection-item-field="name" data-collection-item-id={tag?.id || tag?._id}>
-                        {tag.name}
-                        <button data-source-location="pages/TaskBoard:577:24" data-dynamic-content="true" onClick={() => {
-                      const updated = [...editingTask._tags];
-                      updated.splice(i, 1);
-                      setEditingTask({ ...editingTask, _tags: updated });
-                    }}><X data-source-location="pages/TaskBoard:581:27" data-dynamic-content="false" className="w-3 h-3" /></button>
-                      </span>
-                  )}
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground">Tags (até 3)</label>
+                  <div className="flex flex-wrap gap-1.5 mt-1">
+                    {allTags.map((tag) => {
+                      const selected = (editingTask._tags || []).some((t) => t.id === tag.id);
+                      return (
+                        <button key={tag.id} type="button"
+                          onClick={() => {
+                            const current = editingTask._tags || [];
+                            if (selected) {
+                              setEditingTask({ ...editingTask, _tags: current.filter((t) => t.id !== tag.id) });
+                            } else if (current.length < 3) {
+                              setEditingTask({ ...editingTask, _tags: [...current, { id: tag.id, name: tag.name, color: tag.color }] });
+                            }
+                          }}
+                          className={`px-2.5 py-1 rounded-full text-xs font-medium flex items-center gap-1 transition-all border ${
+                            selected
+                              ? `${tagClass(tag.color)} border-transparent ring-1 ring-[#E87A5A]/40`
+                              : "bg-secondary text-muted-foreground border-border hover:border-[#E87A5A]/40 hover:text-foreground"
+                          }`}>
+                          {selected && <Check className="w-3 h-3" />}
+                          {tag.name}
+                        </button>
+                      );
+                    })}
                     {(!editingTask._tags || editingTask._tags.length < 3) &&
-                  <button data-source-location="pages/TaskBoard:585:22" data-dynamic-content="true" onClick={() => setShowEditTagPicker(true)}
-                  className="px-3 py-1 rounded-full text-xs border border-dashed border-border text-muted-foreground hover:border-[#E87A5A]/50 transition-all">
-                        + tag
+                      <button onClick={() => setShowEditTagPicker(true)}
+                        className="px-3 py-1 rounded-full text-xs border border-dashed border-border text-muted-foreground hover:border-[#E87A5A]/50 transition-all">
+                        + nova
                       </button>
-                  }
+                    }
                   </div>
                 </div>
               </div>

@@ -138,6 +138,7 @@ export default function Notes() {
   const [search, setSearch] = useState("");
   const [deleting, setDeleting] = useState(null);
   const searchRef = useRef(null);
+  const swipeStartX = useRef(null);
 
   const load = () => Note.list("-updated_at", 200).then(setNotes).catch(() => {});
 
@@ -178,8 +179,24 @@ export default function Notes() {
     grouped[label].push(n);
   });
 
+  const handleSwipeStart = (e) => {
+    swipeStartX.current = (e.touches?.[0] ?? e).clientX;
+  };
+  const handleSwipeEnd = (e) => {
+    if (swipeStartX.current === null) return;
+    const dx = (e.changedTouches?.[0] ?? e).clientX - swipeStartX.current;
+    if (dx < -80) navigate("/");
+    swipeStartX.current = null;
+  };
+
   return (
-    <div className="min-h-screen bg-cream flex flex-col">
+    <div
+      className="min-h-screen bg-cream flex flex-col"
+      onTouchStart={handleSwipeStart}
+      onTouchEnd={handleSwipeEnd}
+      onMouseDown={handleSwipeStart}
+      onMouseUp={handleSwipeEnd}
+    >
       {/* note-card-preview scoped styles */}
       <style>{`
         .note-card-preview { font-size: 11px; line-height: 1.5; }
@@ -195,15 +212,32 @@ export default function Notes() {
 
       {/* Header */}
       <div className="sticky top-0 z-10 bg-cream border-b border-border/50">
-        {/* Title row */}
-        <div className="flex items-center gap-3 px-4 pt-3 pb-2">
+        <div className="flex items-center gap-2 px-4 py-3">
+          {/* Back */}
           <button onClick={() => navigate("/")}
             className="w-10 h-10 rounded-2xl bg-white border border-border flex items-center justify-center text-muted-foreground hover:text-foreground transition-all shadow-sm flex-shrink-0">
             <ArrowLeft className="w-5 h-5" />
           </button>
-          <div className="flex-1">
-            <h1 className="text-lg font-bold text-foreground">Notas</h1>
+          {/* Title */}
+          <div className="flex-1 min-w-0">
+            <h1 className="text-lg font-bold text-foreground leading-tight">Notas</h1>
             <p className="text-[11px] text-muted-foreground">{notes.length} nota{notes.length !== 1 ? "s" : ""}</p>
+          </div>
+          {/* Search — ~45% width, inline */}
+          <div className="flex items-center gap-1.5 bg-white border border-border rounded-2xl px-3 py-2 shadow-sm focus-within:border-[#E87A5A]/50 transition-all w-[44%] flex-shrink-0">
+            <Search className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
+            <input
+              ref={searchRef}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Pesquisar..."
+              className="flex-1 text-sm outline-none bg-transparent text-foreground placeholder:text-muted-foreground/50 min-w-0"
+            />
+            {search && (
+              <button onClick={() => setSearch("")} className="flex-shrink-0">
+                <X className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground transition-colors" />
+              </button>
+            )}
           </div>
           {/* View toggle */}
           <div className="flex bg-white border border-border rounded-2xl p-0.5 shadow-sm flex-shrink-0">
@@ -215,24 +249,6 @@ export default function Notes() {
               className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all ${view === "apple" ? "bg-[#E87A5A] text-white shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>
               <List className="w-4 h-4" />
             </button>
-          </div>
-        </div>
-        {/* Search bar — always visible, full width */}
-        <div className="px-4 pb-3">
-          <div className="flex items-center gap-2 bg-white border border-border rounded-2xl px-4 py-2.5 shadow-sm focus-within:border-[#E87A5A]/50 transition-all">
-            <Search className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-            <input
-              ref={searchRef}
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Pesquisar notas, títulos, conteúdo..."
-              className="flex-1 text-sm outline-none bg-transparent text-foreground placeholder:text-muted-foreground/50"
-            />
-            {search && (
-              <button onClick={() => setSearch("")}>
-                <X className="w-4 h-4 text-muted-foreground hover:text-foreground transition-colors" />
-              </button>
-            )}
           </div>
         </div>
       </div>
