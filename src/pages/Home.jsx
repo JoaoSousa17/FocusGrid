@@ -195,14 +195,24 @@ export default function Home() {
       </div>
 
       {/* Profile button */}
-      <motion.button
-        initial={{ opacity: 0, scale: 0.8 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ delay: 0.5 }}
-        onClick={() => navigate("/profile")}
-        className="absolute top-4 right-4 z-20 w-10 h-10 rounded-2xl bg-white border border-border shadow-sm flex items-center justify-center hover:border-[#E87A5A]/40 hover:bg-[#E87A5A]/5 transition-all">
-        <UserCircle2 className="w-5 h-5 text-muted-foreground" />
-      </motion.button>
+      <div className="absolute top-4 right-4 z-20 flex items-center gap-2">
+        <motion.span
+          animate={{ opacity: [0.4, 1, 0.4] }}
+          transition={{ repeat: Infinity, duration: 3, delay: 2 }}
+          className="text-[10px] text-muted-foreground/60 hidden sm:block">
+          Perfil
+        </motion.span>
+        <motion.button
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.5 }}
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.95 }}
+          onClick={() => navigate("/profile")}
+          className="w-12 h-12 rounded-2xl bg-[#6366F1] text-white shadow-lg shadow-[#6366F1]/30 flex items-center justify-center hover:bg-[#4F52D4] transition-all">
+          <UserCircle2 className="w-5 h-5" />
+        </motion.button>
+      </div>
 
       {/* Swipe hints */}
       <div data-source-location="pages/Home:216:6" data-dynamic-content="true" className="absolute bottom-28 left-1/2 -translate-x-1/2 flex items-center gap-8 z-10">

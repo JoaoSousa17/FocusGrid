@@ -23,7 +23,12 @@ export const NOTE_COLORS = [
 ];
 
 function colorOf(key) {
-  return NOTE_COLORS.find((c) => c.key === key) || NOTE_COLORS[0];
+  if (!key) return NOTE_COLORS[0];
+  const preset = NOTE_COLORS.find((c) => c.key === key);
+  if (preset) return preset;
+  // Support raw hex colors set from the extended palette
+  if (key.startsWith("#")) return { key, bg: key, border: key + "88", dark: key };
+  return NOTE_COLORS[0];
 }
 
 function stripHtml(html) {
@@ -41,7 +46,7 @@ function dateLabel(ts) {
 
 function NoteCardKeep({ note, onClick, onDelete }) {
   const col = colorOf(note.color);
-  const text = stripHtml(note.content);
+  const hasContent = !!stripHtml(note.content);
   return (
     <motion.div
       layout
@@ -64,14 +69,21 @@ function NoteCardKeep({ note, onClick, onDelete }) {
       )}
       <div className="p-3.5 pt-3">
         {note.title && (
-          <p className="text-sm font-semibold text-foreground mb-1 line-clamp-2 pr-4">{note.title}</p>
+          <>
+            <p className="text-sm font-semibold text-foreground line-clamp-2 pr-4">{note.title}</p>
+            {hasContent && (
+              <hr className="my-2" style={{ borderColor: col.border }} />
+            )}
+          </>
         )}
-        {text && (
-          <p className="text-xs text-muted-foreground line-clamp-6 whitespace-pre-wrap">{text}</p>
-        )}
-        {!note.title && !text && (
+        {hasContent ? (
+          <div
+            className="text-xs text-muted-foreground line-clamp-6 note-card-preview pointer-events-none"
+            dangerouslySetInnerHTML={{ __html: note.content }}
+          />
+        ) : !note.title ? (
           <p className="text-xs text-muted-foreground/40 italic">Nota vazia</p>
-        )}
+        ) : null}
       </div>
       <button
         onClick={(e) => { e.stopPropagation(); onDelete(note); }}
@@ -124,14 +136,12 @@ export default function Notes() {
   const [notes, setNotes] = useState([]);
   const [view, setView] = useState("keep"); // keep | apple
   const [search, setSearch] = useState("");
-  const [showSearch, setShowSearch] = useState(false);
   const [deleting, setDeleting] = useState(null);
   const searchRef = useRef(null);
 
   const load = () => Note.list("-updated_at", 200).then(setNotes).catch(() => {});
 
   useEffect(() => { load(); }, []);
-  useEffect(() => { if (showSearch) searchRef.current?.focus(); }, [showSearch]);
 
   const createNote = async () => {
     try {
@@ -170,39 +180,33 @@ export default function Notes() {
 
   return (
     <div className="min-h-screen bg-cream flex flex-col">
+      {/* note-card-preview scoped styles */}
+      <style>{`
+        .note-card-preview { font-size: 11px; line-height: 1.5; }
+        .note-card-preview p { margin: 0 0 2px; }
+        .note-card-preview h1,.note-card-preview h2,.note-card-preview h3 { font-weight:600; margin:0 0 2px; font-size:12px; }
+        .note-card-preview ul,.note-card-preview ol { padding-left:1.1em; margin:0 0 2px; }
+        .note-card-preview li { margin:0; }
+        .note-card-preview table { border-collapse:collapse; font-size:10px; width:100%; }
+        .note-card-preview td,.note-card-preview th { border:1px solid #d1d5db; padding:2px 4px; }
+        .note-card-preview img { max-width:100%; border-radius:4px; }
+        .note-card-preview code { background:#f3f4f6; border-radius:3px; padding:0 3px; font-size:10px; }
+      `}</style>
+
       {/* Header */}
       <div className="sticky top-0 z-10 bg-cream border-b border-border/50">
-        <div className="flex items-center gap-3 px-4 py-3">
+        {/* Title row */}
+        <div className="flex items-center gap-3 px-4 pt-3 pb-2">
           <button onClick={() => navigate("/")}
             className="w-10 h-10 rounded-2xl bg-white border border-border flex items-center justify-center text-muted-foreground hover:text-foreground transition-all shadow-sm flex-shrink-0">
             <ArrowLeft className="w-5 h-5" />
           </button>
-          <AnimatePresence mode="wait">
-            {showSearch ? (
-              <motion.div key="search" initial={{ opacity: 0, width: 0 }} animate={{ opacity: 1, width: "100%" }} exit={{ opacity: 0, width: 0 }}
-                className="flex-1 flex items-center gap-2 bg-white border border-border rounded-2xl px-3 py-2 shadow-sm">
-                <Search className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                <input ref={searchRef} value={search} onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Pesquisar notas..." className="flex-1 text-sm outline-none bg-transparent" />
-                <button onClick={() => { setSearch(""); setShowSearch(false); }}>
-                  <X className="w-4 h-4 text-muted-foreground" />
-                </button>
-              </motion.div>
-            ) : (
-              <motion.div key="title" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex-1">
-                <h1 className="text-lg font-bold text-foreground">Notas</h1>
-                <p className="text-[11px] text-muted-foreground">{notes.length} nota{notes.length !== 1 ? "s" : ""}</p>
-              </motion.div>
-            )}
-          </AnimatePresence>
-          {!showSearch && (
-            <button onClick={() => setShowSearch(true)}
-              className="w-10 h-10 rounded-2xl bg-white border border-border flex items-center justify-center text-muted-foreground hover:text-foreground transition-all shadow-sm">
-              <Search className="w-4 h-4" />
-            </button>
-          )}
+          <div className="flex-1">
+            <h1 className="text-lg font-bold text-foreground">Notas</h1>
+            <p className="text-[11px] text-muted-foreground">{notes.length} nota{notes.length !== 1 ? "s" : ""}</p>
+          </div>
           {/* View toggle */}
-          <div className="flex bg-white border border-border rounded-2xl p-0.5 shadow-sm">
+          <div className="flex bg-white border border-border rounded-2xl p-0.5 shadow-sm flex-shrink-0">
             <button onClick={() => setView("keep")}
               className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all ${view === "keep" ? "bg-[#E87A5A] text-white shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>
               <Grid3x3 className="w-4 h-4" />
@@ -211,6 +215,24 @@ export default function Notes() {
               className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all ${view === "apple" ? "bg-[#E87A5A] text-white shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>
               <List className="w-4 h-4" />
             </button>
+          </div>
+        </div>
+        {/* Search bar — always visible, full width */}
+        <div className="px-4 pb-3">
+          <div className="flex items-center gap-2 bg-white border border-border rounded-2xl px-4 py-2.5 shadow-sm focus-within:border-[#E87A5A]/50 transition-all">
+            <Search className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+            <input
+              ref={searchRef}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Pesquisar notas, títulos, conteúdo..."
+              className="flex-1 text-sm outline-none bg-transparent text-foreground placeholder:text-muted-foreground/50"
+            />
+            {search && (
+              <button onClick={() => setSearch("")}>
+                <X className="w-4 h-4 text-muted-foreground hover:text-foreground transition-colors" />
+              </button>
+            )}
           </div>
         </div>
       </div>

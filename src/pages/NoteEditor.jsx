@@ -6,6 +6,7 @@ import {
   Bold, Italic, Underline, Strikethrough, AlignLeft, AlignCenter,
   AlignRight, AlignJustify, List, ListOrdered, Heading1, Heading2,
   Heading3, Image, Table, Minus, Check, Camera, ZoomIn, ZoomOut,
+  Link2, Eraser,
 } from "lucide-react";
 import { Note } from "@/api/entities";
 import { Core } from "@/api/integrations";
@@ -203,6 +204,7 @@ export default function NoteEditor() {
   const modeRef = useRef("wysiwyg");
   const [fontSize, setFontSize] = useState(15);
   const [showColorPicker, setShowColorPicker] = useState(false);
+  const [customHex, setCustomHex] = useState("");
   const [showTablePicker, setShowTablePicker] = useState(false);
   const [showSetPw, setShowSetPw] = useState(false);
   const [unlocked, setUnlocked] = useState(false);
@@ -396,6 +398,21 @@ export default function NoteEditor() {
     setShowColorPicker(false);
   };
 
+  const setCustomColor = async () => {
+    const hex = customHex.startsWith("#") ? customHex : "#" + customHex;
+    if (!/^#[0-9a-fA-F]{6}$/.test(hex)) return;
+    await Note.update(id, { color: hex });
+    setNote((prev) => ({ ...prev, color: hex }));
+    setCustomHex("");
+    setShowColorPicker(false);
+  };
+
+  const insertLink = () => {
+    const url = prompt("URL do link:");
+    if (!url) return;
+    exec("createLink", url);
+  };
+
   // ─── Delete ───────────────────────────────────────────────────────────────
   const deleteNote = async () => {
     await Note.delete(id).catch(() => {});
@@ -417,7 +434,13 @@ export default function NoteEditor() {
     </div>
   );
 
-  const col = NOTE_COLORS.find((c) => c.key === note.color) || NOTE_COLORS[0];
+  const col = (() => {
+    if (!note.color) return NOTE_COLORS[0];
+    const preset = NOTE_COLORS.find((c) => c.key === note.color);
+    if (preset) return preset;
+    if (note.color.startsWith("#")) return { key: note.color, bg: note.color, border: note.color + "88", dark: note.color };
+    return NOTE_COLORS[0];
+  })();
   const showLock = note.locked && !unlocked;
 
   return (
@@ -465,14 +488,55 @@ export default function NoteEditor() {
               <AnimatePresence>
                 {showColorPicker && (
                   <motion.div initial={{ opacity: 0, scale: 0.9, y: -4 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9 }}
-                    className="absolute right-0 top-10 bg-white rounded-2xl border border-border shadow-xl p-3 z-50 flex flex-wrap gap-1.5 w-44">
-                    {NOTE_COLORS.map((c) => (
-                      <button key={c.key} onClick={() => setColor(c.key)}
-                        className="w-7 h-7 rounded-full border-2 transition-all hover:scale-110 flex items-center justify-center"
-                        style={{ backgroundColor: c.bg, borderColor: note.color === c.key ? "#E87A5A" : c.border }}>
-                        {note.color === c.key && <Check className="w-3 h-3 text-[#E87A5A]" />}
+                    className="absolute right-0 top-10 bg-white rounded-2xl border border-border shadow-xl p-3 z-50 w-64">
+                    {/* Preset swatches */}
+                    <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-2">Predefinidas</p>
+                    <div className="flex flex-wrap gap-1.5 mb-3">
+                      {NOTE_COLORS.map((c) => (
+                        <button key={c.key} onClick={() => setColor(c.key)}
+                          className="w-7 h-7 rounded-full border-2 transition-all hover:scale-110 flex items-center justify-center"
+                          style={{ backgroundColor: c.bg, borderColor: note.color === c.key ? "#E87A5A" : c.border }}>
+                          {note.color === c.key && <Check className="w-3 h-3 text-[#E87A5A]" />}
+                        </button>
+                      ))}
+                    </div>
+                    {/* Extended palette */}
+                    <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-2">Mais cores</p>
+                    <div className="flex flex-wrap gap-1.5 mb-3">
+                      {["#fef2f2","#fff7ed","#fefce8","#f0fdf4","#ecfdf5","#f0f9ff","#eff6ff","#f5f3ff","#fdf4ff",
+                        "#fee2e2","#ffedd5","#fef9c3","#dcfce7","#d1fae5","#e0f2fe","#dbeafe","#ede9fe","#fae8ff",
+                        "#fca5a5","#fdba74","#fde68a","#86efac","#6ee7b7","#7dd3fc","#93c5fd","#c4b5fd","#e879f9"].map((hex) => (
+                        <button key={hex} onClick={() => { Note.update(id, { color: hex }); setNote((p) => ({...p, color: hex})); setShowColorPicker(false); }}
+                          className="w-7 h-7 rounded-full border-2 transition-all hover:scale-110 flex items-center justify-center"
+                          style={{ backgroundColor: hex, borderColor: note.color === hex ? "#E87A5A" : "#e5e7eb" }}>
+                          {note.color === hex && <Check className="w-3 h-3 text-[#E87A5A]" />}
+                        </button>
+                      ))}
+                    </div>
+                    {/* Hex input */}
+                    <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">Hexadecimal</p>
+                    <div className="flex gap-2">
+                      <div className="flex-1 flex items-center gap-2 border border-border rounded-xl px-2 py-1.5 focus-within:border-[#E87A5A]/50 transition-all">
+                        <span className="text-sm text-muted-foreground">#</span>
+                        <input
+                          value={customHex.replace("#", "")}
+                          onChange={(e) => setCustomHex(e.target.value.replace("#", ""))}
+                          onKeyDown={(e) => e.key === "Enter" && setCustomColor()}
+                          placeholder="e5e7eb"
+                          maxLength={6}
+                          className="flex-1 text-sm outline-none font-mono min-w-0"
+                        />
+                        {/^[0-9a-fA-F]{6}$/.test(customHex.replace("#", "")) && (
+                          <div className="w-5 h-5 rounded-full border border-border flex-shrink-0"
+                            style={{ backgroundColor: "#" + customHex.replace("#", "") }} />
+                        )}
+                      </div>
+                      <button onClick={setCustomColor}
+                        disabled={!/^[0-9a-fA-F]{6}$/.test(customHex.replace("#", ""))}
+                        className="px-3 py-1.5 rounded-xl bg-[#E87A5A] text-white text-xs font-semibold disabled:opacity-40 transition-all">
+                        OK
                       </button>
-                    ))}
+                    </div>
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -550,7 +614,16 @@ export default function NoteEditor() {
                   </div>
                   <TBtn onClick={() => fileInputRef.current?.click()} title="Imagem"><Image className="w-4 h-4" /></TBtn>
                   <TBtn onClick={() => cameraInputRef.current?.click()} title="Câmara"><Camera className="w-4 h-4" /></TBtn>
-                  <TBtn onClick={() => insertHtml("<hr style='margin:8px 0;border-color:#e5e7eb'>")} title="Linha"><Minus className="w-4 h-4" /></TBtn>
+                  <TBtn onClick={insertLink} title="Inserir link"><Link2 className="w-4 h-4" /></TBtn>
+                  <TBtn onClick={() => insertHtml("<hr style='margin:8px 0;border-color:#e5e7eb'>")} title="Linha divisória"><Minus className="w-4 h-4" /></TBtn>
+                  <div className="w-px h-6 bg-border mx-0.5" />
+                  <TBtn onClick={() => exec("removeFormat")} title="Remover formatação"><Eraser className="w-4 h-4" /></TBtn>
+                  <TBtn onClick={() => exec("undo")} title="Desfazer">
+                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg>
+                  </TBtn>
+                  <TBtn onClick={() => exec("redo")} title="Refazer">
+                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 7v6h-6"/><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3L21 13"/></svg>
+                  </TBtn>
                 </>
               ) : (
                 <>
