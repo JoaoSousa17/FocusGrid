@@ -166,7 +166,14 @@ function FormSection({ icon: Icon, label, badge, open, onToggle, children }) {
     </div>);
 }
 
-export default function TaskBoard() {
+// sharedOwnerId / sharedRole / sharedOwnerName are set when viewing another user's board
+export default function TaskBoard({ sharedOwnerId, sharedRole, sharedOwnerName } = {}) {
+  const isSharedView = !!sharedOwnerId;
+  // canWrite: own board OR editor/admin on shared board
+  const canWrite = !isSharedView || sharedRole === "editor" || sharedRole === "admin";
+  // canShare: own board OR admin on shared board
+  const canShare = !isSharedView || sharedRole === "admin";
+
   const navigate = useNavigate();
   const { t } = useLang();
   const { handlePlayPause, isRunning } = useFocusTimer();
@@ -224,16 +231,25 @@ export default function TaskBoard() {
   const materializedWeeksRef = useRef(new Set());
 
   const refreshData = () => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (!user) return;
-      supabase.from("tasks").select("*").eq("created_by_id", user.id).order("order", { ascending: true }).limit(500)
-        .then(({ data }) => {
-          const all = data || [];
-          ensureRecurrences(all);
-          setTasks(all);
-        });
-    });
-    Tag.list().then(setAllTags).catch(() => setAllTags([]));
+    const ownerId = sharedOwnerId || null;
+    const fetchTasks = async () => {
+      if (ownerId) {
+        // Shared view: fetch owner's tasks directly (RLS tasks_shared_read allows it)
+        const { data } = await supabase.from("tasks").select("*").eq("created_by_id", ownerId).order("order", { ascending: true }).limit(500);
+        return data || [];
+      }
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return [];
+      const { data } = await supabase.from("tasks").select("*").eq("created_by_id", user.id).order("order", { ascending: true }).limit(500);
+      return data || [];
+    };
+    fetchTasks().then(async (all) => { await ensureRecurrences(all); setTasks(all); });
+    // Tags: own tags always; for shared view also fetch owner's tags
+    if (ownerId) {
+      supabase.from("tags").select("*").eq("created_by_id", ownerId).then(({ data }) => setAllTags(data || []));
+    } else {
+      Tag.list().then(setAllTags).catch(() => setAllTags([]));
+    }
   };
 
   // Materializa instâncias de tarefas recorrentes para a semana atual
@@ -285,9 +301,9 @@ export default function TaskBoard() {
     materializedWeeksRef.current.add(weekKey);
     if (toCreate.length > 0) {
       await Task.bulkCreate(toCreate).catch(() => {});
-      const { data: { user } } = await supabase.auth.getUser();
-      const { data: fresh } = user
-        ? await supabase.from("tasks").select("*").eq("created_by_id", user.id).order("order", { ascending: true }).limit(500)
+      const targetId = sharedOwnerId || (await supabase.auth.getUser()).data?.user?.id;
+      const { data: fresh } = targetId
+        ? await supabase.from("tasks").select("*").eq("created_by_id", targetId).order("order", { ascending: true }).limit(500)
         : { data: null };
       setTasks(fresh || allTasks);
     }
@@ -619,13 +635,15 @@ export default function TaskBoard() {
                 </div>
             }
               {/* Trash icon on hover */}
+              {canWrite && (
               <button data-source-location="pages/TaskBoard:277:14" data-dynamic-content="true"
             onClick={(e) => {e.stopPropagation();requestDelete(task);}}
             className="absolute top-2 right-2 w-6 h-6 rounded-full bg-white border border-border shadow-sm flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all hover:bg-rose-50 hover:border-rose-200 hover:text-rose-500 z-10"
             style={task.period ? { right: "28px" } : {}}>
-              
+
                 <Trash2 data-source-location="pages/TaskBoard:282:16" data-dynamic-content="false" className="w-3 h-3" />
               </button>
+              )}
 
               {/* Grip icon top-left on hover */}
               <div data-source-location="pages/TaskBoard:286:14" data-dynamic-content="false" className="absolute top-2 left-2 opacity-0 group-hover:opacity-40 transition-opacity">
@@ -633,8 +651,8 @@ export default function TaskBoard() {
               </div>
 
               <div data-source-location="pages/TaskBoard:290:14" data-dynamic-content="true" className="flex items-start gap-2">
-                <button data-source-location="pages/TaskBoard:291:16" data-dynamic-content="true" onClick={(e) => {e.stopPropagation();toggleTask(task);}}
-              className={`mt-0.5 w-4 h-4 rounded border-2 flex-shrink-0 flex items-center justify-center transition-all ${isCompleted ? "bg-blue-500 border-blue-500" : "border-slate-300 hover:border-blue-400"}`}>
+                <button data-source-location="pages/TaskBoard:291:16" data-dynamic-content="true" onClick={(e) => {e.stopPropagation(); if(canWrite) toggleTask(task);}}
+              className={`mt-0.5 w-4 h-4 rounded border-2 flex-shrink-0 flex items-center justify-center transition-all ${isCompleted ? "bg-blue-500 border-blue-500" : "border-slate-300 hover:border-blue-400"} ${!canWrite ? "cursor-default" : ""}`}>
                   {isCompleted && <Check data-source-location="pages/TaskBoard:293:34" data-dynamic-content="false" className="w-2.5 h-2.5 text-white" />}
                 </button>
                 <div data-source-location="pages/TaskBoard:295:16" data-dynamic-content="true" className="flex-1 min-w-0">
@@ -829,14 +847,14 @@ export default function TaskBoard() {
               {dayTasks.map((task, idx) => renderTaskCard(task, idx, dayIdx))}
               {provided.placeholder}
 
-              {isAdding ? renderMiniForm(key) :
+              {isAdding ? renderMiniForm(key) : canWrite && (
             <button data-source-location="pages/TaskBoard:382:16" data-dynamic-content="true" onClick={() => {
               setNewTasks({ ...newTasks, [key]: { title: "", period: null, tags: [], priority: "medium", recurrence: "none", subtasks: [] } });
               setAddingTo(key);
             }} className="w-full flex items-center justify-center gap-1 py-3 rounded-xl border-2 border-dashed border-border text-muted-foreground/60 hover:text-[#E87A5A] hover:border-[#E87A5A]/30 transition-all text-xs">
                   <Plus data-source-location="pages/TaskBoard:386:18" data-dynamic-content="false" className="w-3 h-3" /> {t("tasks.new_task").replace("...", "")}
                 </button>
-            }
+            )}
             </div>
           }
         </Droppable>
@@ -858,10 +876,19 @@ export default function TaskBoard() {
                 <ArrowRight data-source-location="pages/TaskBoard:412:16" data-dynamic-content="false" className="w-5 h-5" />
               </button>
               <div data-source-location="pages/TaskBoard:414:14" data-dynamic-content="true">
-                <h1 data-source-location="pages/TaskBoard:415:16" data-dynamic-content="false" className="text-lg font-bold text-foreground">{t("tasks.title")}</h1>
-                <p data-source-location="pages/TaskBoard:416:16" data-dynamic-content="true" className="text-[11px] text-muted-foreground">
-                  {format(weekStart, "d", { locale: pt })} - {format(weekEnd, "d 'de' MMM", { locale: pt })}
-                </p>
+                {isSharedView ? (
+                  <>
+                    <p className="text-[10px] text-muted-foreground">{t("tasks.title")} de</p>
+                    <h1 className="text-lg font-bold text-foreground truncate max-w-[160px]">{sharedOwnerName}</h1>
+                  </>
+                ) : (
+                  <>
+                    <h1 data-source-location="pages/TaskBoard:415:16" data-dynamic-content="false" className="text-lg font-bold text-foreground">{t("tasks.title")}</h1>
+                    <p data-source-location="pages/TaskBoard:416:16" data-dynamic-content="true" className="text-[11px] text-muted-foreground">
+                      {format(weekStart, "d", { locale: pt })} - {format(weekEnd, "d 'de' MMM", { locale: pt })}
+                    </p>
+                  </>
+                )}
               </div>
             </div>
             <div data-source-location="pages/TaskBoard:421:12" data-dynamic-content="true" className="flex items-center gap-2">
@@ -892,23 +919,29 @@ export default function TaskBoard() {
             <button data-source-location="pages/TaskBoard:443:12" data-dynamic-content="true" onClick={() => setShowTagManager(true)} className="py-2 px-3 rounded-xl bg-secondary text-xs font-medium text-muted-foreground flex items-center gap-1 hover:bg-border transition-all">
               <Tags data-source-location="pages/TaskBoard:444:14" data-dynamic-content="false" className="w-3.5 h-3.5" /> <span data-source-location="pages/TaskBoard:444:47" data-dynamic-content="false" className="hidden sm:inline">Tags</span>
             </button>
-            <button onClick={() => setShowShare(true)} className="py-2 px-3 rounded-xl bg-secondary text-xs font-medium text-muted-foreground flex items-center gap-1 hover:bg-border transition-all">
-              <Share2 className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Partilhar</span>
-            </button>
-            <button data-source-location="pages/TaskBoard:446:12" data-dynamic-content="true" onClick={clearWeek} className="py-2 px-3 rounded-xl bg-rose-50 text-rose-600 text-xs font-medium flex items-center gap-1 hover:bg-rose-100 transition-all">
-              <Trash2 data-source-location="pages/TaskBoard:447:14" data-dynamic-content="false" className="w-3.5 h-3.5" />
-            </button>
-            <button
-              onClick={() => incompleteThisWeek.length > 0 && setRolloverConfirm(true)}
-              disabled={incompleteThisWeek.length === 0}
-              title={t("tasks.rollover_title")}
-              className="py-2 px-3 rounded-xl bg-amber-50 text-amber-600 text-xs font-medium flex items-center gap-1 hover:bg-amber-100 transition-all disabled:opacity-40 disabled:cursor-not-allowed">
-              <ChevronsRight className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">{t("tasks.rollover_pass")}</span>
-              {incompleteThisWeek.length > 0 && (
-                <span className="bg-amber-200 text-amber-700 rounded-full px-1.5 py-0.5 text-[10px] font-bold leading-none">{incompleteThisWeek.length}</span>
-              )}
-            </button>
+            {canShare && (
+              <button onClick={() => setShowShare(true)} className="py-2 px-3 rounded-xl bg-secondary text-xs font-medium text-muted-foreground flex items-center gap-1 hover:bg-border transition-all">
+                <Share2 className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Partilhar</span>
+              </button>
+            )}
+            {canWrite && (
+              <>
+                <button data-source-location="pages/TaskBoard:446:12" data-dynamic-content="true" onClick={clearWeek} className="py-2 px-3 rounded-xl bg-rose-50 text-rose-600 text-xs font-medium flex items-center gap-1 hover:bg-rose-100 transition-all">
+                  <Trash2 data-source-location="pages/TaskBoard:447:14" data-dynamic-content="false" className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  onClick={() => incompleteThisWeek.length > 0 && setRolloverConfirm(true)}
+                  disabled={incompleteThisWeek.length === 0}
+                  title={t("tasks.rollover_title")}
+                  className="py-2 px-3 rounded-xl bg-amber-50 text-amber-600 text-xs font-medium flex items-center gap-1 hover:bg-amber-100 transition-all disabled:opacity-40 disabled:cursor-not-allowed">
+                  <ChevronsRight className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">{t("tasks.rollover_pass")}</span>
+                  {incompleteThisWeek.length > 0 && (
+                    <span className="bg-amber-200 text-amber-700 rounded-full px-1.5 py-0.5 text-[10px] font-bold leading-none">{incompleteThisWeek.length}</span>
+                  )}
+                </button>
+              </>
+            )}
           </div>
         </div>
 
