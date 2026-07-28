@@ -19,29 +19,18 @@ export default function SharedWithMe({ open, onClose }) {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Fetch shares where current user is the recipient
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("task_shares")
         .select("*")
         .eq("shared_with_email", user.email)
         .order("created_at", { ascending: false });
 
-      if (!data?.length) { setShares([]); return; }
-
-      // Enrich with owner profile info (email only — profiles table has no full_name)
-      const ownerIds = [...new Set(data.map((s) => s.owner_id))];
-      const { data: profiles } = await supabase
-        .from("profiles")
-        .select("id, email")
-        .in("id", ownerIds);
-
-      const profileMap = Object.fromEntries((profiles || []).map((p) => [p.id, p]));
+      if (error) { console.error("SharedWithMe error:", error); setShares([]); return; }
 
       setShares(
-        data.map((s) => ({
+        (data || []).map((s) => ({
           ...s,
-          ownerName: profileMap[s.owner_id]?.email || s.owner_id,
-          ownerEmail: profileMap[s.owner_id]?.email || "",
+          ownerName: s.owner_email || s.owner_id,
         }))
       );
     } finally {
