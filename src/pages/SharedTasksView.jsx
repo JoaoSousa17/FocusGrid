@@ -87,8 +87,8 @@ export default function SharedTasksView() {
 
       // Load owner's tasks (allowed by the shared RLS policy)
       const [{ data: taskData }, { data: tagData }] = await Promise.all([
-        supabase.from("tasks").select("*").eq("user_id", ownerId).order("created_at", { ascending: false }),
-        supabase.from("tags").select("*").eq("user_id", ownerId),
+        supabase.from("tasks").select("*").eq("created_by_id", ownerId).order("created_at", { ascending: false }),
+        supabase.from("tags").select("*").eq("created_by_id", ownerId),
       ]);
 
       setTasks(taskData || []);

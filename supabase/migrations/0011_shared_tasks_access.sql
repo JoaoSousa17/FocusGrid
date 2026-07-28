@@ -24,7 +24,7 @@ create policy "tasks_shared_read" on public.tasks
   for select using (
     exists (
       select 1 from public.task_shares ts
-      where ts.owner_id = tasks.user_id
+      where ts.owner_id = tasks.created_by_id
         and ts.shared_with_email = (
           select email from auth.users where id = auth.uid()
         )
@@ -37,7 +37,7 @@ create policy "tags_shared_read" on public.tags
   for select using (
     exists (
       select 1 from public.task_shares ts
-      where ts.owner_id = tags.user_id
+      where ts.owner_id = tags.created_by_id
         and ts.shared_with_email = (
           select email from auth.users where id = auth.uid()
         )
