@@ -28,11 +28,11 @@ export default function SharedWithMe({ open, onClose }) {
 
       if (!data?.length) { setShares([]); return; }
 
-      // Enrich with owner profile info (display name / email)
+      // Enrich with owner profile info (email only — profiles table has no full_name)
       const ownerIds = [...new Set(data.map((s) => s.owner_id))];
       const { data: profiles } = await supabase
         .from("profiles")
-        .select("id, full_name, email")
+        .select("id, email")
         .in("id", ownerIds);
 
       const profileMap = Object.fromEntries((profiles || []).map((p) => [p.id, p]));
@@ -40,7 +40,7 @@ export default function SharedWithMe({ open, onClose }) {
       setShares(
         data.map((s) => ({
           ...s,
-          ownerName: profileMap[s.owner_id]?.full_name || profileMap[s.owner_id]?.email || s.owner_id,
+          ownerName: profileMap[s.owner_id]?.email || s.owner_id,
           ownerEmail: profileMap[s.owner_id]?.email || "",
         }))
       );
