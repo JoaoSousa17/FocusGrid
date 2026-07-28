@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowLeft, ArrowRight, ArrowUp, ArrowDown, ListTodo, Heart, Timer, LayoutGrid, MessageCircle, UserCircle2, PenLine } from "lucide-react";
+import { ArrowLeft, ArrowRight, ArrowUp, ArrowDown, ListTodo, Heart, Timer, LayoutGrid, MessageCircle, UserCircle2, PenLine, Inbox } from "lucide-react";
 import { auth } from "@/api/auth";
 import { useEdgeSwipeNav } from "@/hooks/useEdgeSwipeNav";
 import { useLang } from "@/context/LangContext";
+import SharedWithMe from "@/components/SharedWithMe";
 
 function FloatingOrbs() {
   return (
@@ -73,7 +74,8 @@ export default function Home() {
   const { t } = useLang();
   const [swipeHint, setSwipeHint] = useState(null);
   const [user, setUser] = useState(null);
-  const [diagExit, setDiagExit] = useState(null); // { x, y } fractions for exit anim
+  const [diagExit, setDiagExit] = useState(null);
+  const [showSharedWithMe, setShowSharedWithMe] = useState(false); // { x, y } fractions for exit anim
   const { swipeHandlers, dragStyle } = useEdgeSwipeNav({ left: "/habits", right: "/tasks", up: "/focus", down: "/coming-soon" });
   const diagRef = useRef({ startX: 0, startY: 0, type: null });
 
@@ -182,6 +184,15 @@ export default function Home() {
           <MessageCircle className="w-4 h-4 text-[#E87A5A]" />
           {t("home.ai_btn")}
         </motion.button>
+        <motion.button
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 1.15 }}
+          onClick={() => setShowSharedWithMe(true)}
+          className="mt-2 flex items-center gap-2 px-4 py-2 rounded-2xl bg-white border border-border shadow-sm text-sm font-medium text-foreground hover:border-[#3B82F6]/40 hover:bg-[#3B82F6]/5 transition-all">
+          <Inbox className="w-4 h-4 text-[#3B82F6]" />
+          Partilhadas comigo
+        </motion.button>
       </motion.div>
 
       {/* Notes button — bottom-right, diagonal swipe target */}
@@ -249,6 +260,7 @@ export default function Home() {
         </motion.span>
       </div>
       </motion.div>
+      <SharedWithMe open={showSharedWithMe} onClose={() => setShowSharedWithMe(false)} />
     </div>);
 
 }
