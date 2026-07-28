@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ArrowRight, Plus, Check, X, Search, Filter, Trash2, Tags, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, GripVertical, ListChecks, Repeat, Flag, Timer, ChevronsRight, Share2 } from "lucide-react";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import { Tag, Task } from "@/api/entities";
+import { supabase } from "@/api/supabaseClient";
 import { startOfWeek, endOfWeek, addWeeks, subWeeks, addDays, addMonths, addYears, parseISO, format, eachDayOfInterval } from "date-fns";
 import { pt } from "date-fns/locale";
 import TagPicker from "@/components/TagPicker";
@@ -223,10 +224,15 @@ export default function TaskBoard() {
   const materializedWeeksRef = useRef(new Set());
 
   const refreshData = () => {
-    Task.list("order", 500).then(async (all) => {
-      await ensureRecurrences(all);
-      setTasks(all);
-    }).catch(() => setTasks([]));
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) return;
+      supabase.from("tasks").select("*").eq("created_by_id", user.id).order("order", { ascending: true }).limit(500)
+        .then(({ data }) => {
+          const all = data || [];
+          ensureRecurrences(all);
+          setTasks(all);
+        });
+    });
     Tag.list().then(setAllTags).catch(() => setAllTags([]));
   };
 
@@ -279,8 +285,11 @@ export default function TaskBoard() {
     materializedWeeksRef.current.add(weekKey);
     if (toCreate.length > 0) {
       await Task.bulkCreate(toCreate).catch(() => {});
-      const fresh = await Task.list("order", 500).catch(() => allTasks);
-      setTasks(fresh);
+      const { data: { user } } = await supabase.auth.getUser();
+      const { data: fresh } = user
+        ? await supabase.from("tasks").select("*").eq("created_by_id", user.id).order("order", { ascending: true }).limit(500)
+        : { data: null };
+      setTasks(fresh || allTasks);
     }
   };
 
