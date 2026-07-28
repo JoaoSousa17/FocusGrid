@@ -8,12 +8,15 @@ import {
   startOfWeek, endOfWeek, startOfMonth, endOfMonth, addWeeks, subWeeks,
   addMonths, subMonths, format, isWithinInterval, parseISO, eachDayOfInterval, isSameMonth
 } from "date-fns";
-import { pt } from "date-fns/locale";
+import { pt, enUS } from "date-fns/locale";
 import { useEdgeSwipeNav } from "@/hooks/useEdgeSwipeNav";
+import { useLang } from "@/context/LangContext";
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
-const DAY_LABELS_MON = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"];
-const DAY_LABELS_SUN = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
+const DAY_LABELS_MON_PT = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"];
+const DAY_LABELS_SUN_PT = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
+const DAY_LABELS_MON_EN = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const DAY_LABELS_SUN_EN = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 const TAG_COLORS = {
   blue: { bg: "#DBEAFE", text: "#1D4ED8" }, purple: { bg: "#EDE9FE", text: "#6D28D9" },
@@ -74,6 +77,8 @@ function parseICS(text) {
 
 export default function FocusCalendar() {
   const navigate = useNavigate();
+  const { t, lang } = useLang();
+  const dateFnsLocale = lang === "pt" ? pt : enUS;
   const scrollRef = useRef(null);
   const gridRef = useRef(null);
   const icsInputRef = useRef(null);
@@ -84,6 +89,7 @@ export default function FocusCalendar() {
   const [events, setEvents] = useState([]);
   const [selectedDay, setSelectedDay] = useState(null);
   const [weekStartsOn, setWeekStartsOn] = useState(1);
+  const [icsExportEnabled, setIcsExportEnabled] = useState(false);
   const { swipeHandlers, dragStyle } = useEdgeSwipeNav({ right: "/focus" });
 
   // Drag-to-create state
@@ -95,7 +101,9 @@ export default function FocusCalendar() {
   const weekStart = startOfWeek(currentDate, { weekStartsOn });
   const weekEnd = endOfWeek(currentDate, { weekStartsOn });
   const weekDays = Array.from({ length: 7 }, (_, i) => { const d = new Date(weekStart); d.setDate(d.getDate() + i); return d; });
-  const dayLabels = weekStartsOn === 1 ? DAY_LABELS_MON : DAY_LABELS_SUN;
+  const dayLabels = lang === "pt"
+    ? (weekStartsOn === 1 ? DAY_LABELS_MON_PT : DAY_LABELS_SUN_PT)
+    : (weekStartsOn === 1 ? DAY_LABELS_MON_EN : DAY_LABELS_SUN_EN);
 
   // Month view
   const monthStart = startOfMonth(currentDate);
@@ -114,6 +122,7 @@ export default function FocusCalendar() {
     auth.me().then((u) => {
       const meta = u?.user_metadata || {};
       if (meta.week_starts_on !== undefined) setWeekStartsOn(meta.week_starts_on);
+      if (meta.ics_export_enabled !== undefined) setIcsExportEnabled(meta.ics_export_enabled);
     }).catch(() => {});
     loadData();
   }, [loadData]);
@@ -236,8 +245,8 @@ export default function FocusCalendar() {
               </button>
               <h1 className="text-base font-bold text-foreground whitespace-nowrap">
                 {viewMode === "week"
-                  ? `${format(weekStart, "d MMM", { locale: pt })} – ${format(weekEnd, "d MMM yyyy", { locale: pt })}`
-                  : format(currentDate, "MMMM yyyy", { locale: pt })}
+                  ? `${format(weekStart, "d MMM", { locale: dateFnsLocale })} – ${format(weekEnd, "d MMM yyyy", { locale: dateFnsLocale })}`
+                  : format(currentDate, "MMMM yyyy", { locale: dateFnsLocale })}
               </h1>
               <button onClick={nextPeriod} className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center hover:bg-border transition-all">
                 <ChevronRight className="w-4 h-4" />
@@ -245,7 +254,7 @@ export default function FocusCalendar() {
             </div>
 
             <div className="flex items-center gap-2 z-10">
-              <button onClick={goToday} className="px-3 py-1.5 rounded-full bg-[#E87A5A] text-white text-xs font-semibold hover:bg-[#D4694A] transition-all shadow-sm">Hoje</button>
+              <button onClick={goToday} className="px-3 py-1.5 rounded-full bg-[#E87A5A] text-white text-xs font-semibold hover:bg-[#D4694A] transition-all shadow-sm">{t("cal.today_btn")}</button>
             </div>
           </div>
 
@@ -253,7 +262,7 @@ export default function FocusCalendar() {
           <div className="flex items-center justify-between mt-3">
             {/* View toggle */}
             <div className="flex bg-secondary rounded-xl p-1 gap-1">
-              {[{ key: "week", icon: Clock, label: "Semana" }, { key: "month", icon: CalendarDays, label: "Mês" }].map((v) => (
+              {[{ key: "week", icon: Clock, label: t("cal.week") }, { key: "month", icon: CalendarDays, label: t("cal.month") }].map((v) => (
                 <button key={v.key} onClick={() => setViewMode(v.key)}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${viewMode === v.key ? "bg-white shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"}`}>
                   <v.icon className="w-3.5 h-3.5" /> {v.label}
@@ -262,11 +271,13 @@ export default function FocusCalendar() {
             </div>
             {/* ICS buttons */}
             <div className="flex gap-1.5">
-              <button onClick={exportICS} className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-secondary text-xs font-medium text-muted-foreground hover:bg-border transition-all">
-                <Download className="w-3.5 h-3.5" /> .ics
-              </button>
+              {icsExportEnabled && (
+                <button onClick={exportICS} className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-secondary text-xs font-medium text-muted-foreground hover:bg-border transition-all">
+                  <Download className="w-3.5 h-3.5" /> .ics
+                </button>
+              )}
               <button onClick={() => icsInputRef.current?.click()} className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-secondary text-xs font-medium text-muted-foreground hover:bg-border transition-all">
-                <Upload className="w-3.5 h-3.5" /> Importar
+                <Upload className="w-3.5 h-3.5" /> {t("cal.import")}
               </button>
               <input ref={icsInputRef} type="file" accept=".ics,text/calendar" className="hidden" onChange={importICS} />
             </div>
@@ -322,12 +333,12 @@ export default function FocusCalendar() {
                         {format(day, "d")}
                       </span>
                       {d?.sessions?.slice(0, 1).map((s, i) => (
-                        <div key={i} className="text-[9px] font-medium bg-[#E87A5A]/15 text-[#E87A5A] rounded px-1 py-0.5 truncate w-full mb-0.5">🍊 {s.tag_name || "Foco"}</div>
+                        <div key={i} className="text-[9px] font-medium bg-[#E87A5A]/15 text-[#E87A5A] rounded px-1 py-0.5 truncate w-full mb-0.5">🍊 {s.tag_name || t("cal.focus_label")}</div>
                       ))}
                       {d?.events?.slice(0, 1).map((ev, i) => (
                         <div key={i} className="text-[9px] font-medium rounded px-1 py-0.5 truncate w-full mb-0.5" style={{ backgroundColor: (ev.color || "#8B5CF6") + "22", color: ev.color || "#8B5CF6" }}>📅 {ev.name}</div>
                       ))}
-                      {total > 2 && <div className="text-[9px] text-muted-foreground">+{total - 2} mais</div>}
+                      {total > 2 && <div className="text-[9px] text-muted-foreground">+{total - 2}</div>}
                     </button>
                   );
                 })}
@@ -425,14 +436,14 @@ export default function FocusCalendar() {
           <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
             className="bg-white border-t border-border rounded-t-2xl p-5 max-h-[220px] overflow-y-auto shadow-xl">
             <div className="flex items-center justify-between mb-3">
-              <h3 className="font-semibold text-sm">{format(parseISO(selectedDay), "EEEE, d 'de' MMMM", { locale: pt })}</h3>
+              <h3 className="font-semibold text-sm">{format(parseISO(selectedDay), lang === "pt" ? "EEEE, d 'de' MMMM" : "EEEE, MMMM d", { locale: dateFnsLocale })}</h3>
               <button onClick={() => setSelectedDay(null)} className="text-muted-foreground hover:text-foreground"><X className="w-4 h-4" /></button>
             </div>
             {(() => {
               const key = selectedDay;
               const d = allByDay[key] || {};
               const total = (d.sessions?.length || 0) + (d.deadlines?.length || 0) + (d.events?.length || 0);
-              if (total === 0) return <p className="text-sm text-muted-foreground">Sem entradas neste dia</p>;
+              if (total === 0) return <p className="text-sm text-muted-foreground">{t("cal.no_entries")}</p>;
               return (
                 <div className="space-y-2">
                   {(d.sessions || []).map((s) => {
@@ -440,7 +451,7 @@ export default function FocusCalendar() {
                     return (
                       <div key={s.id} className="flex items-center gap-3 text-sm bg-secondary/50 rounded-xl px-3 py-2">
                         <span className="text-xs font-mono text-muted-foreground">{format(new Date(s.created_date), "HH:mm")}</span>
-                        <span className="px-2.5 py-1 rounded-lg text-xs font-semibold" style={{ backgroundColor: colors.bg, color: colors.text }}>🍊 {s.tag_name || "Foco"}</span>
+                        <span className="px-2.5 py-1 rounded-lg text-xs font-semibold" style={{ backgroundColor: colors.bg, color: colors.text }}>🍊 {s.tag_name || t("cal.focus_label")}</span>
                         <span className="text-xs text-muted-foreground ml-auto">{s.duration_minutes} min</span>
                       </div>
                     );
@@ -450,7 +461,7 @@ export default function FocusCalendar() {
                     return (
                       <div key={dl.id} className="flex items-center gap-3 text-sm rounded-xl px-3 py-2" style={{ backgroundColor: hex + "15" }}>
                         <span className="text-xs font-mono text-muted-foreground">{format(new Date(dl.deadline), "HH:mm")}</span>
-                        <span className="px-2.5 py-1 rounded-lg text-xs font-semibold text-white" style={{ backgroundColor: hex }}>⏰ Prazo</span>
+                        <span className="px-2.5 py-1 rounded-lg text-xs font-semibold text-white" style={{ backgroundColor: hex }}>⏰ {t("cal.deadline_label")}</span>
                         <span className="text-xs font-medium truncate" style={{ color: hex }}>{dl.name}</span>
                       </div>
                     );
@@ -460,7 +471,7 @@ export default function FocusCalendar() {
                     return (
                       <div key={ev.id} className="flex items-center gap-3 text-sm rounded-xl px-3 py-2" style={{ backgroundColor: hex + "15" }}>
                         <span className="text-xs font-mono text-muted-foreground">{format(new Date(ev.start_datetime), "HH:mm")}</span>
-                        <span className="px-2.5 py-1 rounded-lg text-xs font-semibold text-white" style={{ backgroundColor: hex }}>📅 Evento</span>
+                        <span className="px-2.5 py-1 rounded-lg text-xs font-semibold text-white" style={{ backgroundColor: hex }}>📅 {t("cal.event_label")}</span>
                         <span className="text-xs font-medium truncate" style={{ color: hex }}>{ev.name}</span>
                       </div>
                     );
@@ -481,13 +492,13 @@ export default function FocusCalendar() {
             <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
               className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-sm p-5 shadow-xl"
               onClick={(e) => e.stopPropagation()}>
-              <h3 className="font-bold text-foreground mb-1">Novo Evento</h3>
+              <h3 className="font-bold text-foreground mb-1">{t("cal.new_event")}</h3>
               <p className="text-xs text-muted-foreground mb-4">
-                {format(parseISO(createModal.dayKey), "EEEE d MMM", { locale: pt })} · {createModal.startHour}h–{createModal.endHour}h
+                {format(parseISO(createModal.dayKey), "EEEE d MMM", { locale: dateFnsLocale })} · {createModal.startHour}h–{createModal.endHour}h
               </p>
               <input autoFocus value={newEventName} onChange={(e) => setNewEventName(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && confirmCreateEvent()}
-                placeholder="Nome do evento..."
+                placeholder={t("cal.event_name_placeholder")}
                 className="w-full px-3 py-2.5 rounded-xl border border-border text-sm outline-none focus:border-[#E87A5A]/50 mb-3 transition-all" />
               <div className="flex gap-2 flex-wrap mb-4">
                 {COLOR_OPTIONS.map((c) => (
@@ -497,9 +508,9 @@ export default function FocusCalendar() {
                 ))}
               </div>
               <div className="flex gap-2">
-                <button onClick={() => setCreateModal(null)} className="flex-1 py-2.5 rounded-xl bg-secondary text-sm font-medium text-muted-foreground hover:bg-border transition-all">Cancelar</button>
+                <button onClick={() => setCreateModal(null)} className="flex-1 py-2.5 rounded-xl bg-secondary text-sm font-medium text-muted-foreground hover:bg-border transition-all">{t("cancel")}</button>
                 <button onClick={confirmCreateEvent} disabled={!newEventName.trim()}
-                  className="flex-1 py-2.5 rounded-xl bg-[#E87A5A] text-white text-sm font-medium hover:bg-[#D4694A] disabled:opacity-40 transition-all">Criar</button>
+                  className="flex-1 py-2.5 rounded-xl bg-[#E87A5A] text-white text-sm font-medium hover:bg-[#D4694A] disabled:opacity-40 transition-all">{t("create")}</button>
               </div>
             </motion.div>
           </motion.div>

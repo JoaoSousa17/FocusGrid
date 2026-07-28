@@ -7,11 +7,13 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { format, startOfWeek, endOfWeek, subWeeks, subDays, eachDayOfInterval, isWithinInterval } from "date-fns";
 import { pt } from "date-fns/locale";
 import { useEdgeSwipeNav } from "@/hooks/useEdgeSwipeNav";
+import { useLang } from "@/context/LangContext";
 
 const PRESET_COLORS = ["#3B82F6", "#8B5CF6", "#10B981", "#F59E0B", "#F43F5E", "#14B8A6", "#6366F1", "#EC4899"];
 
 export default function HabitsAnalytics() {
   const navigate = useNavigate();
+  const { t } = useLang();
   const [entries, setEntries] = useState([]);
   const [habits, setHabits] = useState([]);
 
@@ -239,8 +241,8 @@ export default function HabitsAnalytics() {
             <ArrowLeft data-source-location="pages/HabitsAnalytics:107:12" data-dynamic-content="false" className="w-5 h-5" />
           </button>
           <div data-source-location="pages/HabitsAnalytics:109:10" data-dynamic-content="false" className="flex-1">
-            <h1 data-source-location="pages/HabitsAnalytics:110:12" data-dynamic-content="false" className="text-xl font-bold text-foreground">Analytics</h1>
-            <p data-source-location="pages/HabitsAnalytics:111:12" data-dynamic-content="false" className="text-[10px] text-muted-foreground">Hábitos saudáveis</p>
+            <h1 data-source-location="pages/HabitsAnalytics:110:12" data-dynamic-content="false" className="text-xl font-bold text-foreground">{t("hanalytics.title")}</h1>
+            <p data-source-location="pages/HabitsAnalytics:111:12" data-dynamic-content="false" className="text-[10px] text-muted-foreground">{t("hanalytics.sub")}</p>
           </div>
           <button onClick={exportMonthlyPdf} disabled={exportingPdf}
           className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#E87A5A] text-white text-xs font-semibold hover:bg-[#D4694A] disabled:opacity-50 transition-all">
@@ -253,9 +255,9 @@ export default function HabitsAnalytics() {
           {/* Summary cards */}
           <div data-source-location="pages/HabitsAnalytics:117:10" data-dynamic-content="true" className="grid grid-cols-3 gap-3">
             {[
-            { icon: Trophy, label: "Total", value: totalScore, unit: "pts", color: "text-amber-600", bg: "bg-amber-50" },
-            { icon: TrendingUp, label: "Feitos", value: totalCompletions, unit: "ações", color: "text-emerald-600", bg: "bg-emerald-50" },
-            { icon: Medal, label: "Média/dia", value: totalCompletions > 0 ? Math.round(totalScore / totalCompletions) : 0, unit: "pts", color: "text-indigo-600", bg: "bg-indigo-50" }].
+            { icon: Trophy, label: t("hanalytics.total_score"), value: totalScore, unit: "pts", color: "text-amber-600", bg: "bg-amber-50" },
+            { icon: TrendingUp, label: t("hanalytics.total_actions"), value: totalCompletions, unit: t("hanalytics.actions_unit"), color: "text-emerald-600", bg: "bg-emerald-50" },
+            { icon: Medal, label: t("hanalytics.avg_per_action"), value: totalCompletions > 0 ? Math.round(totalScore / totalCompletions) : 0, unit: "pts", color: "text-indigo-600", bg: "bg-indigo-50" }].
             map((card, i) =>
             <motion.div data-source-location="pages/HabitsAnalytics:123:14" data-dynamic-content="true" key={i} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}
             className={`${card.bg} rounded-2xl p-3 border border-border/50`}>
@@ -272,7 +274,7 @@ export default function HabitsAnalytics() {
           {/* Daily chart */}
           <div data-source-location="pages/HabitsAnalytics:136:10" data-dynamic-content="true" className="bg-white rounded-2xl p-5 border border-border">
             <h3 data-source-location="pages/HabitsAnalytics:137:12" data-dynamic-content="false" className="text-sm font-bold text-foreground flex items-center gap-2 mb-4">
-              <BarChart3 data-source-location="pages/HabitsAnalytics:138:14" data-dynamic-content="false" className="w-4 h-4 text-[#E87A5A]" /> Pontuação Semanal
+              <BarChart3 data-source-location="pages/HabitsAnalytics:138:14" data-dynamic-content="false" className="w-4 h-4 text-[#E87A5A]" /> {t("hanalytics.weekly_score")}
             </h3>
             <div data-source-location="pages/HabitsAnalytics:140:12" data-dynamic-content="true" className="h-[180px]">
               <ResponsiveContainer data-source-location="pages/HabitsAnalytics:141:14" data-dynamic-content="true" width="100%" height="100%">
@@ -291,7 +293,7 @@ export default function HabitsAnalytics() {
           {/* Weekly trend */}
           <div data-source-location="pages/HabitsAnalytics:155:10" data-dynamic-content="true" className="bg-white rounded-2xl p-5 border border-border">
             <h3 data-source-location="pages/HabitsAnalytics:156:12" data-dynamic-content="false" className="text-sm font-bold text-foreground flex items-center gap-2 mb-4">
-              <TrendingUp data-source-location="pages/HabitsAnalytics:157:14" data-dynamic-content="false" className="w-4 h-4 text-purple-500" /> Tendência Mensal
+              <TrendingUp data-source-location="pages/HabitsAnalytics:157:14" data-dynamic-content="false" className="w-4 h-4 text-purple-500" /> {t("hanalytics.monthly_trend")}
             </h3>
             <div data-source-location="pages/HabitsAnalytics:159:12" data-dynamic-content="true" className="h-[140px]">
               <ResponsiveContainer data-source-location="pages/HabitsAnalytics:160:14" data-dynamic-content="true" width="100%" height="100%">
@@ -311,7 +313,7 @@ export default function HabitsAnalytics() {
           <div data-source-location="pages/HabitsAnalytics:174:10" data-dynamic-content="true" className="grid grid-cols-2 gap-4">
             <div data-source-location="pages/HabitsAnalytics:175:12" data-dynamic-content="true" className="bg-white rounded-2xl p-4 border border-border">
               <h3 data-source-location="pages/HabitsAnalytics:176:14" data-dynamic-content="false" className="text-xs font-bold text-foreground mb-3 flex items-center gap-1.5">
-                <Trophy data-source-location="pages/HabitsAnalytics:177:16" data-dynamic-content="false" className="w-3.5 h-3.5 text-amber-500" /> Mais feitos
+                <Trophy data-source-location="pages/HabitsAnalytics:177:16" data-dynamic-content="false" className="w-3.5 h-3.5 text-amber-500" /> {t("hanalytics.most_done")}
               </h3>
               <div data-source-location="pages/HabitsAnalytics:179:14" data-dynamic-content="true" className="space-y-2">
                 {mostDone.filter((h) => h.count > 0).length === 0 && <p data-source-location="pages/HabitsAnalytics:180:67" data-dynamic-content="false" className="text-[10px] text-muted-foreground">Sem dados</p>}
@@ -327,7 +329,7 @@ export default function HabitsAnalytics() {
 
             <div data-source-location="pages/HabitsAnalytics:191:12" data-dynamic-content="true" className="bg-white rounded-2xl p-4 border border-border">
               <h3 data-source-location="pages/HabitsAnalytics:192:14" data-dynamic-content="false" className="text-xs font-bold text-foreground mb-3 flex items-center gap-1.5">
-                <Medal data-source-location="pages/HabitsAnalytics:193:16" data-dynamic-content="false" className="w-3.5 h-3.5 text-slate-400" /> Menos feitos
+                <Medal data-source-location="pages/HabitsAnalytics:193:16" data-dynamic-content="false" className="w-3.5 h-3.5 text-slate-400" /> {t("hanalytics.least_done")}
               </h3>
               <div data-source-location="pages/HabitsAnalytics:195:14" data-dynamic-content="true" className="space-y-2">
                 {leastDone.length === 0 && <p data-source-location="pages/HabitsAnalytics:196:43" data-dynamic-content="false" className="text-[10px] text-muted-foreground">Sem dados</p>}
@@ -345,7 +347,7 @@ export default function HabitsAnalytics() {
           {/* Monthly summary — exportable as PDF */}
           <div ref={monthSectionRef} className="bg-white rounded-2xl p-5 border border-border space-y-4">
             <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
-              <FileDown className="w-4 h-4 text-[#E87A5A]" /> Resumo do Último Mês
+              <FileDown className="w-4 h-4 text-[#E87A5A]" /> {t("hanalytics.month_report")}
             </h3>
 
             <div className="grid grid-cols-3 gap-3">

@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Plus, Check } from "lucide-react";
+import { X, Plus, Check, Trash2 } from "lucide-react";
 import { Tag } from "@/api/entities";
+import { useLang } from "@/context/LangContext";
 
 const PRESET_COLORS = [
 { key: "blue", hex: "#3B82F6", name: "Azul" },
@@ -21,31 +22,82 @@ const TAG_COLORS_MAP = {
   indigo: "bg-indigo-100 text-indigo-700", pink: "bg-pink-100 text-pink-700"
 };
 
+// Find the preset key whose hex is closest to the given hex string (RGB distance).
+function nearestPreset(hex) {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  let best = PRESET_COLORS[0];
+  let bestDist = Infinity;
+  for (const p of PRESET_COLORS) {
+    const pr = parseInt(p.hex.slice(1, 3), 16);
+    const pg = parseInt(p.hex.slice(3, 5), 16);
+    const pb = parseInt(p.hex.slice(5, 7), 16);
+    const d = (r - pr) ** 2 + (g - pg) ** 2 + (b - pb) ** 2;
+    if (d < bestDist) { bestDist = d; best = p; }
+  }
+  return best.key;
+}
+
 export default function TagPicker({ open, onClose, selectedTag, onSelect, multiSelect = false, selectedTags = [], onMultiSelect }) {
+  const { t } = useLang();
   const [tags, setTags] = useState([]);
   const [newName, setNewName] = useState("");
   const [newColor, setNewColor] = useState("blue");
   const [newHex, setNewHex] = useState("");
   const [showCreate, setShowCreate] = useState(false);
+  const [createError, setCreateError] = useState("");
 
   useEffect(() => {
     if (open) Tag.list().then(setTags).catch(() => setTags([]));
   }, [open]);
 
+  const deleteTag = async (tag, e) => {
+    e.stopPropagation();
+    if (!window.confirm(t("tags.delete_confirm", `Delete tag "${tag.name}"?`))) return;
+    await Tag.delete(tag.id);
+    setTags((prev) => prev.filter((t) => t.id !== tag.id));
+    if (onMultiSelect) onMultiSelect(selectedTags.filter((t) => t.id !== tag.id));
+    if (selectedTag?.id === tag.id && onSelect) onSelect(null);
+  };
+
   const createTag = async () => {
     if (!newName.trim()) return;
-    let color = newColor;
-    if (newHex.trim() && /^#[0-9A-Fa-f]{6}$/.test(newHex.trim())) {
-      color = newHex.trim();
+    setCreateError("");
+    let color = newColor || "blue";
+    const rawHex = newHex.trim();
+    const hexNorm = rawHex.startsWith("#") ? rawHex : rawHex ? `#${rawHex}` : "";
+    const isValidHex = hexNorm && /^#[0-9A-Fa-f]{6}$/.test(hexNorm);
+    if (isValidHex) color = hexNorm;
+
+    let created;
+    try {
+      created = await Tag.create({ name: newName.trim(), color });
+    } catch {
+      // DB likely has a CHECK constraint blocking hex values — fall back to nearest preset.
+      if (isValidHex) {
+        try {
+          created = await Tag.create({ name: newName.trim(), color: nearestPreset(hexNorm) });
+        } catch (e2) {
+          setCreateError(t("tags.create_error", "Failed to create tag. Please try again."));
+          return;
+        }
+      } else {
+        setCreateError(t("tags.create_error", "Failed to create tag. Please try again."));
+        return;
+      }
     }
-    const created = await Tag.create({ name: newName.trim(), color });
+
     setTags((prev) => [...prev, created]);
-    setNewName("");setNewHex("");setShowCreate(false);
-    if (multiSelect && onMultiSelect) {
+    setNewName("");setNewHex("");setNewColor("blue");setShowCreate(false);
+    if (onMultiSelect) {
       const updated = [...selectedTags.filter((t) => t.id !== created.id), { id: created.id, name: created.name, color: created.color }];
       onMultiSelect(updated);
-    } else {
+      if (!multiSelect) onClose();
+    } else if (onSelect) {
       onSelect(created);
+      onClose();
+    } else {
       onClose();
     }
   };
@@ -82,7 +134,7 @@ export default function TagPicker({ open, onClose, selectedTag, onSelect, multiS
           
             <div data-source-location="components/TagPicker:83:12" data-dynamic-content="true" className="flex items-center justify-between mb-5">
               <h3 data-source-location="components/TagPicker:84:14" data-dynamic-content="true" className="text-lg font-bold text-foreground">
-                {multiSelect ? "Escolhe até 3 tags" : "Escolhe uma tag"}
+                {multiSelect ? t("tags.choose_multi") : t("tags.choose_one")}
               </h3>
               <button data-source-location="components/TagPicker:87:14" data-dynamic-content="true" onClick={onClose} className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center">
                 <X data-source-location="components/TagPicker:88:16" data-dynamic-content="false" className="w-4 h-4" />
@@ -108,7 +160,7 @@ export default function TagPicker({ open, onClose, selectedTag, onSelect, multiS
             !selectedTag ? "border-[#E87A5A] bg-[#E87A5A]/5 text-[#E87A5A]" : "border-border text-muted-foreground"}`
             }>
               
-                  Nenhuma
+                  {t("tags.none_opt")}
                 </button>
             }
               {tags.map((tag) => {
@@ -116,18 +168,22 @@ export default function TagPicker({ open, onClose, selectedTag, onSelect, multiS
               selectedTags.some((t) => t.id === tag.id) :
               selectedTag?.id === tag.id;
               return (
-                <button data-source-location="components/TagPicker:119:18" data-dynamic-content="true"
-                key={tag.id}
+                <div key={tag.id} className="relative group flex items-center">
+                  <button data-source-location="components/TagPicker:119:18" data-dynamic-content="true"
                 onClick={() => multiSelect ? toggleMultiTag(tag) : (onSelect(tag), onClose())}
-                className={`px-4 py-2.5 rounded-2xl text-sm font-medium border transition-all ${
+                className={`pl-3 pr-7 py-2.5 rounded-2xl text-sm font-medium border transition-all ${
                 isSelected ?
                 "border-[#E87A5A] bg-[#E87A5A]/5 text-[#E87A5A] ring-2 ring-[#E87A5A]/20" :
                 `${TAG_COLORS_MAP[tag.color] || "bg-slate-100 text-slate-700"} border-transparent`}`
                 } data-collection-item-id={tag?.id} data-collection-item-field="name">
-                  
+
                     <span data-source-location="components/TagPicker:128:20" data-dynamic-content="true" className="inline-block w-2.5 h-2.5 rounded-full mr-1.5" style={{ backgroundColor: dotBg(tag.color) }} />
                     {tag.name}
-                  </button>);
+                  </button>
+                  <button onClick={(e) => deleteTag(tag, e)} className="absolute right-1.5 w-5 h-5 rounded-full bg-rose-100 text-rose-500 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-all hover:bg-rose-200">
+                    <Trash2 className="w-3 h-3" />
+                  </button>
+                </div>);
 
             })}
             </div>
@@ -137,13 +193,13 @@ export default function TagPicker({ open, onClose, selectedTag, onSelect, multiS
           onClick={() => setShowCreate(true)}
           className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl border-2 border-dashed border-border text-muted-foreground hover:text-[#E87A5A] hover:border-[#E87A5A]/30 transition-all text-sm font-medium">
             
-                <Plus data-source-location="components/TagPicker:140:16" data-dynamic-content="false" className="w-4 h-4" /> Criar nova tag
+                <Plus data-source-location="components/TagPicker:140:16" data-dynamic-content="false" className="w-4 h-4" /> {t("tags.create")}
               </button> :
 
           <div data-source-location="components/TagPicker:143:14" data-dynamic-content="true" className="space-y-3">
                 <input data-source-location="components/TagPicker:144:16" data-dynamic-content="true"
             value={newName} onChange={(e) => setNewName(e.target.value)}
-            placeholder="Nome da tag..." autoFocus
+            placeholder={t("tags.name_placeholder")} autoFocus
             className="w-full px-4 py-3 rounded-2xl border border-border bg-white text-sm focus:outline-none focus:border-[#E87A5A] transition-all" />
             
                 <div data-source-location="components/TagPicker:149:16" data-dynamic-content="true" className="flex gap-2 flex-wrap">
@@ -160,29 +216,30 @@ export default function TagPicker({ open, onClose, selectedTag, onSelect, multiS
               )}
                 </div>
                 <div data-source-location="components/TagPicker:162:16" data-dynamic-content="true" className="flex items-center gap-2">
-                  <span data-source-location="components/TagPicker:163:18" data-dynamic-content="false" className="text-xs text-muted-foreground">ou</span>
+                  <span data-source-location="components/TagPicker:163:18" data-dynamic-content="false" className="text-xs text-muted-foreground">{t("tags.or")}</span>
                   <input data-source-location="components/TagPicker:164:18" data-dynamic-content="true"
-              value={newHex} onChange={(e) => {setNewHex(e.target.value);if (e.target.value) setNewColor("");}}
-              placeholder="#ff6600" maxLength={7}
+              value={newHex} onChange={(e) => { const v = e.target.value; const normalized = v && !v.startsWith("#") && v.length <= 6 ? `#${v}` : v; setNewHex(normalized); if (normalized) setNewColor(""); }}
+              placeholder={t("tags.hex_placeholder")} maxLength={7}
               className="flex-1 px-3 py-2 rounded-xl border border-border text-xs font-mono focus:outline-none focus:border-[#E87A5A] transition-all" />
               
                   {newHex && /^#[0-9A-Fa-f]{6}$/.test(newHex) &&
               <div data-source-location="components/TagPicker:170:20" data-dynamic-content="true" className="w-9 h-9 rounded-full border-2 border-[#E87A5A] shadow-md" style={{ backgroundColor: newHex }} />
               }
                 </div>
+                {createError && <p className="text-xs text-rose-500 px-1">{createError}</p>}
                 <div data-source-location="components/TagPicker:173:16" data-dynamic-content="true" className="flex gap-2">
-                  <button data-source-location="components/TagPicker:174:18" data-dynamic-content="true" onClick={() => setShowCreate(false)} className="flex-1 py-2.5 rounded-2xl border border-border text-sm text-muted-foreground hover:bg-secondary transition-all">
-                    Cancelar
+                  <button data-source-location="components/TagPicker:174:18" data-dynamic-content="true" onClick={() => { setShowCreate(false); setCreateError(""); }} className="flex-1 py-2.5 rounded-2xl border border-border text-sm text-muted-foreground hover:bg-secondary transition-all">
+                    {t("cancel")}
                   </button>
                   <button data-source-location="components/TagPicker:177:18" data-dynamic-content="true" onClick={createTag} disabled={!newName.trim()} className="flex-1 py-2.5 rounded-2xl bg-[#E87A5A] text-white text-sm font-semibold hover:bg-[#D4694A] transition-all disabled:opacity-50 flex items-center justify-center gap-1">
-                    <Check data-source-location="components/TagPicker:178:20" data-dynamic-content="false" className="w-4 h-4" /> Criar
+                    <Check data-source-location="components/TagPicker:178:20" data-dynamic-content="false" className="w-4 h-4" /> {t("tags.create_btn")}
                   </button>
                 </div>
               </div>
           }
 
             <button data-source-location="components/TagPicker:184:12" data-dynamic-content="true" onClick={onClose} className="w-full mt-4 py-2.5 rounded-2xl bg-secondary text-sm font-medium text-foreground hover:bg-border transition-all">
-              {multiSelect ? "Concluído" : "Fechar"}
+              {multiSelect ? t("tags.done") : t("close")}
             </button>
           </motion.div>
         </motion.div>

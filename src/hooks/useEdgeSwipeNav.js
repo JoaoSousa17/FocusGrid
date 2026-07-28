@@ -1,12 +1,12 @@
-import { useRef, useState, useCallback } from "react";
+import { useRef, useState, useCallback, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 
-// Distance from the relevant screen edge (in px) within which a swipe gesture
-// must start to be recognized as page-navigation, instead of normal content
-// scrolling/dragging (e.g. horizontal day columns, card drag-and-drop, etc).
 const EDGE_ZONE = 60;
-// Minimum drag distance (in px) to count as a swipe once armed.
 const SWIPE_THRESHOLD = 60;
+// Accumulated trackpad delta (px) needed to trigger navigation.
+const WHEEL_THRESHOLD = 80;
+// Time window (ms) to accumulate trackpad wheel events into one gesture.
+const WHEEL_WINDOW = 350;
 
 // directions: { left, right, up, down } -> route to navigate to.
 // "left" = swipe moving leftward (finger goes right -> left), must start near the RIGHT edge.
@@ -25,6 +25,12 @@ export function useEdgeSwipeNav(directions = {}, { ignoreTarget, edgeGated } = {
   const armed = useRef({ left: false, right: false, up: false, down: false });
   const ignoring = useRef(false);
   const [dragStyle, setDragStyle] = useState({});
+
+  // Trackpad wheel accumulator
+  const wheelAccX = useRef(0);
+  const wheelAccY = useRef(0);
+  const wheelTimer = useRef(null);
+  const wheelFired = useRef(false);
 
   const isEdgeGated = (direction) => edgeGated === true || !!edgeGated?.[direction];
 
@@ -80,13 +86,60 @@ export function useEdgeSwipeNav(directions = {}, { ignoreTarget, edgeGated } = {
     }
   }, [navigate, directions.left, directions.right, directions.up, directions.down]);
 
+  // Trackpad two-finger swipe via wheel events.
+  // We accumulate deltaX/Y over WHEEL_WINDOW ms and navigate once the gesture settles.
+  // Uses a native (passive) window listener so it captures events even when the
+  // element has no scroll overflow — React's synthetic onWheel requires the element
+  // to be the target, which is unreliable across different page layouts.
+  const directionsRef = useRef(directions);
+  directionsRef.current = directions;
+
+  useEffect(() => {
+    const onWheel = (e) => {
+      // Only react to trackpad pixel-mode events (mouse wheel has deltaMode=1 or 3)
+      if (e.deltaMode !== 0) return;
+
+      wheelAccX.current += e.deltaX;
+      wheelAccY.current += e.deltaY;
+
+      clearTimeout(wheelTimer.current);
+      wheelTimer.current = setTimeout(() => {
+        if (!wheelFired.current) {
+          const accX = wheelAccX.current;
+          const accY = wheelAccY.current;
+          const absX = Math.abs(accX);
+          const absY = Math.abs(accY);
+          const dirs = directionsRef.current;
+
+          if (absX >= WHEEL_THRESHOLD && absX > absY) {
+            if (accX > 0 && dirs.left) { navigate(dirs.left); wheelFired.current = true; }
+            else if (accX < 0 && dirs.right) { navigate(dirs.right); wheelFired.current = true; }
+          } else if (absY >= WHEEL_THRESHOLD && absY > absX) {
+            if (accY > 0 && dirs.up) { navigate(dirs.up); wheelFired.current = true; }
+            else if (accY < 0 && dirs.down) { navigate(dirs.down); wheelFired.current = true; }
+          }
+        }
+        wheelAccX.current = 0;
+        wheelAccY.current = 0;
+        // Brief lockout to prevent double-firing on momentum scroll
+        setTimeout(() => { wheelFired.current = false; }, 600);
+      }, WHEEL_WINDOW);
+    };
+
+    window.addEventListener("wheel", onWheel, { passive: true });
+    return () => {
+      window.removeEventListener("wheel", onWheel);
+      clearTimeout(wheelTimer.current);
+    };
+  }, [navigate]);
+
   const swipeHandlers = {
     onTouchStart: (e) => handlePointerStart(e.touches[0].clientX, e.touches[0].clientY, e.target),
     onTouchMove: (e) => handlePointerMove(e.touches[0].clientX, e.touches[0].clientY),
     onTouchEnd: (e) => handlePointerEnd(e.changedTouches[0]?.clientX ?? touchStart.current.x, e.changedTouches[0]?.clientY ?? touchStart.current.y),
     onMouseDown: (e) => handlePointerStart(e.clientX, e.clientY, e.target),
     onMouseMove: (e) => { if (e.buttons === 1) handlePointerMove(e.clientX, e.clientY); },
-    onMouseUp: (e) => handlePointerEnd(e.clientX, e.clientY)
+    onMouseUp: (e) => handlePointerEnd(e.clientX, e.clientY),
   };
 
   return { swipeHandlers, dragStyle };

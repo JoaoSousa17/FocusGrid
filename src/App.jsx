@@ -8,6 +8,7 @@ import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 import ScrollToTop from './components/ScrollToTop';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { FocusTimerProvider } from '@/context/FocusTimerContext';
+import { LangProvider } from '@/context/LangContext';
 // Add page imports here
 import Login from '@/pages/Login';
 import Register from '@/pages/Register';
@@ -28,6 +29,8 @@ import Deadlines from '@/pages/Deadlines';
 import MeetingAI from '@/pages/MeetingAI';
 import Chat from '@/pages/Chat';
 import Profile from '@/pages/Profile';
+import Notes from '@/pages/Notes';
+import NoteEditor from '@/pages/NoteEditor';
 import Terms from '@/pages/Terms';
 import Privacy from '@/pages/Privacy';
 
@@ -80,6 +83,8 @@ const AuthenticatedApp = () => {
         <Route data-source-location="App:75:8" data-dynamic-content="true" path="/meeting-ai" element={<MeetingAI data-source-location="App:75:43" data-dynamic-content="false" />} />
         <Route path="/chat" element={<Chat />} />
         <Route path="/profile" element={<Profile />} />
+        <Route path="/notes" element={<Notes />} />
+        <Route path="/notes/:id" element={<NoteEditor />} />
       </Route>
       <Route data-source-location="App:78:6" data-dynamic-content="true" path="*" element={<PageNotFound data-source-location="App:78:31" data-dynamic-content="false" />} />
     </Routes>
@@ -89,6 +94,7 @@ const AuthenticatedApp = () => {
 
 function App() {
   return (
+    <LangProvider>
     <AuthProvider data-source-location="App:86:4" data-dynamic-content="true">
       <QueryClientProvider data-source-location="App:87:6" data-dynamic-content="true" client={queryClientInstance}>
         <Router data-source-location="App:88:8" data-dynamic-content="false">
@@ -97,7 +103,8 @@ function App() {
         </Router>
         <Toaster data-source-location="App:92:8" data-dynamic-content="false" />
       </QueryClientProvider>
-    </AuthProvider>);
+    </AuthProvider>
+    </LangProvider>);
 
 }
 

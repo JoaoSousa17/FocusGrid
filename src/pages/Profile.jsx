@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import ICalFeed from "@/components/ICalFeed";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -8,6 +9,7 @@ import {
 } from "lucide-react";
 import { auth } from "@/api/auth";
 import { supabase } from "@/api/supabaseClient";
+import { useLang } from "@/context/LangContext";
 import { savePushSubscription, removePushSubscription } from "@/api/integrations";
 
 // ---------- helpers ----------
@@ -124,6 +126,7 @@ function SliderRow({ label, value, onChange, min, max, unit }) {
 // ---------- Tabs ----------
 
 function AccountTab({ user }) {
+  const { t } = useLang();
   const [exporting, setExporting] = useState(false);
 
   const exportData = async () => {
@@ -152,18 +155,18 @@ function AccountTab({ user }) {
 
   return (
     <div>
-      <Section title="Conta">
+      <Section title={t("profile.account")}>
         <Row icon={User} label="Email" value={user?.email} />
-        <Row icon={User} label="Nome" value={user?.user_metadata?.full_name || "—"} />
+        <Row icon={User} label={t("profile.name")} value={user?.user_metadata?.full_name || "—"} />
       </Section>
-      <Section title="Google Calendar">
-        <Row icon={CalendarDays} label="Ligar Google Calendar"
-          value="Em breve"
+      <Section title={t("profile.google_cal")}>
+        <Row icon={CalendarDays} label={t("profile.connect_google")}
+          value={t("profile.coming_soon")}
         />
-        <Row icon={CalendarDays} label="Exportar como .ics (iCal)"
+        <Row icon={CalendarDays} label={t("profile.export_ics")}
           onClick={async () => {
             const { data } = await supabase.from("events").select("*").eq("user_id", user?.id);
-            if (!data?.length) return alert("Sem eventos para exportar.");
+            if (!data?.length) return alert(t("profile.no_events_export", "No events to export."));
             const lines = [
               "BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//FocusGrid//EN",
               ...data.map((ev) => [
@@ -184,10 +187,10 @@ function AccountTab({ user }) {
           }}
         />
       </Section>
-      <Section title="Dados">
+      <Section title={t("profile.data")}>
         <Row
           icon={Download}
-          label="Exportar todos os dados (JSON)"
+          label={t("profile.export_all")}
           onClick={exportData}
         >
           {exporting && <Loader2 className="w-4 h-4 animate-spin text-[#E87A5A]" />}
@@ -198,6 +201,7 @@ function AccountTab({ user }) {
 }
 
 function SecurityTab() {
+  const { t } = useLang();
   const [factors, setFactors] = useState([]);
   const [enrolling, setEnrolling] = useState(false);
   const [qrUri, setQrUri] = useState(null);
@@ -221,7 +225,7 @@ function SecurityTab() {
     setEnrolling(true);
     const { data, error } = await supabase.auth.mfa.enroll({ factorType: "totp" });
     setEnrolling(false);
-    if (error) { alert("Erro: " + error.message); return; }
+    if (error) { alert(t("error", "Error") + ": " + error.message); return; }
     setQrUri(data.totp.qr_code);
     setSecret(data.totp.secret);
     setFactorId(data.id);
@@ -231,12 +235,12 @@ function SecurityTab() {
   const verifyCode = async () => {
     setVerifying(true);
     const { data: challengeData, error: cErr } = await supabase.auth.mfa.challenge({ factorId });
-    if (cErr) { setVerifying(false); alert("Erro: " + cErr.message); return; }
+    if (cErr) { setVerifying(false); alert(t("error", "Error") + ": " + cErr.message); return; }
     const { error: vErr } = await supabase.auth.mfa.verify({
       factorId, challengeId: challengeData.id, code
     });
     setVerifying(false);
-    if (vErr) { alert("Código inválido. Tenta novamente."); return; }
+    if (vErr) { alert(t("profile.2fa_invalid", "Invalid code. Please try again.")); return; }
     setStep("done");
     setFactors((prev) => [...prev, { id: factorId, status: "verified" }]);
   };
@@ -254,7 +258,7 @@ function SecurityTab() {
     await supabase.auth.resetPasswordForEmail(user.email, {
       redirectTo: `${window.location.origin}/reset-password`
     });
-    setPwMsg("Email enviado! Verifica a tua caixa de entrada.");
+    setPwMsg(t("profile.pw_email_sent"));
     setChangingPw(false);
   };
 
@@ -262,20 +266,20 @@ function SecurityTab() {
 
   return (
     <div>
-      <Section title="Autenticação de 2 fatores (2FA)">
+      <Section title={t("profile.2fa")}>
         {activeFactor ? (
-          <Row icon={Shield} label="2FA ativo (TOTP)">
+          <Row icon={Shield} label={t("profile.2fa_active")}>
             <button
               onClick={() => unenroll(activeFactor.id)}
               disabled={unenrolling}
               className="text-xs text-red-500 font-semibold px-3 py-1 rounded-lg border border-red-200 hover:bg-red-50 transition-all"
             >
-              {unenrolling ? "A remover..." : "Desativar"}
+              {unenrolling ? t("profile.2fa_disabling") : t("profile.2fa_disable")}
             </button>
           </Row>
         ) : (
           <>
-            <Row icon={QrCode} label="Ativar 2FA com autenticador"
+            <Row icon={QrCode} label={t("profile.2fa_enable")}
               onClick={step === "idle" ? startEnroll : undefined}
             >
               {enrolling && <Loader2 className="w-4 h-4 animate-spin" />}
@@ -284,18 +288,18 @@ function SecurityTab() {
               {step === "qr" && (
                 <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }}
                   className="px-4 py-4 bg-secondary/20 overflow-hidden">
-                  <p className="text-xs text-muted-foreground mb-3">Lê o QR code com o teu autenticador (Google Authenticator, Authy, etc.)</p>
+                  <p className="text-xs text-muted-foreground mb-3">{t("profile.2fa_scan")}</p>
                   {qrUri && <img src={qrUri} alt="QR Code" className="w-40 h-40 mx-auto rounded-xl mb-3" />}
                   <p className="text-[11px] text-muted-foreground text-center mb-4 font-mono break-all px-4">{secret}</p>
                   <div className="flex gap-2">
                     <input
                       value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                      placeholder="Código de 6 dígitos"
+                      placeholder={t("profile.2fa_code_placeholder")}
                       className="flex-1 px-3 py-2 rounded-xl border border-border text-sm focus:outline-none focus:border-[#E87A5A]"
                     />
                     <button onClick={verifyCode} disabled={code.length !== 6 || verifying}
                       className="px-4 py-2 bg-[#E87A5A] text-white text-sm font-semibold rounded-xl disabled:opacity-50 transition-all">
-                      {verifying ? <Loader2 className="w-4 h-4 animate-spin" /> : "Verificar"}
+                      {verifying ? <Loader2 className="w-4 h-4 animate-spin" /> : t("profile.2fa_verify")}
                     </button>
                   </div>
                 </motion.div>
@@ -303,15 +307,15 @@ function SecurityTab() {
               {step === "done" && (
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
                   className="px-4 py-3 bg-green-50 flex items-center gap-2 text-green-700 text-sm">
-                  <Check className="w-4 h-4" /> 2FA ativado com sucesso!
+                  <Check className="w-4 h-4" /> {t("profile.2fa_success")}
                 </motion.div>
               )}
             </AnimatePresence>
           </>
         )}
       </Section>
-      <Section title="Palavra-passe">
-        <Row icon={Key} label="Alterar palavra-passe" onClick={sendResetEmail}>
+      <Section title={t("profile.password")}>
+        <Row icon={Key} label={t("profile.change_password")} onClick={sendResetEmail}>
           {changingPw && <Loader2 className="w-4 h-4 animate-spin" />}
         </Row>
         {pwMsg && (
@@ -323,6 +327,7 @@ function SecurityTab() {
 }
 
 function PomodoroTab() {
+  const { t } = useLang();
   const [focusMin, setFocusMin] = useState(25);
   const [shortBreakMin, setShortBreakMin] = useState(5);
   const [longBreakMin, setLongBreakMin] = useState(20);
@@ -330,10 +335,10 @@ function PomodoroTab() {
   const [saved, setSaved] = useState(false);
 
   const RESET_OPTIONS = [
-    { key: "weekly", label: "Semanal" },
-    { key: "monthly", label: "Mensal" },
-    { key: "yearly", label: "Anual" },
-    { key: "never", label: "Nunca" },
+    { key: "weekly", label: t("focusset.reset.weekly") },
+    { key: "monthly", label: t("focusset.reset.monthly") },
+    { key: "yearly", label: t("focusset.reset.yearly") },
+    { key: "never", label: t("focusset.reset.never") },
   ];
 
   useEffect(() => {
@@ -354,12 +359,12 @@ function PomodoroTab() {
 
   return (
     <div>
-      <Section title="Tempos do Pomodoro">
-        <SliderRow label="Foco" value={focusMin} onChange={setFocusMin} min={5} max={120} unit=" min" />
-        <SliderRow label="Pausa curta" value={shortBreakMin} onChange={setShortBreakMin} min={1} max={30} unit=" min" />
-        <SliderRow label="Pausa longa" value={longBreakMin} onChange={setLongBreakMin} min={5} max={60} unit=" min" />
+      <Section title={t("profile.pomodoro_times")}>
+        <SliderRow label={t("focus.work")} value={focusMin} onChange={setFocusMin} min={5} max={120} unit=" min" />
+        <SliderRow label={t("focus.short_break")} value={shortBreakMin} onChange={setShortBreakMin} min={1} max={30} unit=" min" />
+        <SliderRow label={t("focus.long_break")} value={longBreakMin} onChange={setLongBreakMin} min={5} max={60} unit=" min" />
       </Section>
-      <Section title="Reinício das Laranjas">
+      <Section title={t("profile.orange_reset")}>
         <div className="px-4 py-3 flex flex-wrap gap-2">
           {RESET_OPTIONS.map((o) => (
             <button key={o.key} onClick={() => setOrangeReset(o.key)}
@@ -375,13 +380,14 @@ function PomodoroTab() {
       </Section>
       <button onClick={save}
         className="w-full py-3 rounded-2xl bg-[#E87A5A] text-white font-semibold text-sm shadow-md shadow-[#E87A5A]/25 flex items-center justify-center gap-2 transition-all hover:bg-[#D4694A] active:scale-95">
-        {saved ? <><Check className="w-4 h-4" /> Guardado!</> : "Guardar"}
+        {saved ? <><Check className="w-4 h-4" /> {t("focusset.saved")}</> : t("save")}
       </button>
     </div>
   );
 }
 
 function NotificationsTab() {
+  const { t } = useLang();
   const [notifs, setNotifs] = useState(true);
   const [saved, setSaved] = useState(false);
 
@@ -403,48 +409,67 @@ function NotificationsTab() {
 
   return (
     <div>
-      <Section title="Push Notifications">
-        <Row icon={Bell} label="Notificações push">
+      <Section title={t("profile.notif_push")}>
+        <Row icon={Bell} label={t("profile.notif_push_label")}>
           <Toggle on={notifs} onChange={toggle} />
         </Row>
         {saved && (
           <div className="px-4 py-2 text-xs text-green-700 bg-green-50 flex items-center gap-1.5">
-            <Check className="w-3.5 h-3.5" /> Preferências guardadas
+            <Check className="w-3.5 h-3.5" /> {t("profile.prefs_saved")}
           </div>
         )}
       </Section>
-      <Section title="Tipos">
-        <Row icon={Clock} label="Fim de sessão Pomodoro" value="Sempre ativo" />
-        <Row icon={Bell} label="Prazos próximos" value="24h antes" />
+      <Section title={t("profile.notif_types")}>
+        <Row icon={Clock} label={t("profile.notif_focus_end")} value={t("profile.notif_focus_end_val")} />
+        <Row icon={Bell} label={t("profile.notif_deadlines")} value={t("profile.notif_deadlines_val")} />
       </Section>
     </div>
   );
 }
 
 function GeneralTab() {
+  const { lang, setLang, t } = useLang();
   const [weekStartsOn, setWeekStartsOn] = useState(1);
+  const [icsExport, setIcsExport] = useState(false);
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
     auth.me().then((u) => {
       const m = u?.user_metadata || {};
       if (m.week_starts_on !== undefined) setWeekStartsOn(m.week_starts_on);
+      if (m.ics_export_enabled !== undefined) setIcsExport(m.ics_export_enabled);
     }).catch(() => {});
   }, []);
 
   const save = async () => {
-    await supabase.auth.updateUser({ data: { week_starts_on: weekStartsOn } });
+    await supabase.auth.updateUser({ data: { week_starts_on: weekStartsOn, ics_export_enabled: icsExport } });
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   };
 
   return (
     <div>
-      <Section title="Calendário">
+      <Section title={t("profile.language")}>
         <div className="px-4 py-3">
-          <p className="text-sm font-medium text-foreground mb-2">Início da semana</p>
+          <p className="text-xs text-muted-foreground mb-3">{t("profile.language_sub")}</p>
           <div className="flex gap-2">
-            {[{ key: 0, label: "Dom" }, { key: 1, label: "Seg" }].map((o) => (
+            {[{ key: "en", label: "English" }, { key: "pt", label: "Português" }].map((o) => (
+              <button key={o.key} onClick={() => setLang(o.key)}
+                className={`flex-1 py-2 rounded-xl text-sm font-medium border transition-all ${
+                  lang === o.key
+                    ? "bg-[#E87A5A] text-white border-[#E87A5A]"
+                    : "bg-white text-muted-foreground border-border hover:border-[#E87A5A]/40"
+                }`}>
+                {o.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </Section>
+      <Section title={t("profile.week_start")}>
+        <div className="px-4 py-3">
+          <div className="flex gap-2">
+            {[{ key: 0, label: t("profile.sunday") }, { key: 1, label: t("profile.monday") }].map((o) => (
               <button key={o.key} onClick={() => setWeekStartsOn(o.key)}
                 className={`flex-1 py-2 rounded-xl text-sm font-medium border transition-all ${
                   weekStartsOn === o.key
@@ -457,9 +482,16 @@ function GeneralTab() {
           </div>
         </div>
       </Section>
+      <Section title={t("profile.ics_export")}>
+        <div className="px-4 py-3 flex items-center justify-between gap-3">
+          <p className="text-xs text-muted-foreground flex-1">{t("profile.ics_export_sub")}</p>
+          <Toggle on={icsExport} onChange={setIcsExport} />
+        </div>
+        {icsExport && <ICalFeed />}
+      </Section>
       <button onClick={save}
         className="w-full py-3 rounded-2xl bg-[#E87A5A] text-white font-semibold text-sm shadow-md shadow-[#E87A5A]/25 flex items-center justify-center gap-2 transition-all hover:bg-[#D4694A] active:scale-95">
-        {saved ? <><Check className="w-4 h-4" /> Guardado!</> : "Guardar"}
+        {saved ? <><Check className="w-4 h-4" /> {t("focusset.saved")}</> : t("save")}
       </button>
     </div>
   );
@@ -467,23 +499,39 @@ function GeneralTab() {
 
 // ---------- Main ----------
 
-const TABS = [
-  { key: "account", icon: User, label: "Conta" },
-  { key: "security", icon: Shield, label: "Segurança" },
-  { key: "pomodoro", icon: Clock, label: "Pomodoro" },
-  { key: "notifications", icon: Bell, label: "Notificações" },
-  { key: "general", icon: Settings, label: "Geral" },
-];
-
 export default function Profile() {
   const navigate = useNavigate();
+  const { t } = useLang();
   const [tab, setTab] = useState("account");
   const [user, setUser] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [exitX, setExitX] = useState(0);
+  const swipeStartX = useRef(null);
+
+  const TABS = [
+    { key: "account", icon: User, label: t("profile.tab.account") },
+    { key: "security", icon: Shield, label: t("profile.tab.security") },
+    { key: "pomodoro", icon: Clock, label: t("profile.tab.pomodoro") },
+    { key: "notifications", icon: Bell, label: t("profile.tab.notifications") },
+    { key: "general", icon: Settings, label: t("profile.tab.general") },
+  ];
 
   useEffect(() => {
     auth.me().then(setUser).catch(() => {});
   }, []);
+
+  const handleSwipeStart = (e) => {
+    swipeStartX.current = (e.touches?.[0] ?? e).clientX;
+  };
+  const handleSwipeEnd = (e) => {
+    if (swipeStartX.current === null) return;
+    const dx = (e.changedTouches?.[0] ?? e).clientX - swipeStartX.current;
+    if (dx > 80) {
+      setExitX("100%");
+      setTimeout(() => navigate("/"), 240);
+    }
+    swipeStartX.current = null;
+  };
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -493,7 +541,15 @@ export default function Profile() {
   const currentTab = TABS.find((t) => t.key === tab);
 
   return (
-    <div className="min-h-screen bg-cream flex flex-col">
+    <motion.div
+      className="min-h-screen bg-cream flex flex-col"
+      animate={exitX ? { x: exitX, opacity: 0 } : { x: 0, opacity: 1 }}
+      transition={{ duration: 0.22, ease: [0.4, 0, 0.2, 1] }}
+      onTouchStart={handleSwipeStart}
+      onTouchEnd={handleSwipeEnd}
+      onMouseDown={handleSwipeStart}
+      onMouseUp={handleSwipeEnd}
+    >
       {/* Header */}
       <div className="flex items-center gap-3 px-4 py-4 bg-cream sticky top-0 z-20 border-b border-border/50">
         <button onClick={() => navigate("/")}
@@ -501,7 +557,7 @@ export default function Profile() {
           <ArrowLeft className="w-5 h-5" />
         </button>
         <div className="flex-1 min-w-0">
-          <h1 className="text-lg font-bold text-foreground">Perfil</h1>
+          <h1 className="text-lg font-bold text-foreground">{t("profile.title")}</h1>
           <p className="text-xs text-muted-foreground truncate">{user?.email || "..."}</p>
         </div>
         <button onClick={handleLogout}
@@ -547,7 +603,7 @@ export default function Profile() {
                 </p>
                 <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
                 <p className="text-[10px] text-muted-foreground/60 mt-0.5">
-                  Membro desde {user?.created_at ? new Date(user.created_at).toLocaleDateString("pt-PT", { month: "long", year: "numeric" }) : "—"}
+                  {t("profile.member_since")} {user?.created_at ? new Date(user.created_at).toLocaleDateString(undefined, { month: "long", year: "numeric" }) : "—"}
                 </p>
               </div>
             </div>
@@ -564,6 +620,6 @@ export default function Profile() {
           </AnimatePresence>
         </main>
       </div>
-    </div>
+    </motion.div>
   );
 }

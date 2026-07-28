@@ -5,6 +5,7 @@ import { ArrowLeft, ArrowRight, ArrowUp, ArrowDown } from "lucide-react";
 import { FocusSession, Tag, Event } from "@/api/entities";
 import { auth } from "@/api/auth";
 import { useFocusTimer } from "@/context/FocusTimerContext";
+import { useLang } from "@/context/LangContext";
 import FocusTimer from "@/components/FocusTimer";
 import TagPicker from "@/components/TagPicker";
 import OrangeCanvas from "@/components/OrangeCanvas";
@@ -19,6 +20,7 @@ const TAG_COLORS = {
 
 export default function FocusPomo() {
   const navigate = useNavigate();
+  const { t } = useLang();
   const buttonRef = useRef(null);
   const { swipeHandlers, dragStyle } = useEdgeSwipeNav({ left: "/focus/calendar", right: "/focus/settings", up: "/focus/analytics", down: "/" });
 
@@ -85,17 +87,15 @@ export default function FocusPomo() {
 
   const buttonLabel = () => {
     if (remainingSeconds <= 0 && !isRunning) {
-      return phase === "focus" ? "Começar Pausa" : "Começar Foco";
+      return phase === "focus" ? t("focus.short_break") : t("focus.work");
     }
-    if (isRunning) return "Pausar";
-    if (phase === "focus") return "Start Focus";
-    return "Start Pause";
+    if (isRunning) return t("focus.pause");
+    return t("focus.start");
   };
 
   const skipLabel = () => {
     if (remainingSeconds <= 0) return "";
-    if (phase === "focus") return "Skip Focus";
-    return "Skip Pause";
+    return phase === "focus" ? `Skip ${t("focus.work")}` : `Skip ${t("focus.short_break")}`;
   };
 
   const tagColorClass = selectedTag ? TAG_COLORS[selectedTag.color] || TAG_COLORS.blue : TAG_COLORS.blue;
@@ -119,7 +119,7 @@ export default function FocusPomo() {
         </div>
 
         <div data-source-location="pages/FocusPomo:146:8" data-dynamic-content="true" className="absolute top-1/2 -translate-y-1/2 right-4 z-20 flex items-center gap-2">
-          <span data-source-location="pages/FocusPomo:147:10" data-dynamic-content="false" className="text-[10px] text-muted-foreground/50 whitespace-nowrap hidden sm:block">Calendário</span>
+          <span data-source-location="pages/FocusPomo:147:10" data-dynamic-content="false" className="text-[10px] text-muted-foreground/50 whitespace-nowrap hidden sm:block">{t("focus.calendar")}</span>
           <button data-source-location="pages/FocusPomo:148:10" data-dynamic-content="true" onClick={() => navigate("/focus/calendar")} className="w-9 h-9 rounded-2xl bg-white border border-border flex items-center justify-center text-muted-foreground shadow-sm hover:text-foreground transition-all">
             <ArrowRight data-source-location="pages/FocusPomo:149:12" data-dynamic-content="false" className="w-4 h-4" />
           </button>
@@ -129,11 +129,11 @@ export default function FocusPomo() {
           <button data-source-location="pages/FocusPomo:154:10" data-dynamic-content="true" onClick={() => navigate("/focus/settings")} className="w-9 h-9 rounded-2xl bg-white border border-border flex items-center justify-center text-muted-foreground shadow-sm hover:text-foreground transition-all">
             <ArrowLeft data-source-location="pages/FocusPomo:155:12" data-dynamic-content="false" className="w-4 h-4" />
           </button>
-          <span data-source-location="pages/FocusPomo:157:10" data-dynamic-content="false" className="text-[10px] text-muted-foreground/50 whitespace-nowrap hidden sm:block">Settings</span>
+          <span data-source-location="pages/FocusPomo:157:10" data-dynamic-content="false" className="text-[10px] text-muted-foreground/50 whitespace-nowrap hidden sm:block">{t("focus.settings")}</span>
         </div>
 
         <div data-source-location="pages/FocusPomo:160:8" data-dynamic-content="true" className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center gap-1">
-          <span data-source-location="pages/FocusPomo:161:10" data-dynamic-content="false" className="text-[10px] text-muted-foreground/50 hidden sm:block">Analytics</span>
+          <span data-source-location="pages/FocusPomo:161:10" data-dynamic-content="false" className="text-[10px] text-muted-foreground/50 hidden sm:block">{t("focus.analytics")}</span>
           <button data-source-location="pages/FocusPomo:162:10" data-dynamic-content="true" onClick={() => navigate("/focus/analytics")} className="w-9 h-9 rounded-2xl bg-white border border-border flex items-center justify-center text-muted-foreground shadow-sm hover:text-foreground transition-all">
             <ArrowDown data-source-location="pages/FocusPomo:163:12" data-dynamic-content="false" className="w-4 h-4" />
           </button>

@@ -7,6 +7,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, eachDayOfInterval, isWithinInterval, subWeeks, subMonths } from "date-fns";
 import { pt } from "date-fns/locale";
 import { useEdgeSwipeNav } from "@/hooks/useEdgeSwipeNav";
+import { useLang } from "@/context/LangContext";
 
 const DAY_LABELS_SHORT = ["S", "T", "Q", "Q", "S", "S", "D"];
 
@@ -18,6 +19,7 @@ const TAG_COLORS_CHART = {
 
 export default function FocusAnalytics() {
   const navigate = useNavigate();
+  const { t } = useLang();
   const [sessions, setSessions] = useState([]);
   const [exportingCsv, setExportingCsv] = useState(false);
   const [exportingPdf, setExportingPdf] = useState(false);
@@ -59,12 +61,12 @@ export default function FocusAnalytics() {
   const tagDistribution = useMemo(() => {
     const map = {};
     completedFocus.forEach((s) => {
-      const name = s.tag_name || "Sem tag";
+      const name = s.tag_name || t("none");
       map[name] = (map[name] || 0) + 1;
     });
     return Object.entries(map).map(([name, value]) => ({
       name, value,
-      color: TAG_COLORS_CHART[completedFocus.find((s) => (s.tag_name || "Sem tag") === name)?.tag_color] || "#94A3B8"
+      color: TAG_COLORS_CHART[completedFocus.find((s) => (s.tag_name || t("none")) === name)?.tag_color] || "#94A3B8"
     }));
   }, [completedFocus]);
 
@@ -74,7 +76,7 @@ export default function FocusAnalytics() {
       const ws = startOfWeek(subWeeks(today, 3 - i), { weekStartsOn: 1 });
       const we = endOfWeek(subWeeks(today, 3 - i), { weekStartsOn: 1 });
       const count = completedFocus.filter((s) => isWithinInterval(new Date(s.created_date), { start: ws, end: we })).length;
-      return { week: `Sem ${i + 1}`, count };
+      return { week: `${t("fanalytics.sem")} ${i + 1}`, count };
     });
   }, [completedFocus, today]);
 
@@ -145,7 +147,7 @@ export default function FocusAnalytics() {
         return [
           format(d, "yyyy-MM-dd"),
           format(d, "HH:mm"),
-          s.tag_name || "Sem tag",
+          s.tag_name || t("none"),
           s.tag_color || "",
           s.duration_minutes || "",
           s.type || "focus",
@@ -196,7 +198,7 @@ export default function FocusAnalytics() {
             <ArrowUp className="w-5 h-5" />
           </button>
           <div className="flex-1">
-            <h1 className="text-lg font-bold text-foreground">Analytics</h1>
+            <h1 className="text-lg font-bold text-foreground">{t("fanalytics.title")}</h1>
             <p className="text-[11px] text-muted-foreground">{format(today, "d 'de' MMMM, yyyy", { locale: pt })}</p>
           </div>
           <div className="flex gap-1.5">
@@ -215,10 +217,10 @@ export default function FocusAnalytics() {
           {/* Stats cards */}
           <div className="grid grid-cols-2 gap-3">
             {[
-              { icon: Target, color: "text-[#E87A5A]", bg: "bg-[#E87A5A]/10", label: "Hoje", value: todayCount, unit: "pomodoros" },
-              { icon: TrendingUp, color: "text-purple-600", bg: "bg-purple-100", label: "Semana", value: weekCount, unit: "pomodoros" },
-              { icon: CheckCircle, color: "text-emerald-600", bg: "bg-emerald-100", label: "Total", value: completedFocus.length, unit: "pomodoros" },
-              { icon: Clock, color: "text-amber-600", bg: "bg-amber-100", label: "Foco", value: `${totalHours}h ${totalRemainder}m`, unit: "tempo" }
+              { icon: Target, color: "text-[#E87A5A]", bg: "bg-[#E87A5A]/10", label: t("fanalytics.today"), value: todayCount, unit: t("fanalytics.pomodoros") },
+              { icon: TrendingUp, color: "text-purple-600", bg: "bg-purple-100", label: t("fanalytics.week"), value: weekCount, unit: t("fanalytics.pomodoros") },
+              { icon: CheckCircle, color: "text-emerald-600", bg: "bg-emerald-100", label: t("fanalytics.total"), value: completedFocus.length, unit: t("fanalytics.pomodoros") },
+              { icon: Clock, color: "text-amber-600", bg: "bg-amber-100", label: t("fanalytics.focus_time"), value: `${totalHours}h ${totalRemainder}m`, unit: t("fanalytics.time") }
             ].map((card, i) => (
               <motion.div key={i} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}
                 className="bg-white rounded-2xl p-4 border border-border shadow-sm hover:shadow-md transition-shadow">
@@ -240,8 +242,8 @@ export default function FocusAnalytics() {
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 rounded-2xl bg-amber-100 flex items-center justify-center text-2xl">🔥</div>
                 <div>
-                  <p className="text-sm font-bold text-foreground">Sequência de {streak} dia{streak !== 1 ? "s" : ""}</p>
-                  <p className="text-[11px] text-muted-foreground">Dias consecutivos com foco</p>
+                  <p className="text-sm font-bold text-foreground">{t("fanalytics.streak")} {streak}</p>
+                  <p className="text-[11px] text-muted-foreground">{t("fanalytics.streak_sub")}</p>
                 </div>
                 <div className="ml-auto text-3xl font-bold text-amber-500">{streak}</div>
               </div>
@@ -251,7 +253,7 @@ export default function FocusAnalytics() {
           {/* Month comparison */}
           <div className="bg-white rounded-2xl p-5 border border-border shadow-sm">
             <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
-              <TrendingUp className="w-4 h-4 text-purple-500" /> Comparação Mensal
+              <TrendingUp className="w-4 h-4 text-purple-500" /> {t("fanalytics.monthly_comparison")}
             </h3>
             <div className="grid grid-cols-2 gap-3 mb-4">
               <div className="bg-[#E87A5A]/8 rounded-xl p-3">
@@ -267,7 +269,7 @@ export default function FocusAnalytics() {
             </div>
             {monthDiffPct !== null && (
               <div className={`text-xs font-semibold px-3 py-1.5 rounded-xl inline-flex items-center gap-1 ${monthDiff >= 0 ? "bg-emerald-50 text-emerald-600" : "bg-rose-50 text-rose-600"}`}>
-                {monthDiff >= 0 ? "▲" : "▼"} {Math.abs(monthDiffPct)}% vs mês anterior
+                {monthDiff >= 0 ? "▲" : "▼"} {Math.abs(monthDiffPct)}% {t("fanalytics.vs_prev")}
               </div>
             )}
             <div className="h-[120px] mt-3">
@@ -296,7 +298,7 @@ export default function FocusAnalytics() {
           {/* Weekly trend chart */}
           <div className="bg-white rounded-2xl p-5 border border-border shadow-sm">
             <h3 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
-              <Zap className="w-4 h-4 text-[#E87A5A]" /> Tendência Semanal
+              <Zap className="w-4 h-4 text-[#E87A5A]" /> {t("fanalytics.weekly_trend")}
             </h3>
             <div className="h-[160px]">
               <ResponsiveContainer width="100%" height="100%">
@@ -319,7 +321,7 @@ export default function FocusAnalytics() {
 
           {/* Daily bar chart */}
           <div className="bg-white rounded-2xl p-5 border border-border shadow-sm">
-            <h3 className="text-sm font-semibold text-foreground mb-4">Pomodoros por Dia</h3>
+            <h3 className="text-sm font-semibold text-foreground mb-4">{t("fanalytics.daily_pomodoros")}</h3>
             <div className="h-[180px]">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={dailyData} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
@@ -339,7 +341,7 @@ export default function FocusAnalytics() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {tagDistribution.length > 0 && (
               <div className="bg-white rounded-2xl p-5 border border-border shadow-sm">
-                <h3 className="text-sm font-semibold text-foreground mb-3">Por Tag</h3>
+                <h3 className="text-sm font-semibold text-foreground mb-3">{t("fanalytics.by_tag")}</h3>
                 <div className="h-[180px]">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
@@ -365,7 +367,7 @@ export default function FocusAnalytics() {
 
             {hourlyData.length > 0 && (
               <div className="bg-white rounded-2xl p-5 border border-border shadow-sm">
-                <h3 className="text-sm font-semibold text-foreground mb-3">Foco por Hora</h3>
+                <h3 className="text-sm font-semibold text-foreground mb-3">{t("fanalytics.by_hour")}</h3>
                 <div className="h-[180px]">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={hourlyData} margin={{ top: 5, right: 5, left: -20, bottom: 0 }} layout="vertical">
@@ -384,7 +386,7 @@ export default function FocusAnalytics() {
           {/* Recent sessions */}
           {completedFocus.slice(0, 6).length > 0 && (
             <div className="bg-white rounded-2xl p-5 border border-border shadow-sm">
-              <h3 className="text-sm font-semibold text-foreground mb-3">Sessões Recentes</h3>
+              <h3 className="text-sm font-semibold text-foreground mb-3">{t("fanalytics.recent_sessions")}</h3>
               <div className="space-y-2">
                 {completedFocus.slice(0, 6).map((s) => {
                   const cls = {
@@ -396,7 +398,7 @@ export default function FocusAnalytics() {
                   return (
                     <div key={s.id} className="flex items-center gap-2 text-sm">
                       <CheckCircle className="w-4 h-4 text-emerald-500 flex-shrink-0" />
-                      <span className={`px-2 py-0.5 rounded-md text-[11px] font-medium ${cls}`}>{s.tag_name || "Foco"}</span>
+                      <span className={`px-2 py-0.5 rounded-md text-[11px] font-medium ${cls}`}>{s.tag_name || t("cal.focus_label")}</span>
                       <span className="text-xs text-muted-foreground ml-auto">{s.duration_minutes}min • {format(new Date(s.created_date), "d MMM", { locale: pt })}</span>
                     </div>
                   );

@@ -7,6 +7,7 @@ import { supabase } from "@/api/supabaseClient";
 import { useEdgeSwipeNav } from "@/hooks/useEdgeSwipeNav";
 import { savePushSubscription, removePushSubscription, Core } from "@/api/integrations";
 import { SOUND_LIBRARY, playSound } from "@/lib/sounds";
+import { useLang } from "@/context/LangContext";
 
 function urlBase64ToUint8Array(base64String) {
   const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
@@ -41,23 +42,15 @@ async function disablePushNotifications() {
   }
 }
 
-const SOUNDS = [
-{ key: "default", label: "Padrão", icon: "🔔" },
-{ key: "bell", label: "Sino", icon: "🛎️" },
-{ key: "chime", label: "Toque suave", icon: "🎵" },
-{ key: "digital", label: "Digital", icon: "💻" },
-{ key: "nature", label: "Natureza", icon: "🌿" }];
-
-
-const RESET_OPTIONS = [
-{ key: "weekly", label: "Semanal", icon: "📅" },
-{ key: "monthly", label: "Mensal", icon: "🗓️" },
-{ key: "yearly", label: "Anual", icon: "🎯" },
-{ key: "never", label: "Nunca", icon: "♾️" }];
+const SOUND_KEYS = ["default", "bell", "chime", "digital", "nature"];
+const SOUND_ICONS = { default: "🔔", bell: "🛎️", chime: "🎵", digital: "💻", nature: "🌿" };
+const RESET_KEYS = ["weekly", "monthly", "yearly", "never"];
+const RESET_ICONS = { weekly: "📅", monthly: "🗓️", yearly: "🎯", never: "♾️" };
 
 
 export default function FocusSettings() {
   const navigate = useNavigate();
+  const { t } = useLang();
   const [tab, setTab] = useState("notifications");
   const [notifications, setNotifications] = useState(true);
   const [focusSound, setFocusSound] = useState("bell");
@@ -116,10 +109,10 @@ export default function FocusSettings() {
   };
 
   const tabs = [
-  { key: "notifications", icon: Bell, label: "Notificações" },
-  { key: "timer", icon: Clock, label: "Tempos" },
-  { key: "oranges", icon: RefreshCw, label: "Laranjas" },
-  { key: "general", icon: CalendarDays, label: "Geral" }];
+  { key: "notifications", icon: Bell, label: t("focusset.tab_notifications") },
+  { key: "timer", icon: Clock, label: t("focusset.tab_timer") },
+  { key: "oranges", icon: RefreshCw, label: t("focusset.tab_oranges") },
+  { key: "general", icon: CalendarDays, label: t("focusset.tab_general") }];
 
 
   return (
@@ -132,8 +125,8 @@ export default function FocusSettings() {
             <ArrowRight data-source-location="pages/FocusSettings:100:12" data-dynamic-content="false" className="w-5 h-5" />
           </button>
           <div data-source-location="pages/FocusSettings:102:10" data-dynamic-content="false">
-            <h1 data-source-location="pages/FocusSettings:103:12" data-dynamic-content="false" className="text-xl font-bold text-foreground">Definições</h1>
-            <p data-source-location="pages/FocusSettings:104:12" data-dynamic-content="false" className="text-xs text-muted-foreground">Personaliza a tua experiência</p>
+            <h1 data-source-location="pages/FocusSettings:103:12" data-dynamic-content="false" className="text-xl font-bold text-foreground">{t("focusset.title")}</h1>
+            <p data-source-location="pages/FocusSettings:104:12" data-dynamic-content="false" className="text-xs text-muted-foreground">{t("focusset.sub")}</p>
           </div>
         </div>
 
@@ -158,8 +151,8 @@ export default function FocusSettings() {
               <div data-source-location="pages/FocusSettings:126:14" data-dynamic-content="true" className="bg-white rounded-2xl p-5 border border-border shadow-sm hover:shadow-md transition-shadow">
                 <div data-source-location="pages/FocusSettings:127:16" data-dynamic-content="true" className="flex items-center justify-between">
                   <div data-source-location="pages/FocusSettings:128:18" data-dynamic-content="false">
-                    <h3 data-source-location="pages/FocusSettings:129:20" data-dynamic-content="false" className="font-semibold text-sm text-foreground flex items-center gap-2">🔔 Alertas do Timer</h3>
-                    <p data-source-location="pages/FocusSettings:130:20" data-dynamic-content="false" className="text-xs text-muted-foreground mt-1">Notificações quando o foco ou pausa terminar</p>
+                    <h3 data-source-location="pages/FocusSettings:129:20" data-dynamic-content="false" className="font-semibold text-sm text-foreground flex items-center gap-2">{t("focusset.timer_alerts")}</h3>
+                    <p data-source-location="pages/FocusSettings:130:20" data-dynamic-content="false" className="text-xs text-muted-foreground mt-1">{t("focusset.timer_alerts_sub")}</p>
                   </div>
                   <button data-source-location="pages/FocusSettings:132:18" data-dynamic-content="true" onClick={() => toggleNotifications(!notifications)}
                 className={`relative w-14 h-8 rounded-full transition-all duration-300 ${notifications ? "bg-[#E87A5A] shadow-md shadow-[#E87A5A]/30" : "bg-slate-300"}`}>
@@ -172,9 +165,9 @@ export default function FocusSettings() {
               {notifications &&
             <div className="space-y-3">
                 {[
-                  { label: "🔥 Foco", value: focusSound, set: setFocusSound, color: "#E87A5A" },
-                  { label: "☕ Pausa Curta", value: shortBreakSound, set: setShortBreakSound, color: "#7EB8A0" },
-                  { label: "🌿 Pausa Longa", value: longBreakSound, set: setLongBreakSound, color: "#A78BFA" },
+                  { label: t("focusset.phase.focus"), value: focusSound, set: setFocusSound, color: "#E87A5A" },
+                  { label: t("focusset.phase.short"), value: shortBreakSound, set: setShortBreakSound, color: "#7EB8A0" },
+                  { label: t("focusset.phase.long"), value: longBreakSound, set: setLongBreakSound, color: "#A78BFA" },
                 ].map((phase) => (
                   <div key={phase.label} className="bg-white rounded-2xl p-4 border border-border shadow-sm">
                     <h4 className="font-semibold text-sm text-foreground mb-3 flex items-center gap-2">
@@ -189,7 +182,7 @@ export default function FocusSettings() {
                         className={`relative px-3 py-2 rounded-xl text-xs font-medium transition-all text-left ${
                           phase.value === s.key ? "text-white shadow-md" : "bg-secondary text-muted-foreground hover:bg-[#E8E0D8]"
                         }`} style={phase.value === s.key ? { backgroundColor: phase.color } : {}}>
-                          <span className="mr-1">{s.icon}</span> {s.label}
+                          <span className="mr-1">{s.icon}</span> {t(`focusset.sound.${s.key}`, s.label)}
                           {phase.value === s.key && <Check className="absolute top-1.5 right-1.5 w-3 h-3" />}
                         </button>
                       ))}
@@ -199,18 +192,18 @@ export default function FocusSettings() {
 
                 <div className="bg-white rounded-2xl p-4 border border-border shadow-sm">
                   <h4 className="font-semibold text-sm text-foreground mb-2 flex items-center gap-2">
-                    <Upload className="w-4 h-4 text-[#E87A5A]" /> Som personalizado
+                    <Upload className="w-4 h-4 text-[#E87A5A]" /> {t("focusset.custom_sound")}
                   </h4>
-                  <p className="text-xs text-muted-foreground mb-3">Máx. 10 seg. Formatos: mp3, wav, ogg.</p>
+                  <p className="text-xs text-muted-foreground mb-3">{t("focusset.custom_sound_sub")}</p>
                   {customSoundUrl && (
                     <div className="flex items-center gap-2 mb-3">
                       <button onClick={() => playSound(customSoundUrl)}
                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#E87A5A]/10 text-[#E87A5A] text-xs font-medium hover:bg-[#E87A5A]/20 transition-all">
-                        <Play className="w-3 h-3" /> Testar som
+                        <Play className="w-3 h-3" /> {t("focusset.test_sound")}
                       </button>
                       <button onClick={() => { [setFocusSound, setShortBreakSound, setLongBreakSound].forEach(fn => fn(customSoundUrl)); }}
                         className="px-3 py-1.5 rounded-xl bg-secondary text-xs font-medium text-muted-foreground hover:bg-border transition-all">
-                        Aplicar a todas as fases
+                        {t("focusset.apply_all")}
                       </button>
                     </div>
                   )}
@@ -227,7 +220,7 @@ export default function FocusSettings() {
                     }} />
                   <button onClick={() => soundFileRef.current?.click()} disabled={uploadingSound}
                     className="w-full py-2.5 rounded-xl border-2 border-dashed border-border text-sm text-muted-foreground hover:border-[#E87A5A]/40 hover:text-[#E87A5A] transition-all flex items-center justify-center gap-2 disabled:opacity-50">
-                    {uploadingSound ? "A enviar..." : <><Upload className="w-4 h-4" /> Carregar ficheiro de áudio</>}
+                    {uploadingSound ? t("focusset.uploading") : <><Upload className="w-4 h-4" /> {t("focusset.upload_audio")}</>}
                   </button>
                 </div>
               </div>
@@ -238,9 +231,9 @@ export default function FocusSettings() {
           {tab === "timer" &&
           <motion.div data-source-location="pages/FocusSettings:163:12" data-dynamic-content="true" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-3">
               {[
-            { label: "Foco", value: focusMin, setter: setFocusMin, min: 5, max: 90, color: "#E87A5A", icon: "🔥", step: 5 },
-            { label: "Pausa Curta", value: shortBreakMin, setter: setShortBreakMin, min: 1, max: 30, color: "#7EB8A0", icon: "☕", step: 1 },
-            { label: "Pausa Longa", value: longBreakMin, setter: setLongBreakMin, min: 5, max: 60, color: "#A78BFA", icon: "🌿", step: 5 }].
+            { label: t("focus.work"), value: focusMin, setter: setFocusMin, min: 5, max: 90, color: "#E87A5A", icon: "🔥", step: 5 },
+            { label: t("focus.short_break"), value: shortBreakMin, setter: setShortBreakMin, min: 1, max: 30, color: "#7EB8A0", icon: "☕", step: 1 },
+            { label: t("focus.long_break"), value: longBreakMin, setter: setLongBreakMin, min: 5, max: 60, color: "#A78BFA", icon: "🌿", step: 5 }].
             map((item) =>
             <div data-source-location="pages/FocusSettings:169:16" data-dynamic-content="true" key={item.label} className="bg-white rounded-2xl p-5 border border-border shadow-sm hover:shadow-md transition-shadow">
                   <div data-source-location="pages/FocusSettings:170:18" data-dynamic-content="true" className="flex items-center justify-between mb-4">
@@ -272,15 +265,15 @@ export default function FocusSettings() {
               <div data-source-location="pages/FocusSettings:196:14" data-dynamic-content="true" className="bg-white rounded-2xl p-5 border border-border shadow-sm">
                 <h3 data-source-location="pages/FocusSettings:197:16" data-dynamic-content="false" className="font-semibold text-sm text-foreground mb-4 flex items-center gap-2">
                   <span data-source-location="pages/FocusSettings:198:18" data-dynamic-content="false" className="w-8 h-8 rounded-xl bg-[#E87A5A]/10 flex items-center justify-center text-lg">🍊</span>
-                  Reset das Laranjas
+                  {t("focusset.oranges_reset")}
                 </h3>
                 <div data-source-location="pages/FocusSettings:201:16" data-dynamic-content="true" className="grid grid-cols-2 gap-2">
-                  {RESET_OPTIONS.map((o, __arrIdx__) =>
-                <button data-source-location="pages/FocusSettings:203:20" data-dynamic-content="true" key={o.key} onClick={() => setOrangeReset(o.key)}
+                  {RESET_KEYS.map((key) =>
+                <button data-source-location="pages/FocusSettings:203:20" data-dynamic-content="true" key={key} onClick={() => setOrangeReset(key)}
                 className={`px-4 py-3 rounded-xl text-sm font-medium transition-all flex items-center gap-2 ${
-                orangeReset === o.key ? "bg-[#E87A5A] text-white shadow-md" : "bg-secondary text-muted-foreground hover:bg-[#E8E0D8]"}`
-                } data-arr-index={__arrIdx__} data-arr-variable-name="RESET_OPTIONS" data-arr-field="label">
-                      <span data-source-location="pages/FocusSettings:207:22" data-dynamic-content="true" data-arr-index={__arrIdx__} data-arr-variable-name="RESET_OPTIONS" data-arr-field="icon">{o.icon}</span> {o.label}
+                orangeReset === key ? "bg-[#E87A5A] text-white shadow-md" : "bg-secondary text-muted-foreground hover:bg-[#E8E0D8]"}`
+                }>
+                      <span>{RESET_ICONS[key]}</span> {t(`focusset.reset.${key}`)}
                     </button>
                 )}
                 </div>
@@ -293,21 +286,21 @@ export default function FocusSettings() {
               <div data-source-location="pages/FocusSettings:217:14" data-dynamic-content="true" className="bg-white rounded-2xl p-5 border border-border shadow-sm">
                 <h3 data-source-location="pages/FocusSettings:218:16" data-dynamic-content="false" className="font-semibold text-sm text-foreground mb-4 flex items-center gap-2">
                   <span data-source-location="pages/FocusSettings:219:18" data-dynamic-content="false" className="w-8 h-8 rounded-xl bg-[#E87A5A]/10 flex items-center justify-center"><CalendarDays data-source-location="pages/FocusSettings:219:104" data-dynamic-content="false" className="w-4 h-4 text-[#E87A5A]" /></span>
-                  Primeiro dia da semana
+                  {t("focusset.week_start")}
                 </h3>
-                <p data-source-location="pages/FocusSettings:222:16" data-dynamic-content="false" className="text-xs text-muted-foreground mb-3">Define qual o primeiro dia da semana no calendário</p>
+                <p data-source-location="pages/FocusSettings:222:16" data-dynamic-content="false" className="text-xs text-muted-foreground mb-3">{t("focusset.week_start_sub")}</p>
                 <div data-source-location="pages/FocusSettings:223:16" data-dynamic-content="true" className="grid grid-cols-2 gap-2">
                   <button data-source-location="pages/FocusSettings:224:18" data-dynamic-content="true" onClick={() => setWeekStartsOn(1)}
                 className={`px-4 py-3 rounded-xl text-sm font-medium transition-all ${
                 weekStartsOn === 1 ? "bg-[#E87A5A] text-white shadow-md" : "bg-secondary text-muted-foreground hover:bg-[#E8E0D8]"}`
                 }>
-                    📅 Segunda-feira
+                    {t("focusset.monday")}
                   </button>
                   <button data-source-location="pages/FocusSettings:230:18" data-dynamic-content="true" onClick={() => setWeekStartsOn(0)}
                 className={`px-4 py-3 rounded-xl text-sm font-medium transition-all ${
                 weekStartsOn === 0 ? "bg-[#E87A5A] text-white shadow-md" : "bg-secondary text-muted-foreground hover:bg-[#E8E0D8]"}`
                 }>
-                    ☀️ Domingo
+                    {t("focusset.sunday")}
                   </button>
                 </div>
               </div>
@@ -321,7 +314,7 @@ export default function FocusSettings() {
           saved ? "bg-emerald-500 text-white shadow-emerald-500/25" : "bg-[#E87A5A] text-white hover:bg-[#D4694A] shadow-[#E87A5A]/25"}`
           }>
             <span data-source-location="pages/FocusSettings:247:12" data-dynamic-content="true" className="flex items-center justify-center gap-2">
-              {saved ? <><Check data-source-location="pages/FocusSettings:248:25" data-dynamic-content="false" className="w-4 h-4" /> Guardado!</> : <><Zap data-source-location="pages/FocusSettings:248:72" data-dynamic-content="false" className="w-4 h-4" /> Guardar Definições</>}
+              {saved ? <><Check data-source-location="pages/FocusSettings:248:25" data-dynamic-content="false" className="w-4 h-4" /> {t("focusset.saved")}</> : <><Zap data-source-location="pages/FocusSettings:248:72" data-dynamic-content="false" className="w-4 h-4" /> {t("focusset.save")}</>}
             </span>
           </button>
         </div>
