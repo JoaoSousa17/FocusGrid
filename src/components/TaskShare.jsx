@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, UserPlus, Mail, Shield, Eye, Trash2, Clock, Infinity, Check, Loader2, Users, Copy, Link2, Lock } from "lucide-react";
+import { X, UserPlus, Mail, Shield, Eye, Trash2, Clock, Infinity, Check, Loader2, Users, Copy, Link2, Lock, Share2 } from "lucide-react";
 import { supabase } from "@/api/supabaseClient";
 import { useLang } from "@/context/LangContext";
 
@@ -176,6 +176,7 @@ export default function TaskShare({ open, onClose }) {
                   {[
                     { key: "viewer", icon: Eye, label: "Visualizador", desc: "Só pode ver" },
                     { key: "editor", icon: Shield, label: "Editor", desc: "Cria e edita" },
+                    { key: "admin", icon: Share2, label: "Admin", desc: "Edita e partilha" },
                   ].map((r) => (
                     <button
                       key={r.key}
@@ -301,6 +302,7 @@ export default function TaskShare({ open, onClose }) {
                           >
                             <option value="viewer">Ver</option>
                             <option value="editor">Editar</option>
+                            <option value="admin">Admin</option>
                           </select>
                           <button onClick={() => removeShare(s.id)} className="w-7 h-7 rounded-lg hover:bg-rose-50 hover:text-rose-500 flex items-center justify-center transition-all text-muted-foreground">
                             <Trash2 className="w-3.5 h-3.5" />
