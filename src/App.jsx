@@ -33,6 +33,7 @@ import Notes from '@/pages/Notes';
 import NoteEditor from '@/pages/NoteEditor';
 import Terms from '@/pages/Terms';
 import Privacy from '@/pages/Privacy';
+import SharedTasksView from '@/pages/SharedTasksView';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError } = useAuth();
@@ -85,6 +86,7 @@ const AuthenticatedApp = () => {
         <Route path="/profile" element={<Profile />} />
         <Route path="/notes" element={<Notes />} />
         <Route path="/notes/:id" element={<NoteEditor />} />
+        <Route path="/tasks/shared/:ownerId" element={<SharedTasksView />} />
       </Route>
       <Route data-source-location="App:78:6" data-dynamic-content="true" path="*" element={<PageNotFound data-source-location="App:78:31" data-dynamic-content="false" />} />
     </Routes>

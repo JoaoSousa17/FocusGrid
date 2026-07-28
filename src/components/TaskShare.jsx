@@ -4,6 +4,8 @@ import { X, UserPlus, Mail, Shield, Eye, Trash2, Clock, Infinity, Check, Loader2
 import { supabase } from "@/api/supabaseClient";
 import { useLang } from "@/context/LangContext";
 
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "";
+
 export default function TaskShare({ open, onClose }) {
   const { t } = useLang();
   const [shares, setShares] = useState([]);
@@ -57,8 +59,23 @@ export default function TaskShare({ open, onClose }) {
         { onConflict: "owner_id,shared_with_email" }
       );
       if (err) { setError(err.message); return; }
-      setLastShared(email.trim().toLowerCase());
+      const sharedEmail = email.trim().toLowerCase();
+      setLastShared(sharedEmail);
       setEmail("");
+
+      // Send notification email (fire-and-forget — don't block UI on failure)
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.access_token && SUPABASE_URL) {
+        fetch(`${SUPABASE_URL}/functions/v1/notify-share`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({ shared_with_email: sharedEmail, role, expires_at: expiresAt }),
+        }).catch(() => {});
+      }
+
       await loadShares();
     } finally {
       setAdding(false);
