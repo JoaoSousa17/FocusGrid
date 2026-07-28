@@ -1,6 +1,6 @@
 // Service Worker: notificações Web Push + cache offline + Background Sync
 
-const CACHE_NAME = "focusgrid-v1";
+const CACHE_NAME = "focusgrid-v3";
 const ASSET_EXTS = [".js", ".css", ".woff2", ".woff", ".ttf", ".png", ".svg", ".ico", ".webp"];
 const SYNC_QUEUE = "fg-offline-queue";
 
