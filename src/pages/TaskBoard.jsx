@@ -515,9 +515,41 @@ export default function TaskBoard() {
   const nextWeek = () => setCurrentDate(addWeeks(currentDate, 1));
 
   const onDragEnd = async (result) => {
-    const { source, destination, draggableId } = result;
+    const { source, destination, draggableId, type } = result;
     if (!destination) return;
     if (source.droppableId === destination.droppableId && source.index === destination.index) return;
+
+    // ── Subtask dragged between tasks ────────────────────────────────────────
+    if (type === "SUBTASK") {
+      const srcTaskId = source.droppableId.replace("subtasks-", "");
+      const dstTaskId = destination.droppableId.replace("subtasks-", "");
+      const subtaskId = draggableId.replace("subtask-", "");
+
+      const srcTask = tasks.find((t) => t.id === srcTaskId);
+      const dstTask = tasks.find((t) => t.id === dstTaskId);
+      if (!srcTask) return;
+
+      const srcSubtasks = parseSubtasks(srcTask);
+      const movedSubtask = srcSubtasks.find((s) => s.id === subtaskId);
+      if (!movedSubtask) return;
+
+      if (srcTaskId === dstTaskId) {
+        // Reorder within same task
+        const reordered = srcSubtasks.filter((s) => s.id !== subtaskId);
+        reordered.splice(destination.index, 0, movedSubtask);
+        await Task.update(srcTaskId, { subtasks_json: JSON.stringify(reordered) });
+      } else {
+        // Move to different task
+        const newSrcSubtasks = srcSubtasks.filter((s) => s.id !== subtaskId);
+        const dstSubtasks = dstTask ? parseSubtasks(dstTask) : [];
+        dstSubtasks.splice(destination.index, 0, movedSubtask);
+        await Promise.all([
+          Task.update(srcTaskId, { subtasks_json: JSON.stringify(newSrcSubtasks) }),
+          Task.update(dstTaskId, { subtasks_json: JSON.stringify(dstSubtasks) }),
+        ]);
+      }
+      return refreshData();
+    }
 
     const newWeekday = destination.droppableId;
     await Task.update(draggableId, { weekday: newWeekday === "none" ? "none" : newWeekday });
@@ -608,18 +640,47 @@ export default function TaskBoard() {
                     </div>
                 }
                   {subtasks.length > 0 &&
-                <div className="mt-1.5 pl-1.5 space-y-1">
-                      {subtasks.map((s) =>
-                  <button key={s.id} type="button" onClick={(e) => {e.stopPropagation();toggleSubtaskOnCard(task, s.id);}}
-                  className="w-full flex items-center gap-1.5 text-left group/sub">
-                          <span className={`w-3 h-3 rounded border flex-shrink-0 flex items-center justify-center transition-all ${s.completed ? "bg-blue-500 border-blue-500" : "border-slate-300 group-hover/sub:border-blue-400"}`}>
-                            {s.completed && <Check className="w-2 h-2 text-white" />}
-                          </span>
-                          <span className={`text-[10px] truncate ${s.completed ? "line-through text-muted-foreground/50" : "text-muted-foreground"}`}>{s.title}</span>
-                        </button>
-                  )}
-                    </div>
-                }
+                  <Droppable droppableId={`subtasks-${task.id}`} type="SUBTASK">
+                    {(subProvided, subSnapshot) => (
+                      <div
+                        ref={subProvided.innerRef}
+                        {...subProvided.droppableProps}
+                        className={`mt-1.5 pl-1.5 space-y-0.5 rounded-lg transition-colors ${subSnapshot.isDraggingOver ? "bg-blue-50/60" : ""}`}
+                      >
+                        {subtasks.map((s, sIdx) => (
+                          <Draggable key={s.id} draggableId={`subtask-${s.id}`} index={sIdx}>
+                            {(subDrag, subSnap) => (
+                              <div
+                                ref={subDrag.innerRef}
+                                {...subDrag.draggableProps}
+                                className={`flex items-center gap-1.5 rounded-md px-1 py-0.5 group/sub transition-all ${subSnap.isDragging ? "bg-white shadow-md ring-1 ring-blue-200 opacity-90" : ""}`}
+                              >
+                                <span
+                                  {...subDrag.dragHandleProps}
+                                  className="opacity-0 group-hover/sub:opacity-30 hover:!opacity-60 cursor-grab active:cursor-grabbing flex-shrink-0"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <GripVertical className="w-2.5 h-2.5 text-muted-foreground" />
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={(e) => { e.stopPropagation(); toggleSubtaskOnCard(task, s.id); }}
+                                  className="flex items-center gap-1.5 flex-1 min-w-0 text-left"
+                                >
+                                  <span className={`w-3 h-3 rounded border flex-shrink-0 flex items-center justify-center transition-all ${s.completed ? "bg-blue-500 border-blue-500" : "border-slate-300 group-hover/sub:border-blue-400"}`}>
+                                    {s.completed && <Check className="w-2 h-2 text-white" />}
+                                  </span>
+                                  <span className={`text-[10px] truncate ${s.completed ? "line-through text-muted-foreground/50" : "text-muted-foreground"}`}>{s.title}</span>
+                                </button>
+                              </div>
+                            )}
+                          </Draggable>
+                        ))}
+                        {subProvided.placeholder}
+                      </div>
+                    )}
+                  </Droppable>
+                  }
                 </div>
                 <div className="absolute bottom-2 left-2 w-1.5 h-1.5 rounded-full" style={{ backgroundColor: PRIORITY_CONFIG[task.priority || "medium"].color }} title={`Prioridade: ${PRIORITY_CONFIG[task.priority || "medium"].label}`} />
               </div>

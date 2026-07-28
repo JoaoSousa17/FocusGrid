@@ -52,6 +52,7 @@ export default function TaskShare({ open, onClose }) {
       const { error: err } = await supabase.from("task_shares").upsert(
         {
           owner_id: user.id,
+          owner_email: user.email,
           shared_with_email: email.trim().toLowerCase(),
           role,
           expires_at: expiresAt,
