@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, ArrowRight, Plus, Check, X, Search, Filter, Trash2, Tags, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, GripVertical, ListChecks, Repeat, Flag, Timer, ChevronsRight, Share2 } from "lucide-react";
+import { ArrowLeft, ArrowRight, Plus, Check, X, Search, Filter, Trash2, Tags, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, GripVertical, ListChecks, Repeat, Flag, Timer, ChevronsRight, Share2, Pin } from "lucide-react";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import { Tag, Task } from "@/api/entities";
 import { supabase } from "@/api/supabaseClient";
@@ -406,6 +406,12 @@ export default function TaskBoard({ sharedOwnerId, sharedRole, sharedOwnerName }
     refreshData();
   };
 
+  const pinSubtaskOnCard = async (task, subtaskId) => {
+    const subtasks = parseSubtasks(task).map((s) => s.id === subtaskId ? { ...s, pinned: !s.pinned } : s);
+    await Task.update(task.id, { subtasks_json: JSON.stringify(subtasks) });
+    refreshData();
+  };
+
   const updateTaskDetails = async () => {
     if (!editingTask) return;
     const tags = editingTask._tags || [];
@@ -677,7 +683,7 @@ export default function TaskBoard({ sharedOwnerId, sharedRole, sharedOwnerName }
                         {...subProvided.droppableProps}
                         className={`mt-1.5 pl-1.5 space-y-0.5 rounded-lg transition-colors ${subSnapshot.isDraggingOver ? "bg-blue-50/60" : ""}`}
                       >
-                        {subtasks.map((s, sIdx) => (
+                        {[...subtasks.filter((s) => s.pinned), ...subtasks.filter((s) => !s.pinned)].map((s, sIdx) => (
                           <Draggable key={s.id} draggableId={`subtask-${s.id}`} index={sIdx}>
                             {(subDrag, subSnap) => (
                               <div
@@ -701,6 +707,14 @@ export default function TaskBoard({ sharedOwnerId, sharedRole, sharedOwnerName }
                                     {s.completed && <Check className="w-2 h-2 text-white" />}
                                   </span>
                                   <span className={`text-[10px] truncate ${s.completed ? "line-through text-muted-foreground/50" : "text-muted-foreground"}`}>{s.title}</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={(e) => { e.stopPropagation(); pinSubtaskOnCard(task, s.id); }}
+                                  className="flex-shrink-0 opacity-0 group-hover/sub:opacity-100 transition-opacity"
+                                  title={s.pinned ? "Desafixar" : "Afixar"}
+                                >
+                                  <Pin className={`w-2.5 h-2.5 ${s.pinned ? "fill-[#E87A5A] text-[#E87A5A]" : "text-muted-foreground/40"}`} />
                                 </button>
                               </div>
                             )}
@@ -1084,13 +1098,19 @@ export default function TaskBoard({ sharedOwnerId, sharedRole, sharedOwnerName }
                 <div>
                   <label className="text-xs font-medium text-muted-foreground">{t("tasks.subtasks")}</label>
                   <div className="space-y-1.5 mt-1">
-                    {(editingTask._subtasks || []).map((s) =>
+                    {[...(editingTask._subtasks || []).filter((s) => s.pinned), ...(editingTask._subtasks || []).filter((s) => !s.pinned)].map((s) =>
                     <div key={s.id} className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-secondary/50">
                       <button type="button" onClick={() => toggleSubtaskInEditing(s.id)}
                       className={`w-4 h-4 rounded border-2 flex-shrink-0 flex items-center justify-center transition-all ${s.completed ? "bg-blue-500 border-blue-500" : "border-slate-300 hover:border-blue-400"}`}>
                         {s.completed && <Check className="w-2.5 h-2.5 text-white" />}
                       </button>
                       <span className={`flex-1 text-sm ${s.completed ? "line-through text-muted-foreground/50" : "text-foreground"}`}>{s.title}</span>
+                      <button type="button"
+                        onClick={() => setEditingTask({ ...editingTask, _subtasks: (editingTask._subtasks || []).map((sub) => sub.id === s.id ? { ...sub, pinned: !sub.pinned } : sub) })}
+                        title={s.pinned ? "Desafixar" : "Afixar"}
+                        className="flex-shrink-0">
+                        <Pin className={`w-3 h-3 ${s.pinned ? "fill-[#E87A5A] text-[#E87A5A]" : "text-muted-foreground/30 hover:text-[#E87A5A]"} transition-all`} />
+                      </button>
                       <button type="button" onClick={() => removeSubtaskFromEditing(s.id)} className="text-muted-foreground hover:text-rose-500 transition-all"><X className="w-3.5 h-3.5" /></button>
                     </div>
                     )}

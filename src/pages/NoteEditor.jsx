@@ -6,13 +6,13 @@ import {
   Bold, Italic, Underline, Strikethrough, AlignLeft, AlignCenter,
   AlignRight, AlignJustify, List, ListOrdered, Heading1, Heading2,
   Heading3, Image, Table, Minus, Check, Camera, ZoomIn, ZoomOut,
-  Link2, Eraser, Archive, Share2, Tag, MessageCircle, Send, X, Loader2,
+  Link2, Eraser, Archive, Share2, Tag as TagIcon, MessageCircle, Send, X, Loader2,
 } from "lucide-react";
-import { Note } from "@/api/entities";
-import { Core } from "@/api/integrations";
+import { Note, Tag } from "@/api/entities";
+import { Core, InvokeLLMChat } from "@/api/integrations";
 import { supabase } from "@/api/supabaseClient";
-import { InvokeLLMChat } from "@/api/integrations";
 import { NOTE_COLORS } from "./Notes";
+import TagPicker from "@/components/TagPicker";
 import { sha256, htmlToMarkdown, markdownToHtml } from "@/lib/noteUtils";
 
 // ─── CSS injected once ────────────────────────────────────────────────────────
@@ -356,6 +356,22 @@ function AIChatPopup({ noteContent, onInsert, onClose }) {
   );
 }
 
+// ─── Action button with label ─────────────────────────────────────────────────
+function ActionBtn({ icon: Icon, label, onClick, active, danger, amber }) {
+  return (
+    <button type="button" onClick={onClick}
+      className={`flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-xl transition-all min-w-[44px] flex-shrink-0 ${
+        active ? "bg-[#E87A5A]/10 text-[#E87A5A]" :
+        amber ? "text-amber-500 hover:bg-amber-50" :
+        danger ? "text-rose-500 hover:bg-rose-50" :
+        "text-muted-foreground hover:bg-black/5"
+      }`}>
+      <Icon className="w-4 h-4" />
+      <span className="text-[9px] font-medium leading-none whitespace-nowrap">{label}</span>
+    </button>
+  );
+}
+
 // ─── Toolbar button ───────────────────────────────────────────────────────────
 function TBtn({ onClick, active, title, children, danger }) {
   return (
@@ -401,6 +417,8 @@ export default function NoteEditor() {
   const [showAIChat, setShowAIChat] = useState(false);
   const [showForeColor, setShowForeColor] = useState(false);
   const [showHighlight, setShowHighlight] = useState(false);
+  const [noteTags, setNoteTags] = useState([]);
+  const [showTagPicker, setShowTagPicker] = useState(false);
 
   // Keep refs in sync
   useEffect(() => { titleRef.current = title; }, [title]);
@@ -432,6 +450,13 @@ export default function NoteEditor() {
       })
       .catch(() => navigate("/notes"));
   }, [id]);
+
+  // Load tags from note
+  useEffect(() => {
+    if (note) {
+      try { setNoteTags(JSON.parse(note.tags_json || "[]")); } catch { setNoteTags([]); }
+    }
+  }, [note?.id]);
 
   // Populate editor after note loads and unlocked and DOM is ready
   useEffect(() => {
@@ -577,9 +602,15 @@ export default function NoteEditor() {
 
   // ─── Archive ──────────────────────────────────────────────────────────────
   const toggleArchive = async () => {
-    const archived = !note.archived;
-    await Note.update(id, { archived });
+    const archived = !(note.archived ?? false);
+    try { await Note.update(id, { archived }); } catch (e) { console.error("archive error", e); }
     navigate("/notes");
+  };
+
+  // ─── Tags ─────────────────────────────────────────────────────────────────
+  const handleTagsChange = async (tags) => {
+    setNoteTags(tags);
+    try { await Note.update(id, { tags_json: JSON.stringify(tags) }); } catch {}
   };
 
   // ─── Pin ──────────────────────────────────────────────────────────────────
@@ -645,122 +676,49 @@ export default function NoteEditor() {
     <div className="min-h-screen flex flex-col" style={{ backgroundColor: col.bg }}>
       {/* ── Top bar ── */}
       <div className="sticky top-0 z-20 border-b" style={{ backgroundColor: col.bg, borderColor: col.border }}>
-        <div className="flex items-center gap-2 px-3 py-2.5">
+        {/* Row 1: back + title + saving */}
+        <div className="flex items-center gap-2 px-3 pt-2.5 pb-1">
           <button onClick={() => navigate("/notes")}
             className="w-9 h-9 rounded-xl flex items-center justify-center text-muted-foreground hover:bg-black/5 transition-all flex-shrink-0">
             <ArrowLeft className="w-5 h-5" />
           </button>
-
           <input
             value={title}
             onChange={(e) => { setTitle(e.target.value); titleRef.current = e.target.value; scheduleSave(); }}
             placeholder="Título..."
             className="flex-1 text-lg font-bold bg-transparent outline-none text-foreground placeholder:text-muted-foreground/40 min-w-0"
           />
-
-          <div className="flex items-center gap-1 flex-shrink-0">
-            {saving && <div className="w-1.5 h-1.5 rounded-full bg-[#E87A5A] animate-pulse" title="A guardar..." />}
-
-            <button onClick={togglePin} title={note.pinned ? "Desafixar" : "Afixar"}
-              className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all ${note.pinned ? "text-[#E87A5A]" : "text-muted-foreground hover:bg-black/5"}`}>
-              <Pin className="w-4 h-4" />
-            </button>
-
-            {note.locked ? (
-              <button onClick={removeLock} title="Remover proteção"
-                className="w-9 h-9 rounded-xl flex items-center justify-center text-amber-500 hover:bg-black/5 transition-all">
-                <Unlock className="w-4 h-4" />
-              </button>
-            ) : (
-              <button onClick={() => setShowSetPw(true)} title="Proteger nota"
-                className="w-9 h-9 rounded-xl flex items-center justify-center text-muted-foreground hover:bg-black/5 transition-all">
-                <Lock className="w-4 h-4" />
-              </button>
-            )}
-
-            <div className="relative">
-              <button onClick={() => setShowColorPicker(!showColorPicker)} title="Cor"
-                className="w-9 h-9 rounded-xl flex items-center justify-center text-muted-foreground hover:bg-black/5 transition-all">
-                <Palette className="w-4 h-4" />
-              </button>
-              <AnimatePresence>
-                {showColorPicker && (
-                  <motion.div initial={{ opacity: 0, scale: 0.9, y: -4 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9 }}
-                    className="absolute right-0 top-10 bg-white rounded-2xl border border-border shadow-xl p-3 z-50 w-64">
-                    {/* Preset swatches */}
-                    <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-2">Predefinidas</p>
-                    <div className="flex flex-wrap gap-1.5 mb-3">
-                      {NOTE_COLORS.map((c) => (
-                        <button key={c.key} onClick={() => setColor(c.key)}
-                          className="w-7 h-7 rounded-full border-2 transition-all hover:scale-110 flex items-center justify-center"
-                          style={{ backgroundColor: c.bg, borderColor: note.color === c.key ? "#E87A5A" : c.border }}>
-                          {note.color === c.key && <Check className="w-3 h-3 text-[#E87A5A]" />}
-                        </button>
-                      ))}
-                    </div>
-                    {/* Extended palette */}
-                    <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-2">Mais cores</p>
-                    <div className="flex flex-wrap gap-1.5 mb-3">
-                      {["#fef2f2","#fff7ed","#fefce8","#f0fdf4","#ecfdf5","#f0f9ff","#eff6ff","#f5f3ff","#fdf4ff",
-                        "#fee2e2","#ffedd5","#fef9c3","#dcfce7","#d1fae5","#e0f2fe","#dbeafe","#ede9fe","#fae8ff",
-                        "#fca5a5","#fdba74","#fde68a","#86efac","#6ee7b7","#7dd3fc","#93c5fd","#c4b5fd","#e879f9"].map((hex) => (
-                        <button key={hex} onClick={() => { Note.update(id, { color: hex }); setNote((p) => ({...p, color: hex})); setShowColorPicker(false); }}
-                          className="w-7 h-7 rounded-full border-2 transition-all hover:scale-110 flex items-center justify-center"
-                          style={{ backgroundColor: hex, borderColor: note.color === hex ? "#E87A5A" : "#e5e7eb" }}>
-                          {note.color === hex && <Check className="w-3 h-3 text-[#E87A5A]" />}
-                        </button>
-                      ))}
-                    </div>
-                    {/* Hex input */}
-                    <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">Hexadecimal</p>
-                    <div className="flex gap-2">
-                      <div className="flex-1 flex items-center gap-2 border border-border rounded-xl px-2 py-1.5 focus-within:border-[#E87A5A]/50 transition-all">
-                        <span className="text-sm text-muted-foreground">#</span>
-                        <input
-                          value={customHex.replace("#", "")}
-                          onChange={(e) => setCustomHex(e.target.value.replace("#", ""))}
-                          onKeyDown={(e) => e.key === "Enter" && setCustomColor()}
-                          placeholder="e5e7eb"
-                          maxLength={6}
-                          className="flex-1 text-sm outline-none font-mono min-w-0"
-                        />
-                        {/^[0-9a-fA-F]{6}$/.test(customHex.replace("#", "")) && (
-                          <div className="w-5 h-5 rounded-full border border-border flex-shrink-0"
-                            style={{ backgroundColor: "#" + customHex.replace("#", "") }} />
-                        )}
-                      </div>
-                      <button onClick={setCustomColor}
-                        disabled={!/^[0-9a-fA-F]{6}$/.test(customHex.replace("#", ""))}
-                        className="px-3 py-1.5 rounded-xl bg-[#E87A5A] text-white text-xs font-semibold disabled:opacity-40 transition-all">
-                        OK
-                      </button>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-
-            <button onClick={() => setShowShare(true)} title="Partilhar"
-              className="w-9 h-9 rounded-xl flex items-center justify-center text-muted-foreground hover:bg-black/5 transition-all">
-              <Share2 className="w-4 h-4" />
-            </button>
-
-            <button onClick={toggleArchive} title={note.archived ? "Restaurar" : "Arquivar"}
-              className="w-9 h-9 rounded-xl flex items-center justify-center text-muted-foreground hover:bg-black/5 transition-all">
-              <Archive className="w-4 h-4" />
-            </button>
-
-            <button onClick={() => setShowAIChat((v) => !v)} title="Assistente IA"
-              className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all ${showAIChat ? "text-[#E87A5A]" : "text-muted-foreground hover:bg-black/5"}`}>
-              <MessageCircle className="w-4 h-4" />
-            </button>
-
-            <button onClick={() => setDeleteConfirm(true)} title="Apagar"
-              className="w-9 h-9 rounded-xl flex items-center justify-center text-muted-foreground hover:text-rose-500 hover:bg-rose-50 transition-all">
-              <Trash2 className="w-4 h-4" />
-            </button>
-          </div>
+          {saving && <div className="w-1.5 h-1.5 rounded-full bg-[#E87A5A] animate-pulse flex-shrink-0" title="A guardar..." />}
         </div>
+
+        {/* Row 2: action icons with labels */}
+        <div className="flex items-center gap-0 px-1 pb-1.5 overflow-x-auto no-scrollbar">
+          <ActionBtn icon={Pin} label={note.pinned ? "Desafixar" : "Afixar"} onClick={togglePin} active={note.pinned} />
+          {note.locked
+            ? <ActionBtn icon={Unlock} label="Desbloquear" onClick={removeLock} amber />
+            : <ActionBtn icon={Lock} label="Proteger" onClick={() => setShowSetPw(true)} />
+          }
+          <ActionBtn icon={Palette} label="Cor" onClick={() => setShowColorPicker((v) => !v)} active={showColorPicker} />
+          <ActionBtn icon={TagIcon} label="Tags" onClick={() => setShowTagPicker(true)} active={noteTags.length > 0} />
+          <ActionBtn icon={Share2} label="Partilhar" onClick={() => setShowShare(true)} />
+          <ActionBtn icon={Archive} label={note.archived ? "Restaurar" : "Arquivar"} onClick={toggleArchive} />
+          <ActionBtn icon={MessageCircle} label="IA" onClick={() => setShowAIChat((v) => !v)} active={showAIChat} />
+          <ActionBtn icon={Trash2} label="Apagar" onClick={() => setDeleteConfirm(true)} danger />
+        </div>
+
+        {/* Tags row */}
+        {noteTags.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 px-3 pb-2">
+            {noteTags.map((tag) => (
+              <span key={tag.id} className="flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full"
+                style={{ backgroundColor: (tag.color?.startsWith("#") ? tag.color : "#E87A5A") + "22", color: tag.color?.startsWith("#") ? tag.color : "#E87A5A" }}>
+                {tag.name}
+                <button type="button" onClick={() => handleTagsChange(noteTags.filter((t) => t.id !== tag.id))}
+                  className="opacity-60 hover:opacity-100"><X className="w-2.5 h-2.5" /></button>
+              </span>
+            ))}
+          </div>
+        )}
 
         {/* Mode toggle + font size */}
         <div className="flex items-center gap-1 px-3 pb-2">
@@ -788,6 +746,60 @@ export default function NoteEditor() {
           </button>
         </div>
       </div>
+
+      {/* ── Color picker (fixed so it overlays everything) ── */}
+      <AnimatePresence>
+        {showColorPicker && (
+          <>
+            <div className="fixed inset-0 z-[150]" onClick={() => setShowColorPicker(false)} />
+            <motion.div initial={{ opacity: 0, scale: 0.9, y: -4 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9 }}
+              className="fixed right-3 top-[110px] bg-white rounded-2xl border border-border shadow-2xl p-3 z-[200] w-64 max-h-[70vh] overflow-y-auto">
+              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-2">Predefinidas</p>
+              <div className="flex flex-wrap gap-1.5 mb-3">
+                {NOTE_COLORS.map((c) => (
+                  <button key={c.key} onClick={() => setColor(c.key)}
+                    className="w-7 h-7 rounded-full border-2 transition-all hover:scale-110 flex items-center justify-center"
+                    style={{ backgroundColor: c.bg, borderColor: note.color === c.key ? "#E87A5A" : c.border }}>
+                    {note.color === c.key && <Check className="w-3 h-3 text-[#E87A5A]" />}
+                  </button>
+                ))}
+              </div>
+              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-2">Mais cores</p>
+              <div className="flex flex-wrap gap-1.5 mb-3">
+                {["#fef2f2","#fff7ed","#fefce8","#f0fdf4","#ecfdf5","#f0f9ff","#eff6ff","#f5f3ff","#fdf4ff",
+                  "#fee2e2","#ffedd5","#fef9c3","#dcfce7","#d1fae5","#e0f2fe","#dbeafe","#ede9fe","#fae8ff",
+                  "#fca5a5","#fdba74","#fde68a","#86efac","#6ee7b7","#7dd3fc","#93c5fd","#c4b5fd","#e879f9"].map((hex) => (
+                  <button key={hex} onClick={() => { Note.update(id, { color: hex }); setNote((p) => ({...p, color: hex})); setShowColorPicker(false); }}
+                    className="w-7 h-7 rounded-full border-2 transition-all hover:scale-110 flex items-center justify-center"
+                    style={{ backgroundColor: hex, borderColor: note.color === hex ? "#E87A5A" : "#e5e7eb" }}>
+                    {note.color === hex && <Check className="w-3 h-3 text-[#E87A5A]" />}
+                  </button>
+                ))}
+              </div>
+              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">Hexadecimal</p>
+              <div className="flex gap-2">
+                <div className="flex-1 flex items-center gap-2 border border-border rounded-xl px-2 py-1.5 focus-within:border-[#E87A5A]/50 transition-all">
+                  <span className="text-sm text-muted-foreground">#</span>
+                  <input value={customHex.replace("#", "")}
+                    onChange={(e) => setCustomHex(e.target.value.replace("#", ""))}
+                    onKeyDown={(e) => e.key === "Enter" && setCustomColor()}
+                    placeholder="e5e7eb" maxLength={6}
+                    className="flex-1 text-sm outline-none font-mono min-w-0" />
+                  {/^[0-9a-fA-F]{6}$/.test(customHex.replace("#", "")) && (
+                    <div className="w-5 h-5 rounded-full border border-border flex-shrink-0"
+                      style={{ backgroundColor: "#" + customHex.replace("#", "") }} />
+                  )}
+                </div>
+                <button onClick={setCustomColor}
+                  disabled={!/^[0-9a-fA-F]{6}$/.test(customHex.replace("#", ""))}
+                  className="px-3 py-1.5 rounded-xl bg-[#E87A5A] text-white text-xs font-semibold disabled:opacity-40 transition-all">
+                  OK
+                </button>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
 
       {/* ── Lock screen ── */}
       {showLock ? (
@@ -944,6 +956,15 @@ export default function NoteEditor() {
       <AnimatePresence>
         {showShare && <ShareNoteModal noteId={id} onClose={() => setShowShare(false)} />}
       </AnimatePresence>
+
+      {/* Tag picker */}
+      <TagPicker
+        open={showTagPicker}
+        onClose={() => setShowTagPicker(false)}
+        multiSelect={true}
+        selectedTags={noteTags}
+        onMultiSelect={(tags) => handleTagsChange(tags.slice(0, 3))}
+      />
 
       {/* AI chat */}
       <AnimatePresence>

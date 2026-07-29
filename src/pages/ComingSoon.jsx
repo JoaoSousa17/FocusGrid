@@ -58,33 +58,37 @@ export default function ComingSoon() {
           </svg>
         </div>
 
-        {/* Right panel — Meeting AI */}
+        {/* Right panel — Meeting AI (in development) */}
         <motion.div data-source-location="pages/ComingSoon:91:8" data-dynamic-content="true"
         initial={{ opacity: 0, x: 20 }}
         animate={{ opacity: 1, x: 0 }}
         transition={{ delay: 0.2, duration: 0.5 }}
-        onClick={() => navigate("/meeting-ai")}
-        className="w-1/2 h-full flex flex-col items-center justify-center cursor-pointer relative overflow-hidden">
-          
+        className="w-1/2 h-full flex flex-col items-center justify-center relative overflow-hidden opacity-60 cursor-not-allowed">
+
+          {/* Em desenvolvimento badge */}
+          <div className="absolute top-5 left-1/2 -translate-x-1/2 z-20">
+            <motion.div
+              animate={{ scale: [1, 1.04, 1] }}
+              transition={{ repeat: Infinity, duration: 2.5 }}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-100 border border-amber-300 shadow-sm">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+              <span className="text-[10px] font-semibold text-amber-700 whitespace-nowrap">Em desenvolvimento</span>
+            </motion.div>
+          </div>
+
           <div data-source-location="pages/ComingSoon:98:10" data-dynamic-content="true" className="relative z-10 flex flex-col items-center gap-5 px-5 text-center">
             <motion.div data-source-location="pages/ComingSoon:99:12" data-dynamic-content="true"
             animate={{ y: [0, -6, 0] }}
             transition={{ repeat: Infinity, duration: 3, ease: "easeInOut", delay: 0.5 }}
             className="w-16 h-16 rounded-[22px] bg-[#E87A5A]/10 border border-[#E87A5A]/20 flex items-center justify-center shadow-md">
-              
+
               <Mic data-source-location="pages/ComingSoon:104:14" data-dynamic-content="false" className="w-8 h-8 text-[#E87A5A]" />
             </motion.div>
             <div data-source-location="pages/ComingSoon:106:12" data-dynamic-content="false">
               <p data-source-location="pages/ComingSoon:107:14" data-dynamic-content="false" className="text-foreground font-black text-base leading-tight">{t("explore.meetings_title")}</p>
               <p data-source-location="pages/ComingSoon:108:14" data-dynamic-content="false" className="text-[#E87A5A] font-black text-base leading-tight">{t("explore.meetings_sub")}</p>
             </div>
-            <motion.p data-source-location="pages/ComingSoon:110:12" data-dynamic-content="true"
-            animate={{ opacity: [0.4, 1, 0.4] }}
-            transition={{ repeat: Infinity, duration: 2.5, delay: 0.5 }}
-            className="text-muted-foreground/50 text-[11px]">
-              
-              {t("explore.swipe_left")}
-            </motion.p>
+            <p className="text-muted-foreground/60 text-[11px]">Em breve disponível</p>
           </div>
         </motion.div>
       </div>
