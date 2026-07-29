@@ -188,23 +188,21 @@ function Section({ label, notes, view, collapsed, onToggle, navigate, onDelete }
   );
 }
 
-const SORT_OPTIONS = [
-  { key: "updated_desc", label: "Recentes primeiro" },
-  { key: "updated_asc", label: "Antigas primeiro" },
-  { key: "length_desc", label: "Mais longas" },
-  { key: "length_asc", label: "Mais curtas" },
-  { key: "has_list", label: "Com listas" },
-];
-
-function sortNotes(notes, sortKey) {
-  const arr = [...notes];
-  switch (sortKey) {
-    case "updated_asc": return arr.sort((a, b) => new Date(a.updated_at) - new Date(b.updated_at));
-    case "length_desc": return arr.sort((a, b) => stripHtml(b.content).length - stripHtml(a.content).length);
-    case "length_asc": return arr.sort((a, b) => stripHtml(a.content).length - stripHtml(b.content).length);
-    case "has_list": return arr.filter((n) => /<ul|<ol/i.test(n.content || "")).concat(arr.filter((n) => !/<ul|<ol/i.test(n.content || "")));
-    default: return arr.sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
+function applyFilters(notes, sortField, sortDir, filterList) {
+  let arr = [...notes];
+  if (filterList) arr = arr.filter((n) => /<ul|<ol/i.test(n.content || ""));
+  if (sortField === "date") {
+    arr.sort((a, b) => sortDir === "asc"
+      ? new Date(a.updated_at) - new Date(b.updated_at)
+      : new Date(b.updated_at) - new Date(a.updated_at));
+  } else if (sortField === "size") {
+    arr.sort((a, b) => sortDir === "asc"
+      ? stripHtml(a.content).length - stripHtml(b.content).length
+      : stripHtml(b.content).length - stripHtml(a.content).length);
+  } else {
+    arr.sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
   }
+  return arr;
 }
 
 export default function Notes() {
@@ -216,8 +214,9 @@ export default function Notes() {
   const [view, setView] = useState("keep");
   const [search, setSearch] = useState("");
   const [deleting, setDeleting] = useState(null);
-  const [sort, setSort] = useState("updated_desc");
-  const [showSort, setShowSort] = useState(false);
+  const [activeSortField, setActiveSortField] = useState(null);
+  const [activeSortDir, setActiveSortDir] = useState("desc");
+  const [filterList, setFilterList] = useState(false);
   const [collapsed, setCollapsed] = useState({ pinned: false, shared: false, others: false });
   const searchRef = useRef(null);
   const swipeStartX = useRef(null);
@@ -262,15 +261,30 @@ export default function Notes() {
     return (n.title || "").toLowerCase().includes(q) || stripHtml(n.content).toLowerCase().includes(q);
   });
 
-  const sorted = sortNotes(filtered, sort);
+  const sorted = applyFilters(filtered, activeSortField, activeSortDir, filterList);
   const pinned = sorted.filter((n) => n.pinned);
   const rest = sorted.filter((n) => !n.pinned);
 
-  const sharedFiltered = sharedNotes.filter((n) => {
-    if (!search.trim()) return true;
-    const q = search.toLowerCase();
-    return (n.title || "").toLowerCase().includes(q) || stripHtml(n.content).toLowerCase().includes(q);
-  });
+  const sharedFiltered = applyFilters(
+    sharedNotes.filter((n) => {
+      if (!search.trim()) return true;
+      const q = search.toLowerCase();
+      return (n.title || "").toLowerCase().includes(q) || stripHtml(n.content).toLowerCase().includes(q);
+    }),
+    activeSortField, activeSortDir, filterList
+  );
+
+  const cycleSort = (field) => {
+    if (activeSortField !== field) {
+      setActiveSortField(field);
+      setActiveSortDir("asc");
+    } else if (activeSortDir === "asc") {
+      setActiveSortDir("desc");
+    } else {
+      setActiveSortField(null);
+      setActiveSortDir("desc");
+    }
+  };
 
   const handleSwipeStart = (e) => { swipeStartX.current = (e.touches?.[0] ?? e).clientX; };
   const handleSwipeEnd = (e) => {
@@ -350,16 +364,34 @@ export default function Notes() {
           </div>
         </div>
 
-        {/* Sort bar */}
+        {/* Filter bar */}
         <div className="flex items-center gap-2 px-4 pb-2 overflow-x-auto">
-          {SORT_OPTIONS.map((opt) => (
-            <button key={opt.key} onClick={() => setSort(opt.key)}
-              className={`flex-shrink-0 flex items-center gap-1 px-3 py-1 rounded-xl text-xs font-medium transition-all ${
-                sort === opt.key ? "bg-[#E87A5A] text-white" : "bg-white border border-border text-muted-foreground hover:border-[#E87A5A]/40"
-              }`}>
-              {opt.label}
-            </button>
-          ))}
+          {/* Date: 3-cycle asc→desc→none */}
+          <button onClick={() => cycleSort("date")}
+            className={`flex-shrink-0 flex items-center gap-1 px-3 py-1 rounded-xl text-xs font-medium transition-all ${
+              activeSortField === "date" ? "bg-[#E87A5A] text-white" : "bg-white border border-border text-muted-foreground hover:border-[#E87A5A]/40"
+            }`}>
+            {activeSortField === "date" && activeSortDir === "asc" && <SortAsc className="w-3 h-3" />}
+            {activeSortField === "date" && activeSortDir === "desc" && <SortDesc className="w-3 h-3" />}
+            Data
+          </button>
+          {/* Size: 3-cycle asc→desc→none */}
+          <button onClick={() => cycleSort("size")}
+            className={`flex-shrink-0 flex items-center gap-1 px-3 py-1 rounded-xl text-xs font-medium transition-all ${
+              activeSortField === "size" ? "bg-[#E87A5A] text-white" : "bg-white border border-border text-muted-foreground hover:border-[#E87A5A]/40"
+            }`}>
+            {activeSortField === "size" && activeSortDir === "asc" && <SortAsc className="w-3 h-3" />}
+            {activeSortField === "size" && activeSortDir === "desc" && <SortDesc className="w-3 h-3" />}
+            Tamanho
+          </button>
+          {/* Com listas: 2-cycle on→off */}
+          <button onClick={() => setFilterList((v) => !v)}
+            className={`flex-shrink-0 flex items-center gap-1 px-3 py-1 rounded-xl text-xs font-medium transition-all ${
+              filterList ? "bg-[#E87A5A] text-white" : "bg-white border border-border text-muted-foreground hover:border-[#E87A5A]/40"
+            }`}>
+            <Filter className="w-3 h-3" />
+            Com listas
+          </button>
         </div>
       </div>
 
