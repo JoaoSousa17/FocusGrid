@@ -6,10 +6,12 @@ import {
   Bold, Italic, Underline, Strikethrough, AlignLeft, AlignCenter,
   AlignRight, AlignJustify, List, ListOrdered, Heading1, Heading2,
   Heading3, Image, Table, Minus, Check, Camera, ZoomIn, ZoomOut,
-  Link2, Eraser,
+  Link2, Eraser, Archive, Share2, Tag, MessageCircle, Send, X, Loader2,
 } from "lucide-react";
 import { Note } from "@/api/entities";
 import { Core } from "@/api/integrations";
+import { supabase } from "@/api/supabaseClient";
+import { InvokeLLMChat } from "@/api/integrations";
 import { NOTE_COLORS } from "./Notes";
 import { sha256, htmlToMarkdown, markdownToHtml } from "@/lib/noteUtils";
 
@@ -169,6 +171,191 @@ function SetPasswordModal({ onSet, onClose }) {
   );
 }
 
+// ─── Share Note Modal ─────────────────────────────────────────────────────────
+function ShareNoteModal({ noteId, onClose }) {
+  const [email, setEmail] = useState("");
+  const [shares, setShares] = useState([]);
+  const [adding, setAdding] = useState(false);
+  const [error, setError] = useState("");
+  const [done, setDone] = useState(false);
+
+  useEffect(() => {
+    supabase.from("note_shares").select("*").eq("note_id", noteId)
+      .then(({ data }) => setShares(data || []));
+  }, [noteId]);
+
+  const add = async () => {
+    if (!email.trim() || !email.includes("@")) { setError("Email inválido"); return; }
+    setError(""); setAdding(true);
+    const { data: { user } } = await supabase.auth.getUser();
+    const { error: err } = await supabase.from("note_shares").upsert(
+      { note_id: noteId, owner_id: user.id, shared_with_email: email.trim().toLowerCase() },
+      { onConflict: "note_id,shared_with_email" }
+    );
+    if (err) { setError(err.message); } else { setDone(true); setEmail(""); }
+    const { data } = await supabase.from("note_shares").select("*").eq("note_id", noteId);
+    setShares(data || []);
+    setAdding(false);
+  };
+
+  const remove = async (id) => {
+    await supabase.from("note_shares").delete().eq("id", id);
+    setShares((p) => p.filter((s) => s.id !== id));
+  };
+
+  return (
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 bg-black/30 flex items-end sm:items-center justify-center"
+      onClick={onClose}>
+      <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
+        className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-sm p-5 shadow-xl"
+        onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-bold text-foreground">Partilhar nota</h3>
+          <button onClick={onClose} className="w-7 h-7 rounded-full bg-secondary flex items-center justify-center"><X className="w-3.5 h-3.5" /></button>
+        </div>
+        <div className="flex gap-2 mb-3">
+          <input value={email} onChange={(e) => { setEmail(e.target.value); setError(""); setDone(false); }}
+            onKeyDown={(e) => e.key === "Enter" && add()}
+            placeholder="email@exemplo.com" type="email"
+            className="flex-1 px-3 py-2 rounded-xl border border-border text-sm outline-none focus:border-[#E87A5A]/50 transition-all" />
+          <button onClick={add} disabled={adding || !email.trim()}
+            className="px-4 py-2 rounded-xl bg-[#E87A5A] text-white text-sm font-semibold disabled:opacity-50 transition-all">
+            {adding ? <Loader2 className="w-4 h-4 animate-spin" /> : "Partilhar"}
+          </button>
+        </div>
+        {error && <p className="text-xs text-rose-500 mb-2">{error}</p>}
+        {done && <p className="text-xs text-emerald-600 mb-2">Partilhado com sucesso</p>}
+        {shares.length > 0 && (
+          <div className="space-y-1.5 mt-3">
+            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Com acesso</p>
+            {shares.map((s) => (
+              <div key={s.id} className="flex items-center gap-2 px-3 py-2 rounded-xl bg-secondary/50">
+                <p className="flex-1 text-xs font-medium text-foreground truncate">{s.shared_with_email}</p>
+                <button onClick={() => remove(s.id)} className="w-6 h-6 rounded-lg flex items-center justify-center text-muted-foreground hover:text-rose-500 transition-all">
+                  <X className="w-3 h-3" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </motion.div>
+    </motion.div>
+  );
+}
+
+// ─── Text / Highlight color picker ────────────────────────────────────────────
+function ColorPickerPopup({ type, onPick, onClose }) {
+  const colors = [
+    "#1a1a1a", "#ef4444", "#f97316", "#eab308", "#22c55e",
+    "#3b82f6", "#8b5cf6", "#ec4899", "#14b8a6", "#6b7280",
+  ];
+  return (
+    <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }}
+      className="absolute z-50 bg-white border border-border rounded-2xl shadow-xl p-3 top-10 left-0 w-48">
+      <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+        {type === "fore" ? "Cor do texto" : "Destaque"}
+      </p>
+      <div className="flex flex-wrap gap-1.5">
+        {colors.map((c) => (
+          <button key={c}
+            className="w-7 h-7 rounded-full border-2 border-white hover:scale-110 transition-all shadow-sm"
+            style={{ backgroundColor: c }}
+            onClick={() => { onPick(c); onClose(); }}
+          />
+        ))}
+        {type === "fore" && (
+          <button
+            className="w-7 h-7 rounded-full border-2 border-dashed border-border flex items-center justify-center text-[9px] text-muted-foreground hover:border-foreground transition-all"
+            onClick={() => { onPick(""); onClose(); }}
+            title="Remover cor"
+          >✕</button>
+        )}
+      </div>
+    </motion.div>
+  );
+}
+
+// ─── AI Chat Popup ─────────────────────────────────────────────────────────────
+function AIChatPopup({ noteContent, onInsert, onClose }) {
+  const [messages, setMessages] = useState([{ role: "assistant", content: "Olá! Posso ajudar com o conteúdo desta nota. O que precisas?" }]);
+  const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(false);
+  const bottomRef = useRef(null);
+
+  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
+
+  const send = async () => {
+    if (!input.trim() || loading) return;
+    const userMsg = { role: "user", content: input };
+    setMessages((p) => [...p, userMsg]);
+    setInput("");
+    setLoading(true);
+    try {
+      const reply = await InvokeLLMChat({
+        messages: [...messages, userMsg],
+        system: `És um assistente de escrita. A nota atual contém:\n${noteContent || "(vazia)"}\n\nAjuda o utilizador a melhorar, expandir ou formatar o conteúdo. Responde em português.`,
+      });
+      const text = typeof reply === "string" ? reply : (reply?.content || reply?.choices?.[0]?.message?.content || "");
+      setMessages((p) => [...p, { role: "assistant", content: text }]);
+    } catch {
+      setMessages((p) => [...p, { role: "assistant", content: "Ocorreu um erro. Tenta novamente." }]);
+    }
+    setLoading(false);
+  };
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }}
+      className="fixed bottom-4 right-4 z-50 w-80 sm:w-96 bg-white rounded-2xl shadow-2xl border border-border flex flex-col overflow-hidden"
+      style={{ maxHeight: "60vh" }}>
+      <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+        <div className="flex items-center gap-2">
+          <MessageCircle className="w-4 h-4 text-[#E87A5A]" />
+          <span className="font-semibold text-sm text-foreground">IA Assistente</span>
+        </div>
+        <button onClick={onClose} className="w-7 h-7 rounded-full bg-secondary flex items-center justify-center">
+          <X className="w-3.5 h-3.5" />
+        </button>
+      </div>
+      <div className="flex-1 overflow-y-auto p-3 space-y-2">
+        {messages.map((m, i) => (
+          <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
+            <div className={`max-w-[85%] px-3 py-2 rounded-2xl text-xs ${
+              m.role === "user" ? "bg-[#E87A5A] text-white rounded-br-sm" : "bg-secondary text-foreground rounded-bl-sm"
+            }`}>
+              <p className="whitespace-pre-wrap">{m.content}</p>
+              {m.role === "assistant" && m !== messages[0] && (
+                <button onClick={() => onInsert(m.content)}
+                  className="mt-1.5 text-[10px] text-[#E87A5A] hover:underline font-medium">
+                  Inserir na nota
+                </button>
+              )}
+            </div>
+          </div>
+        ))}
+        {loading && (
+          <div className="flex justify-start">
+            <div className="bg-secondary px-3 py-2 rounded-2xl rounded-bl-sm">
+              <Loader2 className="w-3.5 h-3.5 animate-spin text-muted-foreground" />
+            </div>
+          </div>
+        )}
+        <div ref={bottomRef} />
+      </div>
+      <div className="flex items-center gap-2 px-3 py-2.5 border-t border-border">
+        <input value={input} onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && send()}
+          placeholder="Pergunta à IA..."
+          className="flex-1 text-sm outline-none bg-transparent text-foreground placeholder:text-muted-foreground/50" />
+        <button onClick={send} disabled={loading || !input.trim()}
+          className="w-8 h-8 rounded-xl bg-[#E87A5A] text-white flex items-center justify-center disabled:opacity-40 transition-all">
+          <Send className="w-3.5 h-3.5" />
+        </button>
+      </div>
+    </motion.div>
+  );
+}
+
 // ─── Toolbar button ───────────────────────────────────────────────────────────
 function TBtn({ onClick, active, title, children, danger }) {
   return (
@@ -210,6 +397,10 @@ export default function NoteEditor() {
   const [unlocked, setUnlocked] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
+  const [showShare, setShowShare] = useState(false);
+  const [showAIChat, setShowAIChat] = useState(false);
+  const [showForeColor, setShowForeColor] = useState(false);
+  const [showHighlight, setShowHighlight] = useState(false);
 
   // Keep refs in sync
   useEffect(() => { titleRef.current = title; }, [title]);
@@ -384,6 +575,13 @@ export default function NoteEditor() {
     sessionStorage.removeItem(`note_unlocked_${id}`);
   };
 
+  // ─── Archive ──────────────────────────────────────────────────────────────
+  const toggleArchive = async () => {
+    const archived = !note.archived;
+    await Note.update(id, { archived });
+    navigate("/notes");
+  };
+
   // ─── Pin ──────────────────────────────────────────────────────────────────
   const togglePin = async () => {
     const pinned = !note.pinned;
@@ -542,6 +740,21 @@ export default function NoteEditor() {
               </AnimatePresence>
             </div>
 
+            <button onClick={() => setShowShare(true)} title="Partilhar"
+              className="w-9 h-9 rounded-xl flex items-center justify-center text-muted-foreground hover:bg-black/5 transition-all">
+              <Share2 className="w-4 h-4" />
+            </button>
+
+            <button onClick={toggleArchive} title={note.archived ? "Restaurar" : "Arquivar"}
+              className="w-9 h-9 rounded-xl flex items-center justify-center text-muted-foreground hover:bg-black/5 transition-all">
+              <Archive className="w-4 h-4" />
+            </button>
+
+            <button onClick={() => setShowAIChat((v) => !v)} title="Assistente IA"
+              className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all ${showAIChat ? "text-[#E87A5A]" : "text-muted-foreground hover:bg-black/5"}`}>
+              <MessageCircle className="w-4 h-4" />
+            </button>
+
             <button onClick={() => setDeleteConfirm(true)} title="Apagar"
               className="w-9 h-9 rounded-xl flex items-center justify-center text-muted-foreground hover:text-rose-500 hover:bg-rose-50 transition-all">
               <Trash2 className="w-4 h-4" />
@@ -624,6 +837,31 @@ export default function NoteEditor() {
                   <TBtn onClick={() => exec("redo")} title="Refazer">
                     <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 7v6h-6"/><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3L21 13"/></svg>
                   </TBtn>
+                  <div className="w-px h-6 bg-border mx-0.5" />
+                  <div className="relative">
+                    <TBtn onClick={() => { setShowForeColor((v) => !v); setShowHighlight(false); }} title="Cor do texto">
+                      <span className="text-xs font-bold leading-none" style={{ color: "#E87A5A" }}>A</span>
+                    </TBtn>
+                    <AnimatePresence>
+                      {showForeColor && (
+                        <ColorPickerPopup type="fore"
+                          onPick={(c) => c ? exec("foreColor", c) : exec("removeFormat")}
+                          onClose={() => setShowForeColor(false)} />
+                      )}
+                    </AnimatePresence>
+                  </div>
+                  <div className="relative">
+                    <TBtn onClick={() => { setShowHighlight((v) => !v); setShowForeColor(false); }} title="Destaque">
+                      <span className="text-xs font-bold leading-none px-0.5 rounded" style={{ backgroundColor: "#fef08a" }}>A</span>
+                    </TBtn>
+                    <AnimatePresence>
+                      {showHighlight && (
+                        <ColorPickerPopup type="highlight"
+                          onPick={(c) => exec("hiliteColor", c)}
+                          onClose={() => setShowHighlight(false)} />
+                      )}
+                    </AnimatePresence>
+                  </div>
                 </>
               ) : (
                 <>
@@ -700,6 +938,22 @@ export default function NoteEditor() {
       {/* Set password modal */}
       <AnimatePresence>
         {showSetPw && <SetPasswordModal onSet={handleSetPassword} onClose={() => setShowSetPw(false)} />}
+      </AnimatePresence>
+
+      {/* Share modal */}
+      <AnimatePresence>
+        {showShare && <ShareNoteModal noteId={id} onClose={() => setShowShare(false)} />}
+      </AnimatePresence>
+
+      {/* AI chat */}
+      <AnimatePresence>
+        {showAIChat && (
+          <AIChatPopup
+            noteContent={editorRef.current?.textContent || ""}
+            onInsert={(text) => { insertHtml(text.replace(/\n/g, "<br>")); }}
+            onClose={() => setShowAIChat(false)}
+          />
+        )}
       </AnimatePresence>
 
       {/* Delete confirm */}

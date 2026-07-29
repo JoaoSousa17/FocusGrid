@@ -26,8 +26,8 @@ import HabitsManage from '@/pages/HabitsManage';
 import HabitsAnalytics from '@/pages/HabitsAnalytics';
 import HabitsRewards from '@/pages/HabitsRewards';
 import Deadlines from '@/pages/Deadlines';
-import MeetingAI from '@/pages/MeetingAI';
 import Chat from '@/pages/Chat';
+import ArchivedNotes from '@/pages/ArchivedNotes';
 import Profile from '@/pages/Profile';
 import Notes from '@/pages/Notes';
 import NoteEditor from '@/pages/NoteEditor';
@@ -81,10 +81,11 @@ const AuthenticatedApp = () => {
         <Route data-source-location="App:72:8" data-dynamic-content="true" path="/habits/rewards" element={<HabitsRewards data-source-location="App:72:47" data-dynamic-content="false" />} />
         <Route data-source-location="App:73:8" data-dynamic-content="true" path="/coming-soon" element={<ComingSoon data-source-location="App:73:44" data-dynamic-content="false" />} />
         <Route data-source-location="App:74:8" data-dynamic-content="true" path="/deadlines" element={<Deadlines data-source-location="App:74:42" data-dynamic-content="false" />} />
-        <Route data-source-location="App:75:8" data-dynamic-content="true" path="/meeting-ai" element={<MeetingAI data-source-location="App:75:43" data-dynamic-content="false" />} />
+        <Route path="/meeting-ai" element={<Navigate to="/coming-soon" replace />} />
         <Route path="/chat" element={<Chat />} />
         <Route path="/profile" element={<Profile />} />
         <Route path="/notes" element={<Notes />} />
+        <Route path="/notes/archived" element={<ArchivedNotes />} />
         <Route path="/notes/:id" element={<NoteEditor />} />
         <Route path="/tasks/shared/:ownerId" element={<SharedTasksView />} />
       </Route>

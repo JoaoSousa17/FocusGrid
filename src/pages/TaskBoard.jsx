@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowRight, Plus, Check, X, Search, Filter, Trash2, Tags, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, GripVertical, ListChecks, Repeat, Flag, Timer, ChevronsRight, Share2 } from "lucide-react";
+import { ArrowLeft, ArrowRight, Plus, Check, X, Search, Filter, Trash2, Tags, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, GripVertical, ListChecks, Repeat, Flag, Timer, ChevronsRight, Share2 } from "lucide-react";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import { Tag, Task } from "@/api/entities";
 import { supabase } from "@/api/supabaseClient";
@@ -221,7 +221,10 @@ export default function TaskBoard({ sharedOwnerId, sharedRole, sharedOwnerName }
   const [rolloverConfirm, setRolloverConfirm] = useState(false);
   const [rollingOver, setRollingOver] = useState(false);
   const [formOpenSections, setFormOpenSections] = useState({ details: true, recurrence: false, tags: false, subtasks: false });
-  const { swipeHandlers, dragStyle } = useEdgeSwipeNav({ left: "/" }, { edgeGated: true });
+  const { swipeHandlers, dragStyle } = useEdgeSwipeNav(
+    isSharedView ? { right: "/" } : { left: "/" },
+    { edgeGated: true }
+  );
 
   const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 });
   const weekEnd = endOfWeek(currentDate, { weekStartsOn: 1 });
@@ -873,7 +876,7 @@ export default function TaskBoard({ sharedOwnerId, sharedRole, sharedOwnerName }
           <div data-source-location="pages/TaskBoard:409:10" data-dynamic-content="true" className="flex items-center justify-between mb-3">
             <div data-source-location="pages/TaskBoard:410:12" data-dynamic-content="true" className="flex items-center gap-3">
               <button data-source-location="pages/TaskBoard:411:14" data-dynamic-content="true" onClick={() => navigate("/")} className="w-10 h-10 rounded-2xl bg-white border border-border flex items-center justify-center text-muted-foreground hover:text-foreground transition-all">
-                <ArrowRight data-source-location="pages/TaskBoard:412:16" data-dynamic-content="false" className="w-5 h-5" />
+                {isSharedView ? <ArrowLeft className="w-5 h-5" /> : <ArrowRight className="w-5 h-5" />}
               </button>
               <div data-source-location="pages/TaskBoard:414:14" data-dynamic-content="true">
                 {isSharedView ? (
