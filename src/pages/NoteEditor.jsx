@@ -7,6 +7,7 @@ import {
   AlignRight, AlignJustify, List, ListOrdered, Heading1, Heading2,
   Heading3, Image, Table, Minus, Check, Camera, ZoomIn, ZoomOut,
   Link2, Eraser, Archive, Share2, Tag as TagIcon, MessageCircle, Send, X, Loader2,
+  Users, Mail, Shield, UserPlus, Clock, Infinity,
 } from "lucide-react";
 import { Note, Tag } from "@/api/entities";
 import { Core, InvokeLLMChat } from "@/api/integrations";
@@ -174,71 +175,217 @@ function SetPasswordModal({ onSet, onClose }) {
 // ─── Share Note Modal ─────────────────────────────────────────────────────────
 function ShareNoteModal({ noteId, onClose }) {
   const [email, setEmail] = useState("");
+  const [role, setRole] = useState("editor");
+  const [weeks, setWeeks] = useState(1);
+  const [indefinite, setIndefinite] = useState(true);
   const [shares, setShares] = useState([]);
+  const [loading, setLoading] = useState(false);
   const [adding, setAdding] = useState(false);
   const [error, setError] = useState("");
-  const [done, setDone] = useState(false);
+  const [lastShared, setLastShared] = useState(null);
 
-  useEffect(() => {
-    supabase.from("note_shares").select("*").eq("note_id", noteId)
-      .then(({ data }) => setShares(data || []));
-  }, [noteId]);
-
-  const add = async () => {
-    if (!email.trim() || !email.includes("@")) { setError("Email inválido"); return; }
-    setError(""); setAdding(true);
-    const { data: { user } } = await supabase.auth.getUser();
-    const { error: err } = await supabase.from("note_shares").upsert(
-      { note_id: noteId, owner_id: user.id, shared_with_email: email.trim().toLowerCase() },
-      { onConflict: "note_id,shared_with_email" }
-    );
-    if (err) { setError(err.message); } else { setDone(true); setEmail(""); }
-    const { data } = await supabase.from("note_shares").select("*").eq("note_id", noteId);
+  const loadShares = async () => {
+    setLoading(true);
+    const { data } = await supabase.from("note_shares").select("*")
+      .eq("note_id", noteId).order("created_at", { ascending: false });
     setShares(data || []);
-    setAdding(false);
+    setLoading(false);
   };
 
-  const remove = async (id) => {
+  useEffect(() => { loadShares(); }, [noteId]);
+
+  const addShare = async () => {
+    if (!email.trim() || !email.includes("@")) { setError("Email inválido."); return; }
+    setError(""); setAdding(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { setError("Não autenticado."); return; }
+      const expiresAt = indefinite ? null : new Date(Date.now() + weeks * 7 * 24 * 60 * 60 * 1000).toISOString();
+      const { error: err } = await supabase.from("note_shares").upsert(
+        { note_id: noteId, owner_id: user.id, shared_with_email: email.trim().toLowerCase(), role, expires_at: expiresAt },
+        { onConflict: "note_id,shared_with_email" }
+      );
+      if (err) { setError(err.message); return; }
+      setLastShared(email.trim().toLowerCase());
+      setEmail("");
+      await loadShares();
+    } finally { setAdding(false); }
+  };
+
+  const removeShare = async (id) => {
     await supabase.from("note_shares").delete().eq("id", id);
     setShares((p) => p.filter((s) => s.id !== id));
   };
 
+  const updateRole = async (id, newRole) => {
+    await supabase.from("note_shares").update({ role: newRole }).eq("id", id);
+    setShares((p) => p.map((s) => s.id === id ? { ...s, role: newRole } : s));
+  };
+
+  const formatExpiry = (expiresAt) => {
+    if (!expiresAt) return "Sem expiração";
+    const diff = Math.ceil((new Date(expiresAt) - new Date()) / (1000 * 60 * 60 * 24));
+    if (diff < 0) return "Expirado";
+    if (diff === 0) return "Expira hoje";
+    if (diff === 1) return "Expira amanhã";
+    return `Expira em ${diff} dias`;
+  };
+
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 bg-black/30 flex items-end sm:items-center justify-center"
+      className="fixed inset-0 z-50 bg-black/30 backdrop-blur-sm flex items-end sm:items-center justify-center"
       onClick={onClose}>
       <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
-        className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-sm p-5 shadow-xl"
+        transition={{ type: "spring", damping: 28, stiffness: 220 }}
+        className="bg-white rounded-t-3xl sm:rounded-3xl w-full sm:max-w-md shadow-2xl overflow-hidden"
         onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="font-bold text-foreground">Partilhar nota</h3>
-          <button onClick={onClose} className="w-7 h-7 rounded-full bg-secondary flex items-center justify-center"><X className="w-3.5 h-3.5" /></button>
-        </div>
-        <div className="flex gap-2 mb-3">
-          <input value={email} onChange={(e) => { setEmail(e.target.value); setError(""); setDone(false); }}
-            onKeyDown={(e) => e.key === "Enter" && add()}
-            placeholder="email@exemplo.com" type="email"
-            className="flex-1 px-3 py-2 rounded-xl border border-border text-sm outline-none focus:border-[#E87A5A]/50 transition-all" />
-          <button onClick={add} disabled={adding || !email.trim()}
-            className="px-4 py-2 rounded-xl bg-[#E87A5A] text-white text-sm font-semibold disabled:opacity-50 transition-all">
-            {adding ? <Loader2 className="w-4 h-4 animate-spin" /> : "Partilhar"}
+
+        {/* Header */}
+        <div className="flex items-center gap-3 px-5 pt-5 pb-4 border-b border-border">
+          <div className="w-9 h-9 rounded-2xl bg-[#E87A5A]/10 flex items-center justify-center flex-shrink-0">
+            <Users className="w-4 h-4 text-[#E87A5A]" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <h2 className="font-bold text-foreground text-base">Partilhar nota</h2>
+            <p className="text-[11px] text-muted-foreground">Convida pessoas para ver ou editar esta nota</p>
+          </div>
+          <button onClick={onClose} className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center flex-shrink-0">
+            <X className="w-4 h-4" />
           </button>
         </div>
-        {error && <p className="text-xs text-rose-500 mb-2">{error}</p>}
-        {done && <p className="text-xs text-emerald-600 mb-2">Partilhado com sucesso</p>}
-        {shares.length > 0 && (
-          <div className="space-y-1.5 mt-3">
-            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Com acesso</p>
-            {shares.map((s) => (
-              <div key={s.id} className="flex items-center gap-2 px-3 py-2 rounded-xl bg-secondary/50">
-                <p className="flex-1 text-xs font-medium text-foreground truncate">{s.shared_with_email}</p>
-                <button onClick={() => remove(s.id)} className="w-6 h-6 rounded-lg flex items-center justify-center text-muted-foreground hover:text-rose-500 transition-all">
-                  <X className="w-3 h-3" />
+
+        <div className="p-5 space-y-5 max-h-[75vh] overflow-y-auto">
+
+          {/* Invite section */}
+          <div className="space-y-3">
+            <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Convidar por email</label>
+
+            {/* Email input */}
+            <div className="flex items-center gap-2 border-2 border-border rounded-2xl px-3 py-3 focus-within:border-[#E87A5A]/60 transition-all bg-white">
+              <Mail className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+              <input value={email}
+                onChange={(e) => { setEmail(e.target.value); setError(""); setLastShared(null); }}
+                onKeyDown={(e) => e.key === "Enter" && addShare()}
+                placeholder="email@exemplo.com" type="email"
+                className="flex-1 text-sm outline-none bg-transparent" />
+            </div>
+
+            {/* Role selector */}
+            <div className="flex gap-2">
+              {[
+                { key: "viewer", icon: Eye, label: "Visualizador", desc: "Só pode ver" },
+                { key: "editor", icon: Shield, label: "Editor", desc: "Lê e edita" },
+                { key: "admin",  icon: Share2, label: "Admin", desc: "Edita e partilha" },
+              ].map((r) => (
+                <button key={r.key} onClick={() => setRole(r.key)}
+                  className={`flex-1 flex flex-col items-start gap-1 px-3 py-3 rounded-2xl border-2 text-left transition-all ${
+                    role === r.key ? "border-[#E87A5A] bg-[#E87A5A]/5" : "border-border hover:border-[#E87A5A]/40 bg-white"
+                  }`}>
+                  <div className="flex items-center gap-1.5">
+                    <r.icon className={`w-3.5 h-3.5 ${role === r.key ? "text-[#E87A5A]" : "text-muted-foreground"}`} />
+                    <span className={`text-xs font-bold ${role === r.key ? "text-[#E87A5A]" : "text-foreground"}`}>{r.label}</span>
+                  </div>
+                  <span className="text-[10px] text-muted-foreground">{r.desc}</span>
+                </button>
+              ))}
+            </div>
+
+            {/* Duration */}
+            <div className="bg-secondary/40 rounded-2xl p-4 border border-border space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-[#E87A5A]" />
+                  <span className="text-sm font-semibold text-foreground">Duração do acesso</span>
+                </div>
+                <button onClick={() => setIndefinite(!indefinite)}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-semibold transition-all ${
+                    indefinite ? "border-[#E87A5A] bg-[#E87A5A] text-white shadow-sm" : "border-border text-muted-foreground bg-white hover:border-[#E87A5A]/40"
+                  }`}>
+                  <Infinity className="w-3.5 h-3.5" />
+                  Indefinido
                 </button>
               </div>
-            ))}
+              {!indefinite && (
+                <div className="flex items-center gap-3">
+                  <div className="flex-1 flex items-center gap-2 bg-white rounded-xl border-2 border-border px-3 py-2 focus-within:border-[#E87A5A]/60 transition-all">
+                    <input type="number" min={1} max={52} value={weeks}
+                      onChange={(e) => setWeeks(Math.max(1, parseInt(e.target.value) || 1))}
+                      className="w-12 text-2xl font-bold text-foreground outline-none bg-transparent text-center" />
+                    <span className="text-sm text-muted-foreground font-medium">semana{weeks !== 1 ? "s" : ""}</span>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    {[1, 4, 12].map((w) => (
+                      <button key={w} onClick={() => setWeeks(w)}
+                        className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
+                          weeks === w ? "bg-[#E87A5A] text-white" : "bg-white border border-border text-muted-foreground hover:border-[#E87A5A]/40"
+                        }`}>
+                        {w === 1 ? "1 sem" : w === 4 ? "1 mês" : "3 meses"}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {indefinite && (
+                <p className="text-xs text-muted-foreground">O acesso não expira automaticamente. Podes remover a qualquer momento.</p>
+              )}
+            </div>
+
+            {error && <p className="text-xs text-rose-500 font-medium">{error}</p>}
+
+            {lastShared && (
+              <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-emerald-50 border border-emerald-100">
+                <Check className="w-4 h-4 text-emerald-500 flex-shrink-0" />
+                <p className="text-xs font-medium text-emerald-700">Partilhado com {lastShared}</p>
+              </div>
+            )}
+
+            <button onClick={addShare} disabled={adding || !email.trim()}
+              className="w-full py-3 rounded-2xl bg-[#E87A5A] text-white text-sm font-bold flex items-center justify-center gap-2 hover:bg-[#D4694A] transition-all disabled:opacity-50 shadow-lg shadow-[#E87A5A]/20">
+              {adding
+                ? <><Loader2 className="w-4 h-4 animate-spin" /> A partilhar…</>
+                : <><UserPlus className="w-4 h-4" /> Partilhar acesso</>}
+            </button>
           </div>
-        )}
+
+          {/* People with access */}
+          {(shares.length > 0 || loading) && (
+            <div className="space-y-2">
+              <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Com acesso</label>
+              {loading ? (
+                <div className="flex justify-center py-4"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>
+              ) : shares.map((s) => {
+                const expired = s.expires_at && new Date(s.expires_at) < new Date();
+                return (
+                  <div key={s.id} className={`flex items-center gap-3 px-3 py-2.5 rounded-2xl border ${expired ? "border-rose-100 bg-rose-50/50 opacity-60" : "border-border bg-white"}`}>
+                    <div className="w-8 h-8 rounded-full bg-[#E87A5A]/10 flex items-center justify-center flex-shrink-0 text-sm font-bold text-[#E87A5A]">
+                      {s.shared_with_email[0].toUpperCase()}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-semibold text-foreground truncate">{s.shared_with_email}</p>
+                      <p className={`text-[10px] ${expired ? "text-rose-500" : "text-muted-foreground"}`}>{formatExpiry(s.expires_at)}</p>
+                    </div>
+                    <select value={s.role || "editor"} onChange={(e) => updateRole(s.id, e.target.value)}
+                      className="text-[10px] font-semibold px-2 py-1 rounded-lg border border-border bg-white focus:outline-none focus:border-[#E87A5A] cursor-pointer">
+                      <option value="viewer">Ver</option>
+                      <option value="editor">Editar</option>
+                      <option value="admin">Admin</option>
+                    </select>
+                    <button onClick={() => removeShare(s.id)} className="w-7 h-7 rounded-lg hover:bg-rose-50 hover:text-rose-500 flex items-center justify-center transition-all text-muted-foreground">
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {!loading && shares.length === 0 && (
+            <div className="text-center py-4 text-muted-foreground/60">
+              <Users className="w-7 h-7 mx-auto mb-1.5 opacity-40" />
+              <p className="text-xs">Ainda não partilhaste esta nota com ninguém</p>
+            </div>
+          )}
+        </div>
       </motion.div>
     </motion.div>
   );
@@ -246,23 +393,26 @@ function ShareNoteModal({ noteId, onClose }) {
 
 // ─── Text / Highlight color picker ────────────────────────────────────────────
 function ColorPickerPopup({ type, onPick, onClose, anchorRect }) {
+  const [customHex, setCustomHex] = useState("");
   const FORE_COLORS = ["#1a1a1a","#ef4444","#f97316","#eab308","#22c55e","#3b82f6","#8b5cf6","#ec4899","#14b8a6","#6b7280"];
   const HL_COLORS   = ["#fef08a","#bfdbfe","#bbf7d0","#fce7f3","#ffedd5","#d1fae5","#ede9fe","#fee2e2","#f3f4f6","#fef9c3"];
   const colors = type === "fore" ? FORE_COLORS : HL_COLORS;
+  const validHex = /^[0-9a-fA-F]{6}$/.test(customHex);
   const style = anchorRect ? {
-    top: Math.min(anchorRect.bottom + 4, window.innerHeight - 160),
-    left: Math.min(anchorRect.left, window.innerWidth - 200),
+    top: Math.min(anchorRect.bottom + 4, window.innerHeight - 240),
+    left: Math.min(anchorRect.left, window.innerWidth - 224),
   } : { top: 160, left: 20 };
+  const applyCustom = () => { if (validHex) { onPick("#" + customHex); onClose(); } };
   return (
     <>
       <div className="fixed inset-0 z-[150]" onMouseDown={(e) => { e.preventDefault(); onClose(); }} />
       <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }}
-        className="fixed z-[200] bg-white border border-border rounded-2xl shadow-xl p-3 w-48"
+        className="fixed z-[200] bg-white border border-border rounded-2xl shadow-xl p-3 w-56"
         style={style}>
         <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
           {type === "fore" ? "Cor do texto" : "Destaque"}
         </p>
-        <div className="flex flex-wrap gap-1.5">
+        <div className="flex flex-wrap gap-1.5 mb-3">
           {colors.map((c) => (
             <button key={c}
               className="w-7 h-7 rounded-full border-2 border-white hover:scale-110 transition-all shadow-sm"
@@ -277,6 +427,27 @@ function ColorPickerPopup({ type, onPick, onClose, anchorRect }) {
               title="Remover cor"
             >✕</button>
           )}
+        </div>
+        <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Personalizada</p>
+        <div className="flex gap-2">
+          <div className="flex-1 flex items-center gap-1.5 border border-border rounded-xl px-2 py-1.5 focus-within:border-[#E87A5A]/50 transition-all">
+            <span className="text-xs text-muted-foreground">#</span>
+            <input value={customHex}
+              onChange={(e) => setCustomHex(e.target.value.replace(/[^0-9a-fA-F]/g, "").slice(0, 6))}
+              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); applyCustom(); } }}
+              placeholder="e5e7eb" maxLength={6}
+              className="flex-1 text-xs outline-none font-mono min-w-0 bg-transparent" />
+            {validHex && (
+              <div className="w-4 h-4 rounded-full border border-border flex-shrink-0"
+                style={{ backgroundColor: "#" + customHex }} />
+            )}
+          </div>
+          <button
+            onMouseDown={(e) => { e.preventDefault(); applyCustom(); }}
+            disabled={!validHex}
+            className="px-2.5 py-1.5 rounded-xl bg-[#E87A5A] text-white text-xs font-semibold disabled:opacity-40 transition-all">
+            OK
+          </button>
         </div>
       </motion.div>
     </>
