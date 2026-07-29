@@ -245,34 +245,41 @@ function ShareNoteModal({ noteId, onClose }) {
 }
 
 // ─── Text / Highlight color picker ────────────────────────────────────────────
-function ColorPickerPopup({ type, onPick, onClose }) {
-  const colors = [
-    "#1a1a1a", "#ef4444", "#f97316", "#eab308", "#22c55e",
-    "#3b82f6", "#8b5cf6", "#ec4899", "#14b8a6", "#6b7280",
-  ];
+function ColorPickerPopup({ type, onPick, onClose, anchorRect }) {
+  const FORE_COLORS = ["#1a1a1a","#ef4444","#f97316","#eab308","#22c55e","#3b82f6","#8b5cf6","#ec4899","#14b8a6","#6b7280"];
+  const HL_COLORS   = ["#fef08a","#bfdbfe","#bbf7d0","#fce7f3","#ffedd5","#d1fae5","#ede9fe","#fee2e2","#f3f4f6","#fef9c3"];
+  const colors = type === "fore" ? FORE_COLORS : HL_COLORS;
+  const style = anchorRect ? {
+    top: Math.min(anchorRect.bottom + 4, window.innerHeight - 160),
+    left: Math.min(anchorRect.left, window.innerWidth - 200),
+  } : { top: 160, left: 20 };
   return (
-    <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }}
-      className="absolute z-50 bg-white border border-border rounded-2xl shadow-xl p-3 top-10 left-0 w-48">
-      <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-        {type === "fore" ? "Cor do texto" : "Destaque"}
-      </p>
-      <div className="flex flex-wrap gap-1.5">
-        {colors.map((c) => (
-          <button key={c}
-            className="w-7 h-7 rounded-full border-2 border-white hover:scale-110 transition-all shadow-sm"
-            style={{ backgroundColor: c }}
-            onClick={() => { onPick(c); onClose(); }}
-          />
-        ))}
-        {type === "fore" && (
-          <button
-            className="w-7 h-7 rounded-full border-2 border-dashed border-border flex items-center justify-center text-[9px] text-muted-foreground hover:border-foreground transition-all"
-            onClick={() => { onPick(""); onClose(); }}
-            title="Remover cor"
-          >✕</button>
-        )}
-      </div>
-    </motion.div>
+    <>
+      <div className="fixed inset-0 z-[150]" onMouseDown={(e) => { e.preventDefault(); onClose(); }} />
+      <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }}
+        className="fixed z-[200] bg-white border border-border rounded-2xl shadow-xl p-3 w-48"
+        style={style}>
+        <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+          {type === "fore" ? "Cor do texto" : "Destaque"}
+        </p>
+        <div className="flex flex-wrap gap-1.5">
+          {colors.map((c) => (
+            <button key={c}
+              className="w-7 h-7 rounded-full border-2 border-white hover:scale-110 transition-all shadow-sm"
+              style={{ backgroundColor: c }}
+              onMouseDown={(e) => { e.preventDefault(); onPick(c); onClose(); }}
+            />
+          ))}
+          {type === "fore" && (
+            <button
+              className="w-7 h-7 rounded-full border-2 border-dashed border-border flex items-center justify-center text-[9px] text-muted-foreground hover:border-foreground transition-all"
+              onMouseDown={(e) => { e.preventDefault(); onPick(""); onClose(); }}
+              title="Remover cor"
+            >✕</button>
+          )}
+        </div>
+      </motion.div>
+    </>
   );
 }
 
@@ -419,6 +426,8 @@ export default function NoteEditor() {
   const [showHighlight, setShowHighlight] = useState(false);
   const [noteTags, setNoteTags] = useState([]);
   const [showTagPicker, setShowTagPicker] = useState(false);
+  const [fgRect, setFgRect] = useState(null);
+  const [hlRect, setHlRect] = useState(null);
 
   // Keep refs in sync
   useEffect(() => { titleRef.current = title; }, [title]);
@@ -676,8 +685,8 @@ export default function NoteEditor() {
     <div className="min-h-screen flex flex-col" style={{ backgroundColor: col.bg }}>
       {/* ── Top bar ── */}
       <div className="sticky top-0 z-20 border-b" style={{ backgroundColor: col.bg, borderColor: col.border }}>
-        {/* Row 1: back + title + saving */}
-        <div className="flex items-center gap-2 px-3 pt-2.5 pb-1">
+        {/* Single row: back + title + saving + icons on right */}
+        <div className="flex items-center gap-1 px-2 pt-2 pb-1">
           <button onClick={() => navigate("/notes")}
             className="w-9 h-9 rounded-xl flex items-center justify-center text-muted-foreground hover:bg-black/5 transition-all flex-shrink-0">
             <ArrowLeft className="w-5 h-5" />
@@ -686,39 +695,24 @@ export default function NoteEditor() {
             value={title}
             onChange={(e) => { setTitle(e.target.value); titleRef.current = e.target.value; scheduleSave(); }}
             placeholder="Título..."
-            className="flex-1 text-lg font-bold bg-transparent outline-none text-foreground placeholder:text-muted-foreground/40 min-w-0"
+            className="flex-1 min-w-0 text-base font-bold bg-transparent outline-none text-foreground placeholder:text-muted-foreground/40"
           />
           {saving && <div className="w-1.5 h-1.5 rounded-full bg-[#E87A5A] animate-pulse flex-shrink-0" title="A guardar..." />}
-        </div>
-
-        {/* Row 2: action icons with labels */}
-        <div className="flex items-center gap-0 px-1 pb-1.5 overflow-x-auto no-scrollbar">
-          <ActionBtn icon={Pin} label={note.pinned ? "Desafixar" : "Afixar"} onClick={togglePin} active={note.pinned} />
-          {note.locked
-            ? <ActionBtn icon={Unlock} label="Desbloquear" onClick={removeLock} amber />
-            : <ActionBtn icon={Lock} label="Proteger" onClick={() => setShowSetPw(true)} />
-          }
-          <ActionBtn icon={Palette} label="Cor" onClick={() => setShowColorPicker((v) => !v)} active={showColorPicker} />
-          <ActionBtn icon={TagIcon} label="Tags" onClick={() => setShowTagPicker(true)} active={noteTags.length > 0} />
-          <ActionBtn icon={Share2} label="Partilhar" onClick={() => setShowShare(true)} />
-          <ActionBtn icon={Archive} label={note.archived ? "Restaurar" : "Arquivar"} onClick={toggleArchive} />
-          <ActionBtn icon={MessageCircle} label="IA" onClick={() => setShowAIChat((v) => !v)} active={showAIChat} />
-          <ActionBtn icon={Trash2} label="Apagar" onClick={() => setDeleteConfirm(true)} danger />
-        </div>
-
-        {/* Tags row */}
-        {noteTags.length > 0 && (
-          <div className="flex flex-wrap gap-1.5 px-3 pb-2">
-            {noteTags.map((tag) => (
-              <span key={tag.id} className="flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full"
-                style={{ backgroundColor: (tag.color?.startsWith("#") ? tag.color : "#E87A5A") + "22", color: tag.color?.startsWith("#") ? tag.color : "#E87A5A" }}>
-                {tag.name}
-                <button type="button" onClick={() => handleTagsChange(noteTags.filter((t) => t.id !== tag.id))}
-                  className="opacity-60 hover:opacity-100"><X className="w-2.5 h-2.5" /></button>
-              </span>
-            ))}
+          {/* Action icons — scrollable, right-aligned */}
+          <div className="flex items-end overflow-x-auto no-scrollbar flex-shrink-0 max-w-[58%] sm:max-w-none">
+            <ActionBtn icon={Pin} label={note.pinned ? "Desafixar" : "Afixar"} onClick={togglePin} active={note.pinned} />
+            {note.locked
+              ? <ActionBtn icon={Unlock} label="Desbloquear" onClick={removeLock} amber />
+              : <ActionBtn icon={Lock} label="Proteger" onClick={() => setShowSetPw(true)} />
+            }
+            <ActionBtn icon={Palette} label="Cor" onClick={() => setShowColorPicker((v) => !v)} active={showColorPicker} />
+            <ActionBtn icon={TagIcon} label="Tags" onClick={() => setShowTagPicker(true)} active={noteTags.length > 0} />
+            <ActionBtn icon={Share2} label="Partilhar" onClick={() => setShowShare(true)} />
+            <ActionBtn icon={Archive} label={note.archived ? "Restaurar" : "Arquivar"} onClick={toggleArchive} />
+            <ActionBtn icon={MessageCircle} label="IA" onClick={() => setShowAIChat((v) => !v)} active={showAIChat} />
+            <ActionBtn icon={Trash2} label="Apagar" onClick={() => setDeleteConfirm(true)} danger />
           </div>
-        )}
+        </div>
 
         {/* Mode toggle + font size */}
         <div className="flex items-center gap-1 px-3 pb-2">
@@ -801,6 +795,26 @@ export default function NoteEditor() {
         )}
       </AnimatePresence>
 
+      {/* ── ForeColor picker (fixed) ── */}
+      <AnimatePresence>
+        {showForeColor && (
+          <ColorPickerPopup type="fore"
+            anchorRect={fgRect}
+            onPick={(c) => { editorRef.current?.focus(); c ? exec("foreColor", c) : exec("removeFormat"); }}
+            onClose={() => setShowForeColor(false)} />
+        )}
+      </AnimatePresence>
+
+      {/* ── Highlight picker (fixed) ── */}
+      <AnimatePresence>
+        {showHighlight && (
+          <ColorPickerPopup type="highlight"
+            anchorRect={hlRect}
+            onPick={(c) => { editorRef.current?.focus(); exec("hiliteColor", c); }}
+            onClose={() => setShowHighlight(false)} />
+        )}
+      </AnimatePresence>
+
       {/* ── Lock screen ── */}
       {showLock ? (
         <LockScreen onUnlock={tryUnlock} onCancel={() => navigate("/notes")} />
@@ -808,7 +822,7 @@ export default function NoteEditor() {
         <>
           {/* ── Toolbar ── */}
           <div className="sticky z-10 border-b overflow-x-auto"
-            style={{ top: "97px", backgroundColor: col.bg, borderColor: col.border }}>
+            style={{ top: "84px", backgroundColor: col.bg, borderColor: col.border }}>
             <div className="flex items-center gap-0.5 px-3 py-1.5 min-w-max">
               {mode === "wysiwyg" ? (
                 <>
@@ -850,30 +864,18 @@ export default function NoteEditor() {
                     <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 7v6h-6"/><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3L21 13"/></svg>
                   </TBtn>
                   <div className="w-px h-6 bg-border mx-0.5" />
-                  <div className="relative">
-                    <TBtn onClick={() => { setShowForeColor((v) => !v); setShowHighlight(false); }} title="Cor do texto">
-                      <span className="text-xs font-bold leading-none" style={{ color: "#E87A5A" }}>A</span>
-                    </TBtn>
-                    <AnimatePresence>
-                      {showForeColor && (
-                        <ColorPickerPopup type="fore"
-                          onPick={(c) => c ? exec("foreColor", c) : exec("removeFormat")}
-                          onClose={() => setShowForeColor(false)} />
-                      )}
-                    </AnimatePresence>
-                  </div>
-                  <div className="relative">
-                    <TBtn onClick={() => { setShowHighlight((v) => !v); setShowForeColor(false); }} title="Destaque">
-                      <span className="text-xs font-bold leading-none px-0.5 rounded" style={{ backgroundColor: "#fef08a" }}>A</span>
-                    </TBtn>
-                    <AnimatePresence>
-                      {showHighlight && (
-                        <ColorPickerPopup type="highlight"
-                          onPick={(c) => exec("hiliteColor", c)}
-                          onClose={() => setShowHighlight(false)} />
-                      )}
-                    </AnimatePresence>
-                  </div>
+                  <button type="button"
+                    onMouseDown={(e) => { e.preventDefault(); setFgRect(e.currentTarget.getBoundingClientRect()); setShowForeColor((v) => !v); setShowHighlight(false); }}
+                    title="Cor do texto"
+                    className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 transition-all text-muted-foreground hover:bg-secondary">
+                    <span className="text-xs font-bold leading-none" style={{ color: "#E87A5A" }}>A</span>
+                  </button>
+                  <button type="button"
+                    onMouseDown={(e) => { e.preventDefault(); setHlRect(e.currentTarget.getBoundingClientRect()); setShowHighlight((v) => !v); setShowForeColor(false); }}
+                    title="Destaque"
+                    className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 transition-all text-muted-foreground hover:bg-secondary">
+                    <span className="text-xs font-bold leading-none px-0.5 rounded" style={{ backgroundColor: "#fef08a" }}>A</span>
+                  </button>
                 </>
               ) : (
                 <>
@@ -899,10 +901,21 @@ export default function NoteEditor() {
           </div>
 
           {/* ── Editor area ── */}
-          <div className="flex-1 px-5 py-4 cursor-text"
+          <div className="flex-1 px-5 py-4 cursor-text relative"
             onClick={() => {
               if (mode === "wysiwyg") editorRef.current?.focus();
             }}>
+            {/* Tags pills — top-right of content area */}
+            {noteTags.length > 0 && (
+              <div className="absolute top-3 right-3 flex flex-wrap gap-1 justify-end max-w-[45%] pointer-events-none z-10">
+                {noteTags.map((tag) => (
+                  <span key={tag.id} className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full pointer-events-auto"
+                    style={{ backgroundColor: (tag.color || "#E87A5A") + "28", color: tag.color || "#E87A5A", border: `1px solid ${(tag.color || "#E87A5A")}44` }}>
+                    {tag.name}
+                  </span>
+                ))}
+              </div>
+            )}
             {mode === "wysiwyg" ? (
               <div
                 ref={editorRef}
