@@ -12,6 +12,8 @@ import {
 import { Note, Tag } from "@/api/entities";
 import { Core, InvokeLLMChat } from "@/api/integrations";
 import { supabase } from "@/api/supabaseClient";
+import { usePresence } from "@/hooks/usePresence";
+import PresenceAvatars from "@/components/PresenceAvatars";
 import { NOTE_COLORS } from "./Notes";
 import TagPicker from "@/components/TagPicker";
 import { sha256, htmlToMarkdown, markdownToHtml } from "@/lib/noteUtils";
@@ -600,6 +602,12 @@ export default function NoteEditor() {
   const [fgRect, setFgRect] = useState(null);
   const [hlRect, setHlRect] = useState(null);
 
+  const lastSaveAt = useRef(0);
+
+  // Presence
+  const notePresenceChannel = id ? `presence:notes:${id}` : null;
+  const notePresences = usePresence(notePresenceChannel);
+
   // Keep refs in sync
   useEffect(() => { titleRef.current = title; }, [title]);
   useEffect(() => { mdSourceRef.current = mdSource; }, [mdSource]);
@@ -638,6 +646,26 @@ export default function NoteEditor() {
     }
   }, [note?.id]);
 
+  // Real-time: sync note changes from other users
+  useEffect(() => {
+    if (!id) return;
+    const ch = supabase.channel(`rt:notes:${id}`)
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "notes",
+        filter: `id=eq.${id}` }, (payload) => {
+        // Ignore echo from own recent save (within 2s)
+        if (Date.now() - lastSaveAt.current < 2000) return;
+        const n = payload.new;
+        setNote((prev) => ({ ...prev, ...n }));
+        setTitle(n.title || "");
+        titleRef.current = n.title || "";
+        if (editorRef.current && modeRef.current === "wysiwyg") {
+          editorRef.current.innerHTML = n.content || "";
+        }
+      })
+      .subscribe();
+    return () => supabase.removeChannel(ch);
+  }, [id]);
+
   // Populate editor after note loads and unlocked and DOM is ready
   useEffect(() => {
     if (!note || !unlocked) return;
@@ -658,6 +686,7 @@ export default function NoteEditor() {
       const content = modeRef.current === "wysiwyg"
         ? (editorRef.current?.innerHTML || "")
         : markdownToHtml(mdSourceRef.current);
+      lastSaveAt.current = Date.now();
       await Note.update(id, { title: titleRef.current, content }).catch(() => {});
       setSaving(false);
     }, 800);
@@ -884,6 +913,14 @@ export default function NoteEditor() {
             <ActionBtn icon={Trash2} label="Apagar" onClick={() => setDeleteConfirm(true)} danger />
           </div>
         </div>
+
+        {/* Presence avatars */}
+        {notePresences.length > 0 && (
+          <div className="flex items-center gap-1.5 px-3 pb-1">
+            <span className="text-[9px] text-muted-foreground">A editar:</span>
+            <PresenceAvatars presences={notePresences} />
+          </div>
+        )}
 
         {/* Mode toggle + font size */}
         <div className="flex items-center gap-1 px-3 pb-2">
