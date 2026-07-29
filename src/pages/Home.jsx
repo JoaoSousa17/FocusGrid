@@ -61,7 +61,7 @@ function DirectionalArrow({ direction, label, onClick, icon: Icon, color, "data-
       <motion.span data-source-location="pages/Home:58:6" data-dynamic-content="true"
       animate={isHorizontal ? { x: [0, 5, 0] } : { y: [0, 5, 0] }}
       transition={{ repeat: Infinity, duration: 2.5, ease: "easeInOut" }}
-      className={`text-xs font-semibold text-foreground/70 whitespace-nowrap ${isHorizontal ? "hidden sm:block" : ""}`} data-collection-item-field="label" data-collection-item-id={__dataCollectionItemId}>
+      className={`text-xs font-semibold text-foreground/70 whitespace-nowrap`} data-collection-item-field="label" data-collection-item-id={__dataCollectionItemId}>
         
         {label}
       </motion.span>

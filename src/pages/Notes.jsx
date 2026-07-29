@@ -3,7 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft, Plus, Search, X, Pin, Lock, Grid3x3, List,
-  Trash2, MoreHorizontal
+  Trash2, Archive, ChevronDown, ChevronRight, SortAsc, SortDesc,
+  Filter, Users,
 } from "lucide-react";
 import { Note } from "@/api/entities";
 import { supabase } from "@/api/supabaseClient";
@@ -23,11 +24,10 @@ export const NOTE_COLORS = [
   { key: "gray",    bg: "#f3f4f6", border: "#e5e7eb", dark: "#d1d5db" },
 ];
 
-function colorOf(key) {
+export function colorOf(key) {
   if (!key) return NOTE_COLORS[0];
   const preset = NOTE_COLORS.find((c) => c.key === key);
   if (preset) return preset;
-  // Support raw hex colors set from the extended palette
   if (key.startsWith("#")) return { key, bg: key, border: key + "88", dark: key };
   return NOTE_COLORS[0];
 }
@@ -73,9 +73,7 @@ function NoteCardKeep({ note, onClick, onDelete }) {
         {note.title && (
           <>
             <p className="text-sm font-semibold text-foreground line-clamp-2 pr-4">{note.title}</p>
-            {hasContent && (
-              <hr className="my-2" style={{ borderColor: col.border }} />
-            )}
+            {hasContent && <hr className="my-2" style={{ borderColor: col.border }} />}
           </>
         )}
         {hasContent ? (
@@ -86,6 +84,22 @@ function NoteCardKeep({ note, onClick, onDelete }) {
         ) : !note.title ? (
           <p className="text-xs text-muted-foreground/40 italic">{t("notes.empty_note")}</p>
         ) : null}
+        {note.tags_json && (() => {
+          try {
+            const tags = JSON.parse(note.tags_json || "[]");
+            if (!tags.length) return null;
+            return (
+              <div className="flex flex-wrap gap-1 mt-2">
+                {tags.slice(0, 3).map((tag) => (
+                  <span key={tag.id} className="text-[9px] px-1.5 py-0.5 rounded-full font-medium"
+                    style={{ backgroundColor: tag.color + "22", color: tag.color }}>
+                    {tag.name}
+                  </span>
+                ))}
+              </div>
+            );
+          } catch { return null; }
+        })()}
       </div>
       <button
         onClick={(e) => { e.stopPropagation(); onDelete(note); }}
@@ -134,20 +148,96 @@ function NoteRowApple({ note, onClick, onDelete }) {
   );
 }
 
+function Section({ label, notes, view, collapsed, onToggle, navigate, onDelete }) {
+  if (!notes.length) return null;
+  return (
+    <div>
+      <button
+        onClick={onToggle}
+        className="flex items-center gap-1.5 px-4 pt-4 pb-1 w-full text-left"
+      >
+        {collapsed ? <ChevronRight className="w-3 h-3 text-muted-foreground/60" /> : <ChevronDown className="w-3 h-3 text-muted-foreground/60" />}
+        <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">{label}</span>
+        <span className="text-[10px] text-muted-foreground/50 ml-1">({notes.length})</span>
+      </button>
+      <AnimatePresence>
+        {!collapsed && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            style={{ overflow: "hidden" }}
+          >
+            {view === "keep" ? (
+              <div className="px-4 columns-2 sm:columns-3 gap-3">
+                {notes.map((n) => (
+                  <NoteCardKeep key={n.id} note={n} onClick={() => navigate(`/notes/${n.id}`)} onDelete={onDelete} />
+                ))}
+              </div>
+            ) : (
+              <div className="bg-white border-y border-border divide-y divide-border/50">
+                {notes.map((n) => (
+                  <NoteRowApple key={n.id} note={n} onClick={() => navigate(`/notes/${n.id}`)} onDelete={onDelete} />
+                ))}
+              </div>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+const SORT_OPTIONS = [
+  { key: "updated_desc", label: "Recentes primeiro" },
+  { key: "updated_asc", label: "Antigas primeiro" },
+  { key: "length_desc", label: "Mais longas" },
+  { key: "length_asc", label: "Mais curtas" },
+  { key: "has_list", label: "Com listas" },
+];
+
+function sortNotes(notes, sortKey) {
+  const arr = [...notes];
+  switch (sortKey) {
+    case "updated_asc": return arr.sort((a, b) => new Date(a.updated_at) - new Date(b.updated_at));
+    case "length_desc": return arr.sort((a, b) => stripHtml(b.content).length - stripHtml(a.content).length);
+    case "length_asc": return arr.sort((a, b) => stripHtml(a.content).length - stripHtml(b.content).length);
+    case "has_list": return arr.filter((n) => /<ul|<ol/i.test(n.content || "")).concat(arr.filter((n) => !/<ul|<ol/i.test(n.content || "")));
+    default: return arr.sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
+  }
+}
+
 export default function Notes() {
   const navigate = useNavigate();
   const { t } = useLang();
   const [notes, setNotes] = useState([]);
+  const [sharedNotes, setSharedNotes] = useState([]);
   const [exitX, setExitX] = useState(0);
-  const [view, setView] = useState("keep"); // keep | apple
+  const [view, setView] = useState("keep");
   const [search, setSearch] = useState("");
   const [deleting, setDeleting] = useState(null);
+  const [sort, setSort] = useState("updated_desc");
+  const [showSort, setShowSort] = useState(false);
+  const [collapsed, setCollapsed] = useState({ pinned: false, shared: false, others: false });
   const searchRef = useRef(null);
   const swipeStartX = useRef(null);
 
-  const load = () => Note.list("-updated_at", 200).then(setNotes).catch(() => {});
+  const load = () => Note.list("-updated_at", 200).then((all) => setNotes((all || []).filter((n) => !n.archived))).catch(() => {});
 
-  useEffect(() => { load(); }, []);
+  const loadShared = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const { data: shares } = await supabase
+      .from("note_shares")
+      .select("note_id")
+      .eq("shared_with_email", user.email);
+    if (!shares?.length) return;
+    const ids = shares.map((s) => s.note_id);
+    const { data } = await supabase.from("notes").select("*").in("id", ids).eq("archived", false);
+    setSharedNotes(data || []);
+  };
+
+  useEffect(() => { load(); loadShared(); }, []);
 
   const createNote = async () => {
     try {
@@ -155,7 +245,6 @@ export default function Notes() {
       const n = await Note.create({ title: "", content: "", color: "default", pinned: false, locked: false, user_id: user.id });
       navigate(`/notes/${n.id}`);
     } catch (err) {
-      console.error("createNote error:", err);
       alert("Erro ao criar nota: " + (err?.message || "Tenta novamente"));
     }
   };
@@ -170,32 +259,28 @@ export default function Notes() {
   const filtered = notes.filter((n) => {
     if (!search.trim()) return true;
     const q = search.toLowerCase();
-    return n.title.toLowerCase().includes(q) || stripHtml(n.content).toLowerCase().includes(q);
+    return (n.title || "").toLowerCase().includes(q) || stripHtml(n.content).toLowerCase().includes(q);
   });
 
-  const pinned = filtered.filter((n) => n.pinned);
-  const rest = filtered.filter((n) => !n.pinned);
+  const sorted = sortNotes(filtered, sort);
+  const pinned = sorted.filter((n) => n.pinned);
+  const rest = sorted.filter((n) => !n.pinned);
 
-  // Group for Apple view
-  const grouped = {};
-  rest.forEach((n) => {
-    const label = dateLabel(n.updated_at, t);
-    if (!grouped[label]) grouped[label] = [];
-    grouped[label].push(n);
+  const sharedFiltered = sharedNotes.filter((n) => {
+    if (!search.trim()) return true;
+    const q = search.toLowerCase();
+    return (n.title || "").toLowerCase().includes(q) || stripHtml(n.content).toLowerCase().includes(q);
   });
 
-  const handleSwipeStart = (e) => {
-    swipeStartX.current = (e.touches?.[0] ?? e).clientX;
-  };
+  const handleSwipeStart = (e) => { swipeStartX.current = (e.touches?.[0] ?? e).clientX; };
   const handleSwipeEnd = (e) => {
     if (swipeStartX.current === null) return;
     const dx = (e.changedTouches?.[0] ?? e).clientX - swipeStartX.current;
-    if (dx > 80) {
-      setExitX("100%");
-      setTimeout(() => navigate("/"), 240);
-    }
+    if (dx > 80) { setExitX("100%"); setTimeout(() => navigate("/"), 240); }
     swipeStartX.current = null;
   };
+
+  const toggleCollapse = (key) => setCollapsed((prev) => ({ ...prev, [key]: !prev[key] }));
 
   return (
     <motion.div
@@ -207,7 +292,6 @@ export default function Notes() {
       onMouseDown={handleSwipeStart}
       onMouseUp={handleSwipeEnd}
     >
-      {/* note-card-preview scoped styles */}
       <style>{`
         .note-card-preview { font-size: 11px; line-height: 1.5; }
         .note-card-preview p { margin: 0 0 2px; }
@@ -223,18 +307,22 @@ export default function Notes() {
       {/* Header */}
       <div className="sticky top-0 z-10 bg-cream border-b border-border/50">
         <div className="flex items-center gap-2 px-4 py-3">
-          {/* Back */}
           <button onClick={() => navigate("/")}
             className="w-10 h-10 rounded-2xl bg-white border border-border flex items-center justify-center text-muted-foreground hover:text-foreground transition-all shadow-sm flex-shrink-0">
             <ArrowLeft className="w-5 h-5" />
           </button>
-          {/* Title */}
           <div className="flex-1 min-w-0">
             <h1 className="text-lg font-bold text-foreground leading-tight">{t("notes.title")}</h1>
             <p className="text-[11px] text-muted-foreground">{notes.length} {notes.length !== 1 ? t("notes.notes_count_other") : t("notes.notes_count_one")}</p>
           </div>
-          {/* Search — ~45% width, inline */}
-          <div className="flex items-center gap-1.5 bg-white border border-border rounded-2xl px-3 py-2 shadow-sm focus-within:border-[#E87A5A]/50 transition-all w-[44%] flex-shrink-0">
+          {/* Archive link */}
+          <button onClick={() => navigate("/notes/archived")}
+            className="w-9 h-9 rounded-xl bg-white border border-border flex items-center justify-center text-muted-foreground hover:text-foreground transition-all shadow-sm flex-shrink-0"
+            title="Notas arquivadas">
+            <Archive className="w-4 h-4" />
+          </button>
+          {/* Search */}
+          <div className="flex items-center gap-1.5 bg-white border border-border rounded-2xl px-3 py-2 shadow-sm focus-within:border-[#E87A5A]/50 transition-all w-[38%] flex-shrink-0">
             <Search className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
             <input
               ref={searchRef}
@@ -252,20 +340,32 @@ export default function Notes() {
           {/* View toggle */}
           <div className="flex bg-white border border-border rounded-2xl p-0.5 shadow-sm flex-shrink-0">
             <button onClick={() => setView("keep")}
-              className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all ${view === "keep" ? "bg-[#E87A5A] text-white shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>
-              <Grid3x3 className="w-4 h-4" />
+              className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${view === "keep" ? "bg-[#E87A5A] text-white shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>
+              <Grid3x3 className="w-3.5 h-3.5" />
             </button>
             <button onClick={() => setView("apple")}
-              className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all ${view === "apple" ? "bg-[#E87A5A] text-white shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>
-              <List className="w-4 h-4" />
+              className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${view === "apple" ? "bg-[#E87A5A] text-white shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>
+              <List className="w-3.5 h-3.5" />
             </button>
           </div>
+        </div>
+
+        {/* Sort bar */}
+        <div className="flex items-center gap-2 px-4 pb-2 overflow-x-auto">
+          {SORT_OPTIONS.map((opt) => (
+            <button key={opt.key} onClick={() => setSort(opt.key)}
+              className={`flex-shrink-0 flex items-center gap-1 px-3 py-1 rounded-xl text-xs font-medium transition-all ${
+                sort === opt.key ? "bg-[#E87A5A] text-white" : "bg-white border border-border text-muted-foreground hover:border-[#E87A5A]/40"
+              }`}>
+              {opt.label}
+            </button>
+          ))}
         </div>
       </div>
 
       {/* Content */}
       <div className="flex-1 overflow-auto pb-28">
-        {filtered.length === 0 && (
+        {filtered.length === 0 && sharedFiltered.length === 0 && (
           <div className="flex flex-col items-center justify-center py-24 gap-3">
             <div className="w-16 h-16 rounded-3xl bg-white border border-border flex items-center justify-center shadow-sm">
               <span className="text-3xl">📝</span>
@@ -275,54 +375,82 @@ export default function Notes() {
         )}
 
         {view === "keep" ? (
-          <div className="p-4">
+          <div>
+            {/* Pinned */}
             {pinned.length > 0 && (
-              <div className="mb-4">
-                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-2 px-1">{t("notes.pinned")}</p>
-                <div className="columns-2 sm:columns-3 gap-3">
-                  {pinned.map((n) => (
-                    <NoteCardKeep key={n.id} note={n} onClick={() => navigate(`/notes/${n.id}`)} onDelete={setDeleting} />
-                  ))}
-                </div>
-              </div>
+              <Section
+                label={t("notes.pinned")}
+                notes={pinned}
+                view={view}
+                collapsed={collapsed.pinned}
+                onToggle={() => toggleCollapse("pinned")}
+                navigate={navigate}
+                onDelete={setDeleting}
+              />
             )}
+            {/* Shared with me */}
+            {sharedFiltered.length > 0 && (
+              <Section
+                label="Partilhadas comigo"
+                notes={sharedFiltered}
+                view={view}
+                collapsed={collapsed.shared}
+                onToggle={() => toggleCollapse("shared")}
+                navigate={navigate}
+                onDelete={() => {}}
+              />
+            )}
+            {/* Others */}
             {rest.length > 0 && (
-              <div>
-                {pinned.length > 0 && <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-2 px-1">{t("notes.others")}</p>}
-                <div className="columns-2 sm:columns-3 gap-3">
-                  {rest.map((n) => (
-                    <NoteCardKeep key={n.id} note={n} onClick={() => navigate(`/notes/${n.id}`)} onDelete={setDeleting} />
-                  ))}
-                </div>
-              </div>
+              <Section
+                label={pinned.length > 0 || sharedFiltered.length > 0 ? t("notes.others") : "Notas"}
+                notes={rest}
+                view={view}
+                collapsed={collapsed.others}
+                onToggle={() => toggleCollapse("others")}
+                navigate={navigate}
+                onDelete={setDeleting}
+              />
             )}
           </div>
         ) : (
           <div>
+            {/* Pinned */}
             {pinned.length > 0 && (
-              <div>
-                <div className="px-4 pt-4 pb-1">
-                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Afixadas</p>
-                </div>
-                <div className="bg-white border-y border-border divide-y divide-border/50">
-                  {pinned.map((n) => (
-                    <NoteRowApple key={n.id} note={n} onClick={() => navigate(`/notes/${n.id}`)} onDelete={setDeleting} />
-                  ))}
-                </div>
-              </div>
+              <Section
+                label="Afixadas"
+                notes={pinned}
+                view={view}
+                collapsed={collapsed.pinned}
+                onToggle={() => toggleCollapse("pinned")}
+                navigate={navigate}
+                onDelete={setDeleting}
+              />
             )}
-            {Object.entries(grouped).map(([label, items]) => (
-              <div key={label}>
-                <div className="px-4 pt-5 pb-1">
-                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">{label}</p>
-                </div>
-                <div className="bg-white border-y border-border divide-y divide-border/50">
-                  {items.map((n) => (
-                    <NoteRowApple key={n.id} note={n} onClick={() => navigate(`/notes/${n.id}`)} onDelete={setDeleting} />
-                  ))}
-                </div>
-              </div>
-            ))}
+            {/* Shared with me */}
+            {sharedFiltered.length > 0 && (
+              <Section
+                label="Partilhadas comigo"
+                notes={sharedFiltered}
+                view={view}
+                collapsed={collapsed.shared}
+                onToggle={() => toggleCollapse("shared")}
+                navigate={navigate}
+                onDelete={() => {}}
+              />
+            )}
+            {/* Others */}
+            {rest.length > 0 && (
+              <Section
+                label={pinned.length > 0 || sharedFiltered.length > 0 ? t("notes.others") : "Notas"}
+                notes={rest}
+                view={view}
+                collapsed={collapsed.others}
+                onToggle={() => toggleCollapse("others")}
+                navigate={navigate}
+                onDelete={setDeleting}
+              />
+            )}
           </div>
         )}
       </div>
