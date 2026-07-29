@@ -12,6 +12,8 @@ import TaskShare from "@/components/TaskShare";
 import { useEdgeSwipeNav } from "@/hooks/useEdgeSwipeNav";
 import { useFocusTimer } from "@/context/FocusTimerContext";
 import { useLang } from "@/context/LangContext";
+import { usePresence } from "@/hooks/usePresence";
+import PresenceAvatars from "@/components/PresenceAvatars";
 
 const DAY_LABELS = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"];
 const DAY_KEYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
@@ -199,6 +201,7 @@ export default function TaskBoard({ sharedOwnerId, sharedRole, sharedOwnerName }
   };
   const [tasks, setTasks] = useState([]);
   const [allTags, setAllTags] = useState([]);
+  const [boardOwnerId, setBoardOwnerId] = useState(sharedOwnerId || null);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [newTasks, setNewTasks] = useState({});
   const [addingTo, setAddingTo] = useState(null);
@@ -313,6 +316,27 @@ export default function TaskBoard({ sharedOwnerId, sharedRole, sharedOwnerName }
   };
 
   useEffect(() => {refreshData();}, [weekKey]);
+
+  // Resolve board owner ID (needed for presence channel + realtime filter)
+  useEffect(() => {
+    if (sharedOwnerId) { setBoardOwnerId(sharedOwnerId); return; }
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) setBoardOwnerId(user.id);
+    });
+  }, [sharedOwnerId]);
+
+  // Real-time subscription: refresh when any task changes on this board
+  useEffect(() => {
+    if (!boardOwnerId) return;
+    const ch = supabase.channel(`rt:tasks:${boardOwnerId}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "tasks",
+        filter: `created_by_id=eq.${boardOwnerId}` }, () => { refreshData(); })
+      .subscribe();
+    return () => supabase.removeChannel(ch);
+  }, [boardOwnerId]);
+
+  const presenceChannel = boardOwnerId ? `presence:tasks:${boardOwnerId}` : null;
+  const taskPresences = usePresence(presenceChannel);
 
   const tasksByKey = useMemo(() => {
     const map = {};
@@ -698,6 +722,20 @@ export default function TaskBoard({ sharedOwnerId, sharedRole, sharedOwnerName }
                                 >
                                   <GripVertical className="w-2.5 h-2.5 text-muted-foreground" />
                                 </span>
+                                {/* Pin icon before checkbox */}
+                                {s.pinned && (
+                                  <Pin className="w-2.5 h-2.5 fill-[#E87A5A] text-[#E87A5A] flex-shrink-0" />
+                                )}
+                                {!s.pinned && (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => { e.stopPropagation(); pinSubtaskOnCard(task, s.id); }}
+                                    className="flex-shrink-0 opacity-0 group-hover/sub:opacity-60 hover:!opacity-100 transition-opacity"
+                                    title="Afixar"
+                                  >
+                                    <Pin className="w-2.5 h-2.5 text-muted-foreground/40" />
+                                  </button>
+                                )}
                                 <button
                                   type="button"
                                   onClick={(e) => { e.stopPropagation(); toggleSubtaskOnCard(task, s.id); }}
@@ -708,14 +746,17 @@ export default function TaskBoard({ sharedOwnerId, sharedRole, sharedOwnerName }
                                   </span>
                                   <span className={`text-[10px] truncate ${s.completed ? "line-through text-muted-foreground/50" : "text-muted-foreground"}`}>{s.title}</span>
                                 </button>
-                                <button
-                                  type="button"
-                                  onClick={(e) => { e.stopPropagation(); pinSubtaskOnCard(task, s.id); }}
-                                  className="flex-shrink-0 opacity-0 group-hover/sub:opacity-100 transition-opacity"
-                                  title={s.pinned ? "Desafixar" : "Afixar"}
-                                >
-                                  <Pin className={`w-2.5 h-2.5 ${s.pinned ? "fill-[#E87A5A] text-[#E87A5A]" : "text-muted-foreground/40"}`} />
-                                </button>
+                                {/* Unpin button for pinned subtasks */}
+                                {s.pinned && (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => { e.stopPropagation(); pinSubtaskOnCard(task, s.id); }}
+                                    className="flex-shrink-0 opacity-0 group-hover/sub:opacity-100 transition-opacity"
+                                    title="Desafixar"
+                                  >
+                                    <X className="w-2.5 h-2.5 text-muted-foreground/40 hover:text-rose-400" />
+                                  </button>
+                                )}
                               </div>
                             )}
                           </Draggable>
@@ -909,6 +950,7 @@ export default function TaskBoard({ sharedOwnerId, sharedRole, sharedOwnerName }
               </div>
             </div>
             <div data-source-location="pages/TaskBoard:421:12" data-dynamic-content="true" className="flex items-center gap-2">
+              <PresenceAvatars presences={taskPresences} className="mr-1" />
               <button data-source-location="pages/TaskBoard:422:14" data-dynamic-content="true" onClick={prevWeek} className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center hover:bg-border transition-all">
                 <ChevronLeft data-source-location="pages/TaskBoard:423:16" data-dynamic-content="false" className="w-4 h-4" />
               </button>
