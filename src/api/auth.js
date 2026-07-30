@@ -44,6 +44,15 @@ export const auth = {
     return data;
   },
 
+  async loginWithMeta(redirectTo = window.location.origin) {
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: "facebook",
+      options: { redirectTo },
+    });
+    if (error) throw error;
+    return data;
+  },
+
   async requestPasswordReset(email) {
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: `${window.location.origin}/reset-password`,
