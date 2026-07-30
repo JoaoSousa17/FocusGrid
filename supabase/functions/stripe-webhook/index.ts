@@ -1,6 +1,5 @@
-// Edge Function: webhook do Stripe — atualiza extension_subscriptions conforme
-// os eventos de subscrição. Chamado diretamente pelo Stripe (sem auth de utilizador),
-// por isso usa a service role key e verifica a assinatura do pedido.
+// Edge Function: webhook do Stripe — atualiza subscriptions conforme eventos.
+// Chamado pelo Stripe (sem auth de utilizador), usa service role key.
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import Stripe from "npm:stripe@17";
 
@@ -39,12 +38,16 @@ Deno.serve(async (req) => {
       const subscription = event.data.object as Stripe.Subscription;
       const userId = subscription.metadata?.supabase_user_id;
       if (userId) {
-        await supabase.from("extension_subscriptions").update({
+        const plan = subscription.metadata?.plan ?? "both";
+        await supabase.from("subscriptions").upsert({
+          user_id: userId,
+          plan,
+          lifetime: false,
           status: mapStripeStatus(subscription.status),
-          current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
           stripe_subscription_id: subscription.id,
-          updated_date: new Date().toISOString(),
-        }).eq("user_id", userId);
+          current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
+          updated_at: new Date().toISOString(),
+        }, { onConflict: "user_id" });
       }
       break;
     }
@@ -52,10 +55,10 @@ Deno.serve(async (req) => {
       const subscription = event.data.object as Stripe.Subscription;
       const userId = subscription.metadata?.supabase_user_id;
       if (userId) {
-        await supabase.from("extension_subscriptions").update({
-          status: "canceled",
-          updated_date: new Date().toISOString(),
-        }).eq("user_id", userId);
+        await supabase.from("subscriptions")
+          .update({ status: "canceled", plan: "free", updated_at: new Date().toISOString() })
+          .eq("user_id", userId)
+          .eq("lifetime", false);
       }
       break;
     }
@@ -68,13 +71,16 @@ Deno.serve(async (req) => {
 
 async function upsertSubscription(userId: string, customerId: string, subscriptionId: string) {
   const subscription = await stripe.subscriptions.retrieve(subscriptionId);
-  await supabase.from("extension_subscriptions").upsert({
+  const plan = subscription.metadata?.plan ?? "both";
+  await supabase.from("subscriptions").upsert({
     user_id: userId,
+    plan,
+    lifetime: false,
     status: mapStripeStatus(subscription.status),
     stripe_customer_id: customerId,
     stripe_subscription_id: subscriptionId,
     current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
-    updated_date: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
   }, { onConflict: "user_id" });
 }
 

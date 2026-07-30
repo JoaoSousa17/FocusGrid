@@ -35,6 +35,21 @@ import Terms from '@/pages/Terms';
 import Privacy from '@/pages/Privacy';
 import SharedTasksView from '@/pages/SharedTasksView';
 import LandingPage from '@/pages/LandingPage';
+import Billing from '@/pages/Billing';
+
+// Deteta se a app está instalada como PWA (standalone)
+const isPWA = () =>
+  window.matchMedia("(display-mode: standalone)").matches ||
+  window.navigator.standalone === true;
+
+// Rota raiz: landing para visitantes web; home para utilizadores autenticados ou PWA
+function HomeOrLanding() {
+  const { isAuthenticated, isLoadingAuth } = useAuth();
+  if (isLoadingAuth) return null;
+  if (isAuthenticated) return <Home />;
+  if (isPWA()) return <Navigate to="/login" replace />;
+  return <LandingPage />;
+}
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError } = useAuth();
@@ -70,8 +85,8 @@ const AuthenticatedApp = () => {
       <Route path="/terms" element={<Terms />} />
       <Route path="/privacy" element={<Privacy />} />
       <Route path="/landing" element={<LandingPage />} />
+      <Route path="/" element={<HomeOrLanding />} />
       <Route data-source-location="App:62:6" data-dynamic-content="true" element={<ProtectedRoute data-source-location="App:62:22" data-dynamic-content="true" unauthenticatedElement={<Navigate data-source-location="App:62:62" data-dynamic-content="false" to="/login" replace />} />}>
-        <Route data-source-location="App:63:8" data-dynamic-content="true" path="/" element={<Home data-source-location="App:63:33" data-dynamic-content="false" />} />
         <Route data-source-location="App:64:8" data-dynamic-content="true" path="/focus" element={<FocusPomo data-source-location="App:64:38" data-dynamic-content="false" />} />
         <Route data-source-location="App:65:8" data-dynamic-content="true" path="/focus/settings" element={<FocusSettings data-source-location="App:65:47" data-dynamic-content="false" />} />
         <Route data-source-location="App:66:8" data-dynamic-content="true" path="/focus/calendar" element={<FocusCalendar data-source-location="App:66:47" data-dynamic-content="false" />} />
@@ -90,6 +105,7 @@ const AuthenticatedApp = () => {
         <Route path="/notes/archived" element={<ArchivedNotes />} />
         <Route path="/notes/:id" element={<NoteEditor />} />
         <Route path="/tasks/shared/:ownerId" element={<SharedTasksView />} />
+        <Route path="/billing" element={<Billing />} />
       </Route>
       <Route data-source-location="App:78:6" data-dynamic-content="true" path="*" element={<PageNotFound data-source-location="App:78:31" data-dynamic-content="false" />} />
     </Routes>
