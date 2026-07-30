@@ -400,11 +400,19 @@ function ColorPickerPopup({ type, onPick, onClose, anchorRect }) {
   const HL_COLORS   = ["#fef08a","#bfdbfe","#bbf7d0","#fce7f3","#ffedd5","#d1fae5","#ede9fe","#fee2e2","#f3f4f6","#fef9c3"];
   const colors = type === "fore" ? FORE_COLORS : HL_COLORS;
   const validHex = /^[0-9a-fA-F]{6}$/.test(customHex);
+  const LS_KEY = type === "fore" ? "note_fg_recent" : "note_hl_recent";
+  const getRecent = () => { try { return JSON.parse(localStorage.getItem(LS_KEY) || "[]"); } catch { return []; } };
+  const [recentColors, setRecentColors] = useState(getRecent);
+  const addRecent = (hex) => {
+    const next = [hex, ...getRecent().filter((c) => c !== hex)].slice(0, 6);
+    localStorage.setItem(LS_KEY, JSON.stringify(next));
+    setRecentColors(next);
+  };
   const style = anchorRect ? {
-    top: Math.min(anchorRect.bottom + 4, window.innerHeight - 240),
+    top: Math.min(anchorRect.bottom + 4, window.innerHeight - 280),
     left: Math.min(anchorRect.left, window.innerWidth - 224),
   } : { top: 160, left: 20 };
-  const applyCustom = () => { if (validHex) { onPick("#" + customHex); onClose(); } };
+  const applyCustom = () => { if (validHex) { const hex = "#" + customHex; addRecent(hex); onPick(hex); onClose(); } };
   return (
     <>
       <div className="fixed inset-0 z-[150]" onMouseDown={(e) => { e.preventDefault(); onClose(); }} />
@@ -430,6 +438,20 @@ function ColorPickerPopup({ type, onPick, onClose, anchorRect }) {
             >✕</button>
           )}
         </div>
+        {recentColors.length > 0 && (
+          <>
+            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 mt-1">Recentes</p>
+            <div className="flex flex-wrap gap-1.5 mb-3">
+              {recentColors.map((c) => (
+                <button key={c}
+                  className="w-7 h-7 rounded-full border-2 border-white hover:scale-110 transition-all shadow-sm ring-1 ring-border"
+                  style={{ backgroundColor: c }}
+                  onMouseDown={(e) => { e.preventDefault(); onPick(c); onClose(); }}
+                />
+              ))}
+            </div>
+          </>
+        )}
         <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Personalizada</p>
         <div className="flex gap-2">
           <div className="flex-1 flex items-center gap-1.5 border border-border rounded-xl px-2 py-1.5 focus-within:border-[#E87A5A]/50 transition-all">
@@ -603,6 +625,21 @@ export default function NoteEditor() {
   const [hlRect, setHlRect] = useState(null);
 
   const lastSaveAt = useRef(0);
+  const savedRangeRef = useRef(null);
+
+  const saveEditorSelection = () => {
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount > 0) savedRangeRef.current = sel.getRangeAt(0).cloneRange();
+  };
+
+  const restoreEditorSelection = () => {
+    const range = savedRangeRef.current;
+    if (!range) return;
+    editorRef.current?.focus();
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+  };
 
   // Presence
   const notePresenceChannel = id ? `presence:notes:${id}` : null;
@@ -1008,7 +1045,7 @@ export default function NoteEditor() {
         {showForeColor && (
           <ColorPickerPopup type="fore"
             anchorRect={fgRect}
-            onPick={(c) => { editorRef.current?.focus(); c ? exec("foreColor", c) : exec("removeFormat"); }}
+            onPick={(c) => { restoreEditorSelection(); c ? exec("foreColor", c) : exec("removeFormat"); }}
             onClose={() => setShowForeColor(false)} />
         )}
       </AnimatePresence>
@@ -1018,7 +1055,7 @@ export default function NoteEditor() {
         {showHighlight && (
           <ColorPickerPopup type="highlight"
             anchorRect={hlRect}
-            onPick={(c) => { editorRef.current?.focus(); exec("hiliteColor", c); }}
+            onPick={(c) => { restoreEditorSelection(); exec("hiliteColor", c); }}
             onClose={() => setShowHighlight(false)} />
         )}
       </AnimatePresence>
@@ -1073,13 +1110,13 @@ export default function NoteEditor() {
                   </TBtn>
                   <div className="w-px h-6 bg-border mx-0.5" />
                   <button type="button"
-                    onMouseDown={(e) => { e.preventDefault(); setFgRect(e.currentTarget.getBoundingClientRect()); setShowForeColor((v) => !v); setShowHighlight(false); }}
+                    onMouseDown={(e) => { e.preventDefault(); saveEditorSelection(); setFgRect(e.currentTarget.getBoundingClientRect()); setShowForeColor((v) => !v); setShowHighlight(false); }}
                     title="Cor do texto"
                     className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 transition-all text-muted-foreground hover:bg-secondary">
                     <span className="text-xs font-bold leading-none" style={{ color: "#E87A5A" }}>A</span>
                   </button>
                   <button type="button"
-                    onMouseDown={(e) => { e.preventDefault(); setHlRect(e.currentTarget.getBoundingClientRect()); setShowHighlight((v) => !v); setShowForeColor(false); }}
+                    onMouseDown={(e) => { e.preventDefault(); saveEditorSelection(); setHlRect(e.currentTarget.getBoundingClientRect()); setShowHighlight((v) => !v); setShowForeColor(false); }}
                     title="Destaque"
                     className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 transition-all text-muted-foreground hover:bg-secondary">
                     <span className="text-xs font-bold leading-none px-0.5 rounded" style={{ backgroundColor: "#fef08a" }}>A</span>
