@@ -705,7 +705,7 @@ export default function TaskBoard({ sharedOwnerId, sharedRole, sharedOwnerName }
                       <div
                         ref={subProvided.innerRef}
                         {...subProvided.droppableProps}
-                        className={`mt-1.5 pl-1.5 space-y-0.5 rounded-lg transition-colors ${subSnapshot.isDraggingOver ? "bg-blue-50/60" : ""}`}
+                        className={`mt-1.5 space-y-0.5 rounded-lg transition-colors ${subSnapshot.isDraggingOver ? "bg-blue-50/60" : ""}`}
                       >
                         {[...subtasks.filter((s) => s.pinned), ...subtasks.filter((s) => !s.pinned)].map((s, sIdx) => (
                           <Draggable key={s.id} draggableId={`subtask-${s.id}`} index={sIdx}>
@@ -713,7 +713,7 @@ export default function TaskBoard({ sharedOwnerId, sharedRole, sharedOwnerName }
                               <div
                                 ref={subDrag.innerRef}
                                 {...subDrag.draggableProps}
-                                className={`flex items-center gap-1.5 rounded-md px-1 py-0.5 group/sub transition-all ${subSnap.isDragging ? "bg-white shadow-md ring-1 ring-blue-200 opacity-90" : ""}`}
+                                className={`flex items-center gap-1 rounded-md py-0.5 group/sub transition-all ${subSnap.isDragging ? "bg-white shadow-md ring-1 ring-blue-200 opacity-90" : ""}`}
                               >
                                 <span
                                   {...subDrag.dragHandleProps}
