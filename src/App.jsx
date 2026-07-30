@@ -34,6 +34,7 @@ import NoteEditor from '@/pages/NoteEditor';
 import Terms from '@/pages/Terms';
 import Privacy from '@/pages/Privacy';
 import SharedTasksView from '@/pages/SharedTasksView';
+import LandingPage from '@/pages/LandingPage';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError } = useAuth();
@@ -68,6 +69,7 @@ const AuthenticatedApp = () => {
       <Route data-source-location="App:61:6" data-dynamic-content="true" path="/reset-password" element={<ResetPassword data-source-location="App:61:45" data-dynamic-content="false" />} />
       <Route path="/terms" element={<Terms />} />
       <Route path="/privacy" element={<Privacy />} />
+      <Route path="/landing" element={<LandingPage />} />
       <Route data-source-location="App:62:6" data-dynamic-content="true" element={<ProtectedRoute data-source-location="App:62:22" data-dynamic-content="true" unauthenticatedElement={<Navigate data-source-location="App:62:62" data-dynamic-content="false" to="/login" replace />} />}>
         <Route data-source-location="App:63:8" data-dynamic-content="true" path="/" element={<Home data-source-location="App:63:33" data-dynamic-content="false" />} />
         <Route data-source-location="App:64:8" data-dynamic-content="true" path="/focus" element={<FocusPomo data-source-location="App:64:38" data-dynamic-content="false" />} />

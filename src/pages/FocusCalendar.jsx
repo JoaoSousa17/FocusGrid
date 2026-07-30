@@ -11,6 +11,7 @@ import {
 import { pt, enUS } from "date-fns/locale";
 import { useEdgeSwipeNav } from "@/hooks/useEdgeSwipeNav";
 import { useLang } from "@/context/LangContext";
+import { supabase } from "@/api/supabaseClient";
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
 const DAY_LABELS_MON_PT = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"];
@@ -114,8 +115,8 @@ export default function FocusCalendar() {
 
   const loadData = useCallback(() => {
     FocusSession.list("-created_date", 500).then(setSessions).catch(() => setSessions([]));
-    Deadline.list("-deadline", 200).then(setDeadlines).catch(() => {});
-    Event.list("-start_datetime", 200).then(setEvents).catch(() => {});
+    Deadline.list("-deadline", 200).then(setDeadlines).catch((e) => { console.error("deadline load:", e); setDeadlines([]); });
+    Event.list("-start_datetime", 200).then(setEvents).catch((e) => { console.error("event load:", e); setEvents([]); });
   }, []);
 
   useEffect(() => {
@@ -125,6 +126,22 @@ export default function FocusCalendar() {
       if (meta.ics_export_enabled !== undefined) setIcsExportEnabled(meta.ics_export_enabled);
     }).catch(() => {});
     loadData();
+  }, [loadData]);
+
+  // Real-time: reload when deadlines or events change
+  useEffect(() => {
+    const ch = supabase.channel("rt:calendar:deadlines_events")
+      .on("postgres_changes", { event: "*", schema: "public", table: "deadlines" }, loadData)
+      .on("postgres_changes", { event: "*", schema: "public", table: "events" }, loadData)
+      .subscribe();
+    return () => supabase.removeChannel(ch);
+  }, [loadData]);
+
+  // Reload when page becomes visible (user switches tab / comes back)
+  useEffect(() => {
+    const onVisible = () => { if (document.visibilityState === "visible") loadData(); };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
   }, [loadData]);
 
   const sessionsInWeek = useMemo(() =>
